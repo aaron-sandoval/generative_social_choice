@@ -1,0 +1,122 @@
+user_id,summary
+generation1,"Pros and cons of chatbot personalization:
+- Pros: Better results for personal queries
+- Cons: Limits exposure to new brands or experiences
+
+Concrete illustrative examples:
+- Personalized: Guides users towards preferred brands
+- Non-personalized: Suggests different brands, offering new experiences or options
+
+Proposed rules to regulate chatbot personalization:
+- Users define chatbot personalization during initial setup.
+- Consent-based personalized responses for medical info.
+- Limit use of purchasing behavior information.
+- Opt-in/opt-out option on startup.
+
+Reasoning behind rules:
+- To ensure user comfort and data protection.
+- To adapt to potential sensitivity of certain information (like purchasing behavior).
+- To give the user control over data usage.
+- Main argument: Users should have control over usage of their personal info, can decide to release or withhold from chatbot."
+generation2,"- Pros and cons of chatbot personalization: Pros: Improved responses, human-like thought process, improved communication. Cons: May result in feedback that's overly gentle, privacy concerns due to handling of sensitive health data.
+- Concrete illustrative examples: Example 1: Personalized chatbot helps avoid workplace conflict due to user's history of aggression, but may provide too gentle feedback. Example 2: Personalized chatbot recommends suitable birth control based on user's health data but raises concerns about how this data is stored.
+- Proposed rules to regulate chatbot personalization: Users must be at least 18 to opt in for chatbot personalization. 
+- Reasoning behind rules: Adults are better positioned to understand the use of technology and the implications of disclosing personal information."
+generation3,LLM_TODO
+generation4,LLM_TODO
+generation5,LLM_TODO
+generation6,LLM_TODO
+generation7,LLM_TODO
+generation8,LLM_TODO
+generation9,LLM_TODO
+generation10,LLM_TODO
+generation11,LLM_TODO
+generation12,LLM_TODO
+generation13,LLM_TODO
+generation14,LLM_TODO
+generation15,LLM_TODO
+generation16,LLM_TODO
+generation17,LLM_TODO
+generation18,LLM_TODO
+generation19,LLM_TODO
+generation20,LLM_TODO
+generation21,LLM_TODO
+generation22,LLM_TODO
+generation23,LLM_TODO
+generation24,LLM_TODO
+generation25,LLM_TODO
+generation26,LLM_TODO
+generation27,LLM_TODO
+generation28,LLM_TODO
+generation29,LLM_TODO
+generation30,LLM_TODO
+generation31,LLM_TODO
+generation32,LLM_TODO
+generation33,LLM_TODO
+generation34,LLM_TODO
+generation35,LLM_TODO
+generation36,LLM_TODO
+generation37,LLM_TODO
+generation38,LLM_TODO
+generation39,LLM_TODO
+generation40,LLM_TODO
+generation41,LLM_TODO
+generation42,LLM_TODO
+generation43,LLM_TODO
+generation44,LLM_TODO
+generation45,LLM_TODO
+generation46,LLM_TODO
+generation47,LLM_TODO
+generation48,LLM_TODO
+generation49,LLM_TODO
+generation50,LLM_TODO
+generation51,LLM_TODO
+generation52,LLM_TODO
+generation53,LLM_TODO
+generation54,LLM_TODO
+generation55,LLM_TODO
+generation56,LLM_TODO
+generation57,LLM_TODO
+generation58,LLM_TODO
+generation59,LLM_TODO
+generation60,LLM_TODO
+generation61,LLM_TODO
+generation62,LLM_TODO
+generation63,LLM_TODO
+generation64,LLM_TODO
+generation65,LLM_TODO
+generation66,LLM_TODO
+generation67,LLM_TODO
+generation68,LLM_TODO
+generation69,LLM_TODO
+generation70,LLM_TODO
+generation71,LLM_TODO
+generation72,LLM_TODO
+generation73,LLM_TODO
+generation74,LLM_TODO
+generation75,LLM_TODO
+generation76,LLM_TODO
+generation77,LLM_TODO
+generation78,LLM_TODO
+generation79,LLM_TODO
+generation80,LLM_TODO
+generation81,LLM_TODO
+generation82,LLM_TODO
+generation83,LLM_TODO
+generation84,LLM_TODO
+generation85,LLM_TODO
+generation86,LLM_TODO
+generation87,LLM_TODO
+generation88,LLM_TODO
+generation89,LLM_TODO
+generation90,LLM_TODO
+generation91,LLM_TODO
+generation92,LLM_TODO
+generation93,LLM_TODO
+generation94,LLM_TODO
+generation95,LLM_TODO
+generation96,LLM_TODO
+generation97,LLM_TODO
+generation98,LLM_TODO
+generation99,LLM_TODO
+generation100,LLM_TODO
