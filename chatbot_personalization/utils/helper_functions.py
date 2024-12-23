@@ -22,6 +22,6 @@ def get_base_dir_path():
 
 def get_time_string():
     now = datetime.now()
-    time_string = now.strftime("%Y-%m-%d-%H:%M:%S")
+    time_string = now.strftime("%Y-%m-%d-%H%M%S")
 
     return time_string
