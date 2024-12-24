@@ -172,5 +172,8 @@ cython_debug/
 # VSCode
 .vscode/
 
+# LibreOffice
+.~lock.*
+
 # Windows dumb stuff
 *.bak
