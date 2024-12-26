@@ -63,7 +63,7 @@ def generate_summaries(num_agents: Optional[int] = None, model: str = "default")
 
     # Generate summaries of chosen users
 
-    for user_id in user_ids:
+    for user_id in user_ids[:5]:
         n_todos = (df.loc[user_id] == completer.todo_marker).sum().sum()
 
         log = []
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         "--model",
         type=str,
         default="default",
-        help="If 'default', will use gpt-4-32k-0613, to exactly reproduce our experiments (subject to LLM stochasticity). Otherwise, will use the specified model.",
+        help="Default is gpt-4o-mini-2024-07-18. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
     )
 
     args = parser.parse_args()

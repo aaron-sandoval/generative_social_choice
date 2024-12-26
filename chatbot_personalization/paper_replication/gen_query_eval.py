@@ -211,7 +211,7 @@ if __name__ == "__main__":
         "--model",
         type=str,
         default="default",
-        help="Specify a model to use for all queries. The default coresponds to what we used in our experiments (late 2023): gpt-4-base for the discriminative queries and gpt-4-32k-0613 for the generative queries. In case these models are inaccessible or expensive, you can specify a different model here (e.g. gpt-4o or gpt-4o-mini).",
+        help="Specify a model to use for all queries. Default is gpt-4o-mini-2024-07-18. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
     )
 
     parser.add_argument(

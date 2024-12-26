@@ -161,7 +161,7 @@ class ChatbotPersonalizationGenerator(Generator):
         *,
         seed: int | None = None,
         gpt_temperature=0.0,
-        model: str = "gpt-4-32k-0613",
+        model: str = "gpt-4o-mini-2024-07-18",
     ):
         self.info = f"(seed={seed}, gpt_temperature={gpt_temperature})"
 
@@ -230,7 +230,7 @@ class SubsamplingChatbotPersonalizationGenerator(ChatbotPersonalizationGenerator
         sample_size: int,
         seed=0,
         gpt_temperature=0.0,
-        model: str = "gpt-4-32k-0613",
+        model: str = "gpt-4o-mini-2024-07-18",
     ):
         self.sample_size = sample_size
         super().__init__(seed=seed, gpt_temperature=gpt_temperature, model=model)
@@ -284,7 +284,7 @@ class NearestNeighborChatbotPersonalizationGenerator(ChatbotPersonalizationGener
         nbhd_size: int,
         seed=0,
         gpt_temperature=0,
-        model: str = "gpt-4-32k-0613",
+        model: str = "gpt-4o-mini-2024-07-18",
     ):
         self.sample_size = sample_size
         self.nbhd_size = nbhd_size
