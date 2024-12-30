@@ -2,12 +2,21 @@
 Temporary pseudocode for brainstorming methods for generating a slate of statements
 """
 
+from dataclasses import dataclass
 from math import ceil
 
 
 # Assume these functions are defined somewhere
-Constituent = str
+@dataclass
+class Constituent:
+    id: str
+    survey_responses: list[str]
+
+
 def k_means(N: list[Constituent], j: int) -> list[set[Constituent]]:
+    """
+    Clusters constituents into j disjoint sets
+    """
     pass
 
 def GEN(S: list[Constituent], j: int) -> str:
@@ -16,7 +25,7 @@ def GEN(S: list[Constituent], j: int) -> str:
 def DISC(c: Constituent, statement: str) -> float:
     pass
 
-def generate_slate(N: list[Constituent], u_min, k_max):
+def generate_slate(N: list[Constituent], u_min: float, k_max: int):
     """
     N: the set of survey respondents/constituents/agents
     n: number of survey respondents/constituents/agents
@@ -25,7 +34,6 @@ def generate_slate(N: list[Constituent], u_min, k_max):
     k: size of final slate
     k_min: Possible user-defined constraint on the minimum size of slate
     k_max: Possible user-defined constraint on the maximum size of slate
-    k_means(N, j) -> list[set[Constituent]]: function which clusters constituents into j sets
 
     """
     # Calculate the minimum group size that must be represented
