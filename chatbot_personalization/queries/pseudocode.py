@@ -67,7 +67,7 @@ def generate_slate(N: list[Constituent], u_min, k_max):
             for cluster in clusters:
                 cluster.difference_update(clusters[0])
         else: # This cluster was too big to be represented by a single statement, try for a smaller cluster on the next iteration
-            pass
+            clusters.pop(0)
     
     # Assign remaining unrepresented constituents to the statement that maximizes their utility
     for constituent in unrepresented_constituents:
