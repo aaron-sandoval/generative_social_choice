@@ -27,6 +27,7 @@ def DISC(c: Constituent, statement: str) -> float:
 
 def generate_slate(N: list[Constituent], u_min: float, k_max: int):
     """
+    # Variables
     N: the set of survey respondents/constituents/agents
     n: number of survey respondents/constituents/agents
     u_i: The utility function mapping statements to their utility according to constituent i
@@ -34,6 +35,15 @@ def generate_slate(N: list[Constituent], u_min: float, k_max: int):
     k: size of final slate
     k_min: Possible user-defined constraint on the minimum size of slate
     k_max: Possible user-defined constraint on the maximum size of slate
+
+    # Algorithm NL Description
+    NL description:
+    - Iteratively find the biggest clusters which satisfy the min. satisfaction req’t.
+    - Stop at whichever condition happens last:
+        - No statement can satisfy min. satisfaction for a group of size ceil(N / k_max)
+        - k_max statements have been created
+
+
 
     """
     # Calculate the minimum group size that must be represented
