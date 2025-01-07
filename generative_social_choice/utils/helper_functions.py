@@ -8,7 +8,7 @@ def get_base_dir_path():
     Returns local system path to the directory where the generative social choice package is.
     So, this is the directory where utils/, test/, etc are.
     """
-    base_dir_name = "chatbot_personalization"
+    base_dir_name = "generative_social_choice"
 
     path = Path(os.path.abspath(os.path.dirname(__file__)))
     current_path_parts = list(path.parts)
