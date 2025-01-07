@@ -8,7 +8,7 @@ from chatbot_personalization.queries.query_chatbot_personalization import (
     ChatbotPersonalizationAgent,
     ChatbotPersonalizationGenerator,
 )
-from chatbot_personalization.slates.generate_slate_ensemble_greedy import (
+from chatbot_personalization.slates.generate_slate import (
     generate_slate_ensemble_greedy,
 )
 from chatbot_personalization.utils.helper_functions import get_base_dir_path

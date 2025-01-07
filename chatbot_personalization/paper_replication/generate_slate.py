@@ -9,7 +9,7 @@ from chatbot_personalization.queries.query_chatbot_personalization import (
     SubsamplingChatbotPersonalizationGenerator,
     NearestNeighborChatbotPersonalizationGenerator,
 )
-from chatbot_personalization.slates.generate_slate_ensemble_greedy import (
+from chatbot_personalization.slates.generate_slate import (
     generate_slate_ensemble_greedy,
 )
 import random
