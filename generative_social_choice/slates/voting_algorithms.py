@@ -57,8 +57,12 @@ def _phragmen_update_assignments(
         new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate] - old_assignments["utility"]).sum()
     elif load_magnitude_method == "marginal_slate":
         is_first_assignment_voters = new_assignments.loc[new_assignments["2nd_selected_candidate_id"]].isna()
-        # TODO: get marginal utility wrt 2nd-favorite candidate
-        new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate] - rated_votes[is_first_assignment_voters, old_assignments["candidate_id"]]).sum()
+        marginal_utility = reassignments["utility"] - new_assignments[~is_first_assignment_voters, "2nd_selected_candidate_id"] - BASELINE_UTILITY * len(is_first_assignment_voters)
+        new_candidate_total_load: float = 1 / (marginal_utility.sum())
+
+        # Update 2nd-favorite candidate for each voter
+        new_2nd_favorite_voters = rated_votes[~is_reassigned, candidate] >= new_assignments[~is_reassigned, "2nd_selected_candidate_id"]
+        new_assignments.loc[new_2nd_favorite_voters, "2nd_selected_candidate_id"] = candidate
     elif load_magnitude_method == "total":
         new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate].sum())
     else:
