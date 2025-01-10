@@ -143,3 +143,15 @@ def seq_phragmen_minimax_rated(
                 rated_votes,
                 candidate,
             )
+            if assignments_with_candidate["load"].min() < min_load:
+                min_load = assignments_with_candidate["load"].min()
+                min_load_candidate_id = candidate
+        
+        slate.append(min_load_candidate_id)
+        assignments = _phragmen_update_assignments(
+            assignments,
+            rated_votes,
+            min_load_candidate_id,
+        )
+    
+    return slate, assignments
