@@ -1,5 +1,7 @@
 import unittest
 from typing import Optional, Sequence
+# from collections import frozenset
+
 import pandas as pd
 
 from generative_social_choice.slates.voting_algorithms import (
@@ -12,7 +14,7 @@ class TestVotingAlgorithms(unittest.TestCase):
         self,
         rated_votes: pd.DataFrame,
         slate_size: int,
-        pareto_efficient_slates: Sequence[list[int]],
+        pareto_efficient_slates: Sequence[tuple[int]],
         egalitarian_utilitarian: Optional[float] = None,
         expected_assignments: Optional[pd.DataFrame] = None,
     ):
@@ -37,20 +39,25 @@ class TestVotingAlgorithms(unittest.TestCase):
         self.assertEqual(len(assignments), len(rated_votes))
 
         # Check that the selected slate is among the Pareto efficient slates
-        self.assertSetEqual(set(slate), set(pareto_efficient_slates))
+        assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in pareto_efficient_slates})
 
         # Check that the assignments are valid
         if expected_assignments is not None:
             assert pd.DataFrame.equals(assignments.candidate_id, expected_assignments.candidate_id)
-            assert pd.DataFrame.equals(assignments.utility, expected_assignments.utility)
-            assert pd.DataFrame.equals(assignments.load, expected_assignments.load)
-            assert pd.DataFrame.equals(assignments["utility_previous"], expected_assignments["utility_previous"])
-            assert pd.DataFrame.equals(assignments["2nd_selected_candidate_id"], expected_assignments["2nd_selected_candidate_id"])
+            if "utility" in expected_assignments.columns:
+                assert pd.DataFrame.equals(assignments.utility, expected_assignments.utility)
+            if "load" in expected_assignments.columns:
+                assert pd.DataFrame.equals(assignments.load, expected_assignments.load)
+            if "utility_previous" in expected_assignments.columns:
+                assert pd.DataFrame.equals(assignments["utility_previous"], expected_assignments["utility_previous"])
+            if "second_selected_candidate_id" in expected_assignments.columns:
+                assert pd.DataFrame.equals(assignments["second_selected_candidate_id"], expected_assignments["second_selected_candidate_id"])
 
     def test_seq_phragmen_slatesize1(self):
         self.seq_phragmen_minimax_rated_test(
             rated_votes=pd.DataFrame([[1, 2, 3], [1, 2, 3], [1, 2, 3]], columns=["s1", "s2", "s3"]),
             slate_size=1,
             pareto_efficient_slates=[["s3"]],
+            expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
         )
 

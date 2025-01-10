@@ -114,7 +114,7 @@ def seq_phragmen_minimax_rated(
     rated_votes: pd.DataFrame,
     slate_size: int,
     egalitarian_utilitarian: float = 1.0,
-) -> tuple[list[str], pd.Series]:
+) -> tuple[list[str], pd.DataFrame]:
     """
     Sequential Phragmen Maximin Algorithm for rated voting.
 
@@ -127,7 +127,13 @@ def seq_phragmen_minimax_rated(
 
     # Returns
     - `slate: List[int]`: The slate of candidates to be selected
-    - `assignments: pd.Series`: The assignments of the candidates to the voters
+    - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+        - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+          - Other columns are returned for debugging purposes
+        - `load`: The load of the candidate
+        - `utility`: The utility of the voter for the candidate
+        - `utility_previous`: The utility of the voter for the candidate before the current assignment
+        - `second_selected_candidate_id`: The 2nd-favorite candidate for each voter among the candidates in the current slate
     """
     # TODO: Figure out egalitarian_utilitarian
 
@@ -171,9 +177,9 @@ def seq_phragmen_minimax_rated(
         slate.append(min_load_candidate_id)
         assignments = min_load_assignments
         rejected_candidates.update(set(slate) ^ set(assignments["candidate_id"]))
-        valid_candidates = set(rated_votes.columns) - rejected_candidates
+        valid_candidates -= rejected_candidates.union(slate)  # Remove candidates not to be considered in the next iteration
     
-    # Remove the null candidate column
+    # Remove the null candidate column in case the modification would persist outside the function
     rated_votes = rated_votes.drop(columns=[NULL_CANDIDATE_ID])
 
-    return slate, assignments["candidate_id"]
+    return slate, assignments
