@@ -57,7 +57,9 @@ def _phragmen_update_assignments(
         new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate] - old_assignments["utility"]).sum()
     elif load_magnitude_method == "marginal_slate":
         is_first_assignment_voters = new_assignments.loc[new_assignments["2nd_selected_candidate_id"]].isna()
-        marginal_utility = reassignments["utility"] - new_assignments[~is_first_assignment_voters, "2nd_selected_candidate_id"] - BASELINE_UTILITY * len(is_first_assignment_voters)
+        marginal_utility = reassignments["utility"]
+        marginal_utility -= new_assignments[~is_first_assignment_voters, "2nd_selected_candidate_id"]
+        marginal_utility[is_first_assignment_voters] -= BASELINE_UTILITY
         new_candidate_total_load: float = 1 / (marginal_utility.sum())
 
         # Update 2nd-favorite candidate for each voter
@@ -76,14 +78,23 @@ def _phragmen_update_assignments(
         new_assignments.loc[is_reassigned, "load"] += new_candidate_loads
     
     if redistribute_defected_candidate_loads:
-        affected_candidates = old_assignments["candidate_id"].unique()
-        for candidate in affected_candidates:
+        affected_candidates = old_assignments[is_reassigned, "candidate_id"].unique()
+        for affected_cand in affected_candidates:
+            affected_cand_voters = new_assignments[new_assignments["candidate_id"] == affected_cand]
             if load_magnitude_method == "marginal_previous":
-                defected_cand_total_load = 1 / (new_assignments.loc[new_assignments["candidate_id"] == candidate, "utility_previous"] - old_assignments.loc[old_assignments["candidate_id"] == candidate, "utility_previous"]).sum()
+                marginal_utility = affected_cand_voters["utility"] - affected_cand_voters["utility_previous"]
+                # defected_cand_total_load = 1 / (affected_cand_voters["utility_previous"] - old_assignments.loc[old_assignments["candidate_id"] == affected_cand, "utility_previous"]).sum()
             elif load_magnitude_method == "marginal_slate":
-                defected_cand_total_load = 1 / ()
-                # TODO: get marginal utility wrt 2nd-favorite candidate
-                
+                is_first_assignment_voters = affected_cand_voters.loc[affected_cand_voters["2nd_selected_candidate_id"]].isna()
+                marginal_utility = affected_cand_voters["utility"] 
+                marginal_utility -= affected_cand_voters[~is_first_assignment_voters, "2nd_selected_candidate_id"]
+                marginal_utility[is_first_assignment_voters] -= BASELINE_UTILITY
+            elif load_magnitude_method == "total":
+                marginal_utility = affected_cand_voters["utility"]
+
+            # Redistribute the loads
+            defected_cand_total_load = 1 / (marginal_utility.sum())
+            new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility / defected_cand_total_load**2
 
     return new_assignments
 
