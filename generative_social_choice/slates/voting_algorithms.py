@@ -55,29 +55,30 @@ def _phragmen_update_assignments(
     new_assignments.loc[is_reassigned, "utility_previous"] = reassignments["utility"] # TODO: Check that this makes a deep copy
     new_assignments.loc[is_reassigned, "utility"] = rated_votes[candidate]
 
-    if load_magnitude_method == "marginal_previous":
-        new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate] - old_assignments["utility"]).sum()
-    elif load_magnitude_method == "marginal_slate":
-        # is_first_assignment_voters = new_assignments.loc[is_reassigned, "second_selected_candidate_id"].isna()
-        marginal_utility = new_assignments.loc[is_reassigned, "utility"]
-        next_best_utility = np.diag(rated_votes.loc[reassignments.index, new_assignments.loc[is_reassigned, "second_selected_candidate_id"]].to_numpy())
-        marginal_utility -= pd.Series(next_best_utility, index=reassignments.index).fillna(BASELINE_UTILITY)
-        new_candidate_total_load: float = 1 / (marginal_utility.sum())
+    if any(is_reassigned):
+        if load_magnitude_method == "marginal_previous":
+            new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate] - old_assignments["utility"]).sum()
+        elif load_magnitude_method == "marginal_slate":
+            # is_first_assignment_voters = new_assignments.loc[is_reassigned, "second_selected_candidate_id"].isna()
+            marginal_utility = new_assignments.loc[is_reassigned, "utility"]
+            next_best_utility = np.diag(rated_votes.loc[reassignments.index, new_assignments.loc[is_reassigned, "second_selected_candidate_id"]].to_numpy())
+            marginal_utility -= pd.Series(next_best_utility, index=reassignments.index).fillna(BASELINE_UTILITY)
+            new_candidate_total_load: float = 1 / (marginal_utility.sum())
 
-        # Update 2nd-favorite candidate for each voter
-        # https://pandas.pydata.org/docs/user_guide/indexing.html#looking-up-values-by-index-column-labels
-        rated_votes["second_fav_cand_id"] = new_assignments.second_selected_candidate_id
-        idx, cols = pd.factorize(rated_votes["second_fav_cand_id"])
-        cur_2nd_fav_utility = pd.Series(rated_votes.reindex(cols, axis=1).to_numpy()[np.arange(len(rated_votes)), idx], index=rated_votes.index)
-        new_2nd_favorite_voters = (rated_votes[candidate] >= cur_2nd_fav_utility) & ~is_reassigned
-        new_assignments.loc[new_2nd_favorite_voters, "second_selected_candidate_id"] = candidate
-    elif load_magnitude_method == "total":
-        new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate].sum())
-    else:
-        raise ValueError(f"Invalid load magnitude method: {load_magnitude_method}")
+            # Update 2nd-favorite candidate for each voter
+            # https://pandas.pydata.org/docs/user_guide/indexing.html#looking-up-values-by-index-column-labels
+            rated_votes["second_fav_cand_id"] = new_assignments.second_selected_candidate_id
+            idx, cols = pd.factorize(rated_votes["second_fav_cand_id"])
+            cur_2nd_fav_utility = pd.Series(rated_votes.reindex(cols, axis=1).to_numpy()[np.arange(len(rated_votes)), idx], index=rated_votes.index)
+            new_2nd_favorite_voters = (rated_votes[candidate] >= cur_2nd_fav_utility) & ~is_reassigned
+            new_assignments.loc[new_2nd_favorite_voters, "second_selected_candidate_id"] = candidate
+        elif load_magnitude_method == "total":
+            new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate].sum())
+        else:
+            raise ValueError(f"Invalid load magnitude method: {load_magnitude_method}")
     
     # Calculate the loads for the reassigned voters
-    new_candidate_loads: pd.Series = rated_votes.loc[is_reassigned, candidate] * new_candidate_total_load**2
+        new_candidate_loads: pd.Series = rated_votes.loc[is_reassigned, candidate] * new_candidate_total_load**2
     if clear_reassigned_loads:
         new_assignments.loc[is_reassigned, "load"] = new_candidate_loads
     else:
@@ -113,7 +114,7 @@ def seq_phragmen_minimax_rated(
     rated_votes: pd.DataFrame,
     slate_size: int,
     egalitarian_utilitarian: float = 1.0,
-) -> tuple[list[int], pd.Series]:
+) -> tuple[list[str], pd.Series]:
     """
     Sequential Phragmen Maximin Algorithm for rated voting.
 
@@ -131,7 +132,8 @@ def seq_phragmen_minimax_rated(
     # TODO: Figure out egalitarian_utilitarian
 
     # Initialize the slate and assignments
-    slate: list[int] = []
+    slate: list[str] = []
+    rejected_candidates: set[str] = {NULL_CANDIDATE_ID}  # Candidates that have been added to the slate and later had all their voters defect
     assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
     cols={"candidate_id": str, "load": float, "utility": float, "utility_previous": float, "second_selected_candidate_id": str}
     for col, dtype in cols.items():
@@ -145,11 +147,17 @@ def seq_phragmen_minimax_rated(
     assignments["candidate_id"] = NULL_CANDIDATE_ID
     rated_votes[NULL_CANDIDATE_ID] = BASELINE_UTILITY  # Append a column for the null candidate
 
-    for i in range(slate_size):
+    i = 0
+    valid_candidates = set(rated_votes.columns) - rejected_candidates
+
+    while len(slate) < slate_size and i <= len(rated_votes.columns)+1:
+        i += 1
         min_load = float("inf")
-        min_load_candidate_id: int = -1
+        min_load_candidate_id: int = NULL_CANDIDATE_ID
         # min_load_assignments = assignments.copy()
-        for candidate in rated_votes.columns:
+        for candidate in valid_candidates:
+            if candidate == NULL_CANDIDATE_ID:
+                continue
             assignments_with_candidate = _phragmen_update_assignments(
                 assignments,
                 rated_votes,
@@ -162,8 +170,10 @@ def seq_phragmen_minimax_rated(
 
         slate.append(min_load_candidate_id)
         assignments = min_load_assignments
+        rejected_candidates.update(set(slate) ^ set(assignments["candidate_id"]))
+        valid_candidates = set(rated_votes.columns) - rejected_candidates
     
     # Remove the null candidate column
     rated_votes = rated_votes.drop(columns=[NULL_CANDIDATE_ID])
 
-    return slate, min_load_assignments
+    return slate, assignments["candidate_id"]
