@@ -15,6 +15,7 @@ class TestVotingAlgorithms(unittest.TestCase):
         rated_votes: pd.DataFrame,
         slate_size: int,
         pareto_efficient_slates: Sequence[tuple[int]],
+        non_extremal_pareto_efficient_slates: Optional[Sequence[tuple[int]]] = None,
         egalitarian_utilitarian: Optional[float] = None,
         expected_assignments: Optional[pd.DataFrame] = None,
     ):
@@ -25,7 +26,8 @@ class TestVotingAlgorithms(unittest.TestCase):
         - `rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
         - `slate_size: int`: The number of candidates to be selected
         - `pareto_efficient_slates: Sequence[list[int]]`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
-          - One test case is that the selected slate is among the Pareto efficient slates.
+        - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
+          - Subset of `pareto_efficient_slates` which don't make arbitrarily large egalitarian-utilitarian sacrifices in either direction.
         - `egalitarian_utilitarian: Optional[float] = None`: The egalitarian-utilitarian trade-off parameter
         """
         slate, assignments = seq_phragmen_minimax_rated(
@@ -39,7 +41,10 @@ class TestVotingAlgorithms(unittest.TestCase):
         self.assertEqual(len(assignments), len(rated_votes))
 
         # Check that the selected slate is among the Pareto efficient slates
-        assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in pareto_efficient_slates})
+        assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+
+        if non_extremal_pareto_efficient_slates is not None:
+            assert frozenset(slate) not in frozenset({frozenset(pareto_slate) for pareto_slate in non_extremal_pareto_efficient_slates}), "The selected slate is an extremal Pareto efficient slate"
 
         # Check that the assignments are valid
         if expected_assignments is not None:
