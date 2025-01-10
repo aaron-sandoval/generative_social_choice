@@ -29,6 +29,7 @@ class TestVotingAlgorithms(unittest.TestCase):
         - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
           - Subset of `pareto_efficient_slates` which don't make arbitrarily large egalitarian-utilitarian sacrifices in either direction.
         - `egalitarian_utilitarian: Optional[float] = None`: The egalitarian-utilitarian trade-off parameter
+        - `expected_assignments: Optional[pd.DataFrame] = None`: If there is a singular expected assignment w
         """
         slate, assignments = seq_phragmen_minimax_rated(
             rated_votes,
