@@ -47,5 +47,10 @@ class TestVotingAlgorithms(unittest.TestCase):
             assert pd.DataFrame.equals(assignments["utility_previous"], expected_assignments["utility_previous"])
             assert pd.DataFrame.equals(assignments["2nd_selected_candidate_id"], expected_assignments["2nd_selected_candidate_id"])
 
-
+    def test_seq_phragmen_slatesize1(self):
+        self.seq_phragmen_minimax_rated_test(
+            rated_votes=pd.DataFrame([[1, 2, 3], [1, 2, 3], [1, 2, 3]], columns=["s1", "s2", "s3"]),
+            slate_size=1,
+            pareto_efficient_slates=[["s3"]],
+        )
 
