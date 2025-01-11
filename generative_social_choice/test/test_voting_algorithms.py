@@ -37,27 +37,31 @@ class TestVotingAlgorithms(unittest.TestCase):
             slate_size,
         )
 
-        self.assertEqual(len(slate), slate_size)
-        self.assertEqual(len(set(slate)), len(slate))
-        self.assertEqual(len(assignments), len(rated_votes))
+        with self.subTest(msg="Functionality"):
+            self.assertEqual(len(slate), slate_size)
+            self.assertEqual(len(set(slate)), len(slate))
+            self.assertEqual(len(assignments), len(rated_votes))
 
-        # Check that the selected slate is among the Pareto efficient slates
-        assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+        with self.subTest(msg="Pareto efficient"):
+            assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
 
         if non_extremal_pareto_efficient_slates is not None:
-            assert frozenset(slate) not in frozenset({frozenset(pareto_slate) for pareto_slate in non_extremal_pareto_efficient_slates}), "The selected slate is an extremal Pareto efficient slate"
+            with self.subTest(msg="Non-extremal Pareto efficient"):
+                assert frozenset(slate) not in {frozenset(pareto_slate) for pareto_slate in non_extremal_pareto_efficient_slates}, "The selected slate is an extremal Pareto efficient slate"
 
         # Check that the assignments are valid
         if expected_assignments is not None:
-            assert pd.DataFrame.equals(assignments.candidate_id, expected_assignments.candidate_id)
-            if "utility" in expected_assignments.columns:
-                assert pd.DataFrame.equals(assignments.utility, expected_assignments.utility)
-            if "load" in expected_assignments.columns:
-                assert pd.DataFrame.equals(assignments.load, expected_assignments.load)
-            if "utility_previous" in expected_assignments.columns:
-                assert pd.DataFrame.equals(assignments["utility_previous"], expected_assignments["utility_previous"])
-            if "second_selected_candidate_id" in expected_assignments.columns:
-                assert pd.DataFrame.equals(assignments["second_selected_candidate_id"], expected_assignments["second_selected_candidate_id"])
+            with self.subTest(msg="Assignments"):
+                assert pd.DataFrame.equals(assignments.candidate_id, expected_assignments.candidate_id)
+            with self.subTest(msg="Assignments other columns"):
+                if "utility" in expected_assignments.columns:
+                    assert pd.DataFrame.equals(assignments.utility, expected_assignments.utility)
+                if "load" in expected_assignments.columns:
+                    assert pd.DataFrame.equals(assignments.load, expected_assignments.load)
+                if "utility_previous" in expected_assignments.columns:
+                    assert pd.DataFrame.equals(assignments["utility_previous"], expected_assignments["utility_previous"])
+                if "second_selected_candidate_id" in expected_assignments.columns:
+                    assert pd.DataFrame.equals(assignments["second_selected_candidate_id"], expected_assignments["second_selected_candidate_id"])
 
     def test_seq_phragmen_slatesize1(self):
         self.seq_phragmen_minimax_rated_test(
