@@ -5,8 +5,7 @@ from typing import Optional, Sequence
 import pandas as pd
 
 from generative_social_choice.slates.voting_algorithms import (
-    _phragmen_update_assignments,
-    seq_phragmen_minimax_rated,
+    SequentialPhragmenMinimax,
 )
 
 class TestVotingAlgorithms(unittest.TestCase):
@@ -31,10 +30,11 @@ class TestVotingAlgorithms(unittest.TestCase):
         - `egalitarian_utilitarian: Optional[float] = None`: The egalitarian-utilitarian trade-off parameter
         - `expected_assignments: Optional[pd.DataFrame] = None`: If there is a singular expected assignment w
         """
-        slate, assignments = seq_phragmen_minimax_rated(
+        
+        voting_algorithm = SequentialPhragmenMinimax()
+        slate, assignments = voting_algorithm.vote(
             rated_votes,
             slate_size,
-            egalitarian_utilitarian,
         )
 
         self.assertEqual(len(slate), slate_size)

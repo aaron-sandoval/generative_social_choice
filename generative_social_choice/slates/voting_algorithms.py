@@ -4,7 +4,7 @@ import abc
 import pandas as pd
 import numpy as np
 import os
-from typing import Optional, Literal
+from typing import Optional, Literal, override
 from tqdm import tqdm
 import concurrent.futures
 
@@ -32,6 +32,10 @@ NULL_CANDIDATE_ID = "NULL_CAND"
 
 @dataclass(frozen=True)
 class VotingAlgorithm(abc.ABC):
+    """
+    Abstract base class for a voting algorithm.
+    """
+
     @abc.abstractmethod
     def vote(
         self,
@@ -41,11 +45,22 @@ class VotingAlgorithm(abc.ABC):
     ) -> tuple[list[str], pd.DataFrame]:
         """
         Select a slate of candidates and assign them to the voters.
+
+        # Arguments
+        - `rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+        - `slate_size: int`: The number of candidates to be selected
+
+        # Returns
+        - `slate: list[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: The candidate to which the voter is assigned
+            - Various other columns may be present depending on the algorithm
         """
+
 
 class TunableVotingAlgorithm(VotingAlgorithm):
     """
-    A voting algorithm that can be tuned by a hyperparameter.
+    A voting algorithm whose egalitarian-utilitarian trade-off can be tuned by a hyperparameter.
 
     # Arguments
     - `egalitarian_utilitarian: float = 1.0`: Hyperparameter governing the egalitarian-utilitarian trade-off.
@@ -55,11 +70,12 @@ class TunableVotingAlgorithm(VotingAlgorithm):
     egalitarian_utilitarian: float = 0.5
 
 
-class SequentialPhragmenMinimax(TunableVotingAlgorithm):
+class SequentialPhragmenMinimax(VotingAlgorithm):
     load_magnitude_method: Phragmen_Load_Magnitude = "marginal_slate"
     clear_reassigned_loads: bool = True
     redistribute_defected_candidate_loads: bool = True
 
+    @override
     def vote(
         self,
         rated_votes: pd.DataFrame,
@@ -67,20 +83,11 @@ class SequentialPhragmenMinimax(TunableVotingAlgorithm):
         **kwargs,
     ) -> tuple[list[str], pd.DataFrame]:
         """
-        Sequential Phragmen Maximin Algorithm for rated voting.
-
-        Adaptation of the Sequential Phragmen Minimax Voting Algorithm to rated voting.
-
-        # Arguments
-        - `rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
-        - `slate_size: int`: The number of candidates to be selected
-        - `egalitarian_utilitarian: float = 1.0`: Hyperparameter governing the egalitarian-utilitarian trade-off.
-
         # Returns
         - `slate: List[str]`: The slate of candidates to be selected
         - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
             - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
-            - Other columns are returned for debugging purposes
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
             - `load`: The load of the candidate
             - `utility`: The utility of the voter for the candidate
             - `utility_previous`: The utility of the voter for the candidate before the current assignment
