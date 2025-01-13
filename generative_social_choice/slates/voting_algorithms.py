@@ -52,6 +52,14 @@ class VotingAlgorithm(abc.ABC):
             - `candidate_id`: The candidate to which the voter is assigned
             - Various other columns may be present depending on the algorithm
         """
+        pass
+
+    @property
+    def name(self) -> str:
+        """
+        Succinct name of the voting algorithm, used in labeling test cases.
+        """
+        return repr(self)
 
 
 @dataclass(frozen=True)
@@ -72,6 +80,10 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
     load_magnitude_method: Phragmen_Load_Magnitude = "marginal_slate"
     clear_reassigned_loads: bool = True
     redistribute_defected_candidate_loads: bool = True
+
+    @property
+    def name(self) -> str:
+        return f"Phragmen({self.load_magnitude_method}, clear={self.clear_reassigned_loads}, redistr={self.redistribute_defected_candidate_loads})"
 
     @override
     def vote(
