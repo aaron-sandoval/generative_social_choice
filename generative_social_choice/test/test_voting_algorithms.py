@@ -52,12 +52,14 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
         slate_size=1,
         pareto_efficient_slates=[["s3"]],
+        non_extremal_pareto_efficient_slates=[["s3"]],
         expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
         slate_size=1,
         pareto_efficient_slates=[["s1"]],
+        non_extremal_pareto_efficient_slates=[["s1"]],
         expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
     ),
 )
@@ -101,7 +103,7 @@ class TestVotingAlgorithms(unittest.TestCase):
 
         if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
             with self.subTest(msg="3 Non-extremal Pareto efficient"):
-                assert frozenset(slate) not in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is an extremal Pareto efficient slate"
+                assert frozenset(slate) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
         # Check that the assignments are valid
         if rated_vote_case.expected_assignments is not None:
