@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def get_base_dir_path() -> Path:
@@ -21,7 +21,7 @@ def get_base_dir_path() -> Path:
 
 
 def get_time_string() -> str:
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     time_string = now.strftime("%Y-%m-%d-%H%M%S")
 
     return time_string

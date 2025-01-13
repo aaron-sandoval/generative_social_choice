@@ -121,7 +121,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         rated_votes[NULL_CANDIDATE_ID] = BASELINE_UTILITY  # Append a column for the null candidate
 
         i = 0
-        valid_candidates = set(rated_votes.columns) - rejected_candidates
+        valid_candidates = set(rated_votes.loc[:, :NULL_CANDIDATE_ID].columns) - rejected_candidates
 
         while len(slate) < slate_size and i <= len(rated_votes.columns)+1:
             i += 1
@@ -155,7 +155,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         self,
         assignments: pd.DataFrame,
         rated_votes: pd.DataFrame,
-        candidate: int,
+        candidate: str,
     ) -> pd.DataFrame:
         """
         Update the assignments of the voters to the candidates.
@@ -168,6 +168,9 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         - `clear_reassigned_loads: bool`: Whether to clear the loads of the reassigned voters or add them to the loads accrued from previous assignments.
         """
         new_assignments = assignments.copy()
+        # print(f"rated_votes=\n{rated_votes}")
+        # print(f"rated_votes[candidate]=\n{rated_votes[candidate]}")
+        # print(f"new_assignments['utility']=\n{new_assignments['utility']}")
         is_reassigned = rated_votes[candidate] > new_assignments["utility"] # It matters if this is > or >= for int-valued utilities
         reassignments = assignments.loc[is_reassigned]
         old_assignments = assignments.loc[is_reassigned]

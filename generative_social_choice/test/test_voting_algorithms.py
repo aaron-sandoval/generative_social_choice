@@ -1,11 +1,15 @@
 from pathlib import Path
 import unittest
-from typing import Optional, Sequence, Generator, Hashable
+from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
+import sys
+
 import itertools
 import pandas as pd
 from parameterized import parameterized
 
+print([p for p in sys.path])
+# import generative_social_choice.slates.voting_algorithms
 from generative_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
     VotingAlgorithm,
@@ -41,7 +45,7 @@ class RatedVoteCase:
 
     def __post_init__(self):
         if isinstance(self.rated_votes, list):
-            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes) + 1)])
+            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes) + 1)], dtype=float)
 
         if self.name is None:
             cols_str = " ".join(str(col) + ": " + ",".join(str(x) for x in self.rated_votes[col]) 
@@ -89,7 +93,7 @@ class AlgorithmEvaluationResult(unittest.TestResult):
     """
     Custom TestResult class to log test results into a DataFrame and write to CSV.
     """
-    included_subtests: tuple[str] = properties_to_evaluate[:3]
+    included_subtests: tuple[str] = properties_to_evaluate[3:]  # Exclude functionality and actual debugging unit tests
     log_filename: Path = get_base_dir_path() / "data" / "voting_algorithm_evals" / f"{get_time_string()}.csv"
 
 
@@ -97,14 +101,15 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         super().__init__(*args, **kwargs)
         self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=self.included_subtests)
 
+    @override
     def addSubTest(self, test, subtest, outcome):
+        super().addSubTest(test, subtest, outcome)
         if subtest.params['msg'] not in self.included_subtests:
             return
         self.results.loc[subtest.params['voting_algorithm'].name, subtest.params['msg']] = 1 if outcome is None else 0
 
-    def write_to_csv(self, filename: str):
-        df = pd.DataFrame(self.results)
-        df.to_csv(filename, index=False)
+    def write_to_csv(self):
+        self.results.to_csv(self.log_filename, index=False)
 
 
 class TestVotingAlgorithms(unittest.TestCase):
@@ -158,6 +163,15 @@ class TestVotingAlgorithms(unittest.TestCase):
         """
         Write the test results to a CSV file after all tests have run.
         """
+        suite = unittest.TestLoader().loadTestsFromTestCase(cls)
         result = AlgorithmEvaluationResult()
-        cls.run(result)
-        result.write_to_csv('test_results.csv')
+        suite.run(result)
+        result.write_to_csv()
+
+
+
+# if __name__ == "__main__":
+#     rated_votes = pd.DataFrame([[1, 2, 3], [1, 2, 3], [1, 2, 3]], columns=[f"s{i}" for i in range(1, 4)])
+#     slate_size = 1
+#     algo = SequentialPhragmenMinimax()
+#     print(algo.vote(rated_votes, slate_size))
