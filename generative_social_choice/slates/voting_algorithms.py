@@ -69,8 +69,8 @@ class TunableVotingAlgorithm(VotingAlgorithm):
 
     # Arguments
     - `egalitarian_utilitarian: float = 1.0`: Hyperparameter governing the egalitarian-utilitarian trade-off.
-      - 0.0: Egalitarian objective
-      - 1.0: Utilitarian objective
+      - 0.0: Egalitarian objective: Maximize the minimum utility among all individual voters
+      - 1.0: Utilitarian objective: Maximize the total utility among all individual voters
     """
     egalitarian_utilitarian: float = 0.5
 

@@ -21,12 +21,14 @@ class RatedVoteCase:
       - If passed as a nested list, it's converted to a DataFrame with columns named `s1`, `s2`, etc.
     - `slate_size: int`: The number of candidates to be selected
     - `pareto_efficient_slates: Sequence[list[int]]`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
+      - Egalitarian objective: Maximize the minimum utility among all individual voters
+      - Utilitarian objective: Maximize the total utility among all individual voters
     - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
         - Subset of `pareto_efficient_slates` which don't make arbitrarily large egalitarian-utilitarian sacrifices in either direction.
-    - `egalitarian_utilitarian: Optional[float] = None`: The egalitarian-utilitarian trade-off parameter
-    - `expected_assignments: Optional[pd.DataFrame] = None`: A singular expected assignment with the following columns:
+        - Ex: For Example Alg2.1, s1 is Pareto efficient, but not non-extremal Pareto efficient because it makes an arbitrarily large egalitarian sacrifice for an incremental utilitarian gain.
+    - `expected_assignments: Optional[pd.DataFrame] = None`: An expected assignment of voters to candidates with the following columns:
         - `candidate_id`: The candidate to which the voter is assigned
-        - Other columns not guaranteed to always be present, should always be checked in the unit tests
+        - Other columns not guaranteed to always be present, used for functional testing only.They should always be checked in the unit tests
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
@@ -47,6 +49,7 @@ class RatedVoteCase:
             self.name = f"k={self.slate_size}; {self.name}"
 
 
+# The voting cases to test, please add more as needed
 rated_vote_cases: tuple[RatedVoteCase, ...] = (
     RatedVoteCase(
         rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
@@ -63,10 +66,13 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
     ),
 )
+
+# Instances of voting algorithms to test, please add more as needed
 voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = (
     SequentialPhragmenMinimax(),
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
+
 voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "_" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
 
@@ -87,7 +93,6 @@ class TestVotingAlgorithms(unittest.TestCase):
         # Arguments
         
         """
-        
         slate, assignments = voting_algorithm.vote(
             rated_vote_case.rated_votes,
             rated_vote_case.slate_size,
@@ -98,23 +103,21 @@ class TestVotingAlgorithms(unittest.TestCase):
             self.assertEqual(len(set(slate)), len(slate))
             self.assertEqual(len(assignments), len(rated_vote_case.rated_votes))
 
-        with self.subTest(msg="2 Pareto efficient"):
+        # Check that the assignments are valid. For functional debugging only, will be omitted from algorithm evaluation
+        if rated_vote_case.expected_assignments is not None:
+            with self.subTest(msg="2 Assignments"):
+                assert pd.DataFrame.equals(assignments.candidate_id, rated_vote_case.expected_assignments.candidate_id)
+
+            with self.subTest(msg="3 Assignments other columns"):
+                for col in ["utility", "load", "utility_previous", "second_selected_candidate_id"]:
+                    if col in rated_vote_case.expected_assignments.columns:
+                        assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
+                    
+        with self.subTest(msg="4 Pareto efficient"):
             assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
 
         if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
-            with self.subTest(msg="3 Non-extremal Pareto efficient"):
+            with self.subTest(msg="5 Non-extremal Pareto efficient"):
                 assert frozenset(slate) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
-        # Check that the assignments are valid
-        if rated_vote_case.expected_assignments is not None:
-            with self.subTest(msg="4 Assignments"):
-                assert pd.DataFrame.equals(assignments.candidate_id, rated_vote_case.expected_assignments.candidate_id)
-            with self.subTest(msg="5 Assignments other columns"):
-                if "utility" in rated_vote_case.expected_assignments.columns:
-                    assert pd.DataFrame.equals(assignments.utility, rated_vote_case.expected_assignments.utility)
-                if "load" in rated_vote_case.expected_assignments.columns:
-                    assert pd.DataFrame.equals(assignments.load, rated_vote_case.expected_assignments.load)
-                if "utility_previous" in rated_vote_case.expected_assignments.columns:
-                    assert pd.DataFrame.equals(assignments["utility_previous"], rated_vote_case.expected_assignments["utility_previous"])
-                if "second_selected_candidate_id" in rated_vote_case.expected_assignments.columns:
-                    assert pd.DataFrame.equals(assignments["second_selected_candidate_id"], rated_vote_case.expected_assignments["second_selected_candidate_id"])
+        # We'll add more property tests here
