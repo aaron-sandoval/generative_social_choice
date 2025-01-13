@@ -15,6 +15,7 @@ numpy = "*"
 tenacity = "*"
 matplotlib = "*"
 seaborn = "*"
+parameterized = "^0.9.0"
 
 [build-system]
 requires = ["poetry-core"]
