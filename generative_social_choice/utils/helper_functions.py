@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 
-def get_base_dir_path():
+def get_base_dir_path() -> Path:
     """
     Returns local system path to the directory where the generative social choice package is.
     So, this is the directory where utils/, test/, etc are.
@@ -20,7 +20,7 @@ def get_base_dir_path():
     return base_dir_path
 
 
-def get_time_string():
+def get_time_string() -> str:
     now = datetime.now()
     time_string = now.strftime("%Y-%m-%d-%H%M%S")
 

@@ -1,3 +1,4 @@
+from pathlib import Path
 import unittest
 from typing import Optional, Sequence, Generator, Hashable
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from generative_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
     VotingAlgorithm,
 )
+from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
 
 
 @dataclass
@@ -75,6 +77,35 @@ voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = (
 
 voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "_" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
+properties_to_evaluate: tuple[str, ...] = (
+    "A Basic functionality",
+    "B Assignments",
+    "C Assignments other columns",
+    "01 Pareto efficient",
+    "02 Non-extremal Pareto efficient",
+)
+
+class AlgorithmEvaluationResult(unittest.TestResult):
+    """
+    Custom TestResult class to log test results into a DataFrame and write to CSV.
+    """
+    included_subtests: tuple[str] = properties_to_evaluate[:3]
+    log_filename: Path = get_base_dir_path() / "data" / "voting_algorithm_evals" / f"{get_time_string()}.csv"
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=self.included_subtests)
+
+    def addSubTest(self, test, subtest, outcome):
+        if subtest.params['msg'] not in self.included_subtests:
+            return
+        self.results.loc[subtest.params['voting_algorithm'].name, subtest.params['msg']] = 1 if outcome is None else 0
+
+    def write_to_csv(self, filename: str):
+        df = pd.DataFrame(self.results)
+        df.to_csv(filename, index=False)
+
 
 class TestVotingAlgorithms(unittest.TestCase):
     """
@@ -98,26 +129,35 @@ class TestVotingAlgorithms(unittest.TestCase):
             rated_vote_case.slate_size,
         )
 
-        with self.subTest(msg="1 Functionality"):
+        with self.subTest(msg=properties_to_evaluate[0]):
             self.assertEqual(len(slate), rated_vote_case.slate_size)
             self.assertEqual(len(set(slate)), len(slate))
             self.assertEqual(len(assignments), len(rated_vote_case.rated_votes))
 
         # Check that the assignments are valid. For functional debugging only, will be omitted from algorithm evaluation
         if rated_vote_case.expected_assignments is not None:
-            with self.subTest(msg="2 Assignments"):
+            with self.subTest(msg=properties_to_evaluate[1]):
                 assert pd.DataFrame.equals(assignments.candidate_id, rated_vote_case.expected_assignments.candidate_id)
 
-            with self.subTest(msg="3 Assignments other columns"):
+            with self.subTest(msg=properties_to_evaluate[2]):
                 for col in ["utility", "load", "utility_previous", "second_selected_candidate_id"]:
                     if col in rated_vote_case.expected_assignments.columns:
                         assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
                     
-        with self.subTest(msg="4 Pareto efficient"):
+        with self.subTest(msg=properties_to_evaluate[3]):
             assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
 
         if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
-            with self.subTest(msg="5 Non-extremal Pareto efficient"):
+            with self.subTest(msg=properties_to_evaluate[4]):
                 assert frozenset(slate) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
         # We'll add more property tests here
+
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Write the test results to a CSV file after all tests have run.
+        """
+        result = AlgorithmEvaluationResult()
+        cls.run(result)
+        result.write_to_csv('test_results.csv')
