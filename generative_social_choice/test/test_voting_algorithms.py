@@ -54,12 +54,18 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         pareto_efficient_slates=[["s3"]],
         expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
     ),
+    RatedVoteCase(
+        rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
+        slate_size=1,
+        pareto_efficient_slates=[["s1"]],
+        expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+    ),
 )
 voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = (
     SequentialPhragmenMinimax(),
-    # SequentialPhragmenMinimax(load_magnitude_method="total"),
+    SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
-voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
+voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "_" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
 
 class TestVotingAlgorithms(unittest.TestCase):

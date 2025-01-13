@@ -194,7 +194,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                 new_2nd_favorite_voters = (rated_votes[candidate] >= cur_2nd_fav_utility) & ~is_reassigned
                 new_assignments.loc[new_2nd_favorite_voters, "second_selected_candidate_id"] = candidate
             elif self.load_magnitude_method == "total":
-                new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate].sum())
+                new_candidate_total_load: float = 1 / (rated_votes.loc[is_reassigned, candidate].sum())
             else:
                 raise ValueError(f"Invalid load magnitude method: {self.load_magnitude_method}")
         
