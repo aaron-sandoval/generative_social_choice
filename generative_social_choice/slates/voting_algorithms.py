@@ -35,13 +35,11 @@ class VotingAlgorithm(abc.ABC):
     """
     Abstract base class for a voting algorithm.
     """
-
     @abc.abstractmethod
     def vote(
         self,
         rated_votes: pd.DataFrame,
-        slate_size: int,
-        **kwargs,
+        slate_size: int
     ) -> tuple[list[str], pd.DataFrame]:
         """
         Select a slate of candidates and assign them to the voters.
@@ -58,6 +56,7 @@ class VotingAlgorithm(abc.ABC):
         """
 
 
+@dataclass(frozen=True)
 class TunableVotingAlgorithm(VotingAlgorithm):
     """
     A voting algorithm whose egalitarian-utilitarian trade-off can be tuned by a hyperparameter.
@@ -70,6 +69,7 @@ class TunableVotingAlgorithm(VotingAlgorithm):
     egalitarian_utilitarian: float = 0.5
 
 
+@dataclass(frozen=True)
 class SequentialPhragmenMinimax(VotingAlgorithm):
     load_magnitude_method: Phragmen_Load_Magnitude = "marginal_slate"
     clear_reassigned_loads: bool = True
@@ -80,7 +80,6 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         self,
         rated_votes: pd.DataFrame,
         slate_size: int,
-        **kwargs,
     ) -> tuple[list[str], pd.DataFrame]:
         """
         # Returns
