@@ -1,12 +1,10 @@
 from pathlib import Path
 from dataclasses import dataclass
 import abc
+from typing import Optional, Literal, override
+
 import pandas as pd
 import numpy as np
-import os
-from typing import Optional, Literal, override
-from tqdm import tqdm
-import concurrent.futures
 
 from generative_social_choice.utils.helper_functions import (
     get_time_string,
