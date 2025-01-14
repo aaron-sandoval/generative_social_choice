@@ -48,7 +48,7 @@ class RatedVoteCase:
 
     def __post_init__(self):
         if isinstance(self.rated_votes, list):
-            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes) + 1)])
+            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes[0]) + 1)])
 
         if self.name is None:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
@@ -69,6 +69,13 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
     ),
     RatedVoteCase(
         rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
+        slate_size=1,
+        pareto_efficient_slates=[["s1"]],
+        non_extremal_pareto_efficient_slates=[["s1"]],
+        expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+    ),
+    RatedVoteCase(
+        rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
         slate_size=1,
         pareto_efficient_slates=[["s1"]],
         non_extremal_pareto_efficient_slates=[["s1"]],

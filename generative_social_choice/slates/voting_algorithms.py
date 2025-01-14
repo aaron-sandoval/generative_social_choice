@@ -136,7 +136,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                     rated_votes,
                     candidate,
                 )
-                if assignments_with_candidate["load"].min() < min_load:
+                if assignments_with_candidate["load"].max() < min_load:
                     min_load = assignments_with_candidate["load"].min()
                     min_load_candidate_id = candidate
                     min_load_assignments = assignments_with_candidate.copy()
