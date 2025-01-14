@@ -10,8 +10,9 @@ import pandas as pd
 from parameterized import parameterized
 from kiwiutils.finite_valued import all_instances
 
-print([p for p in sys.path])
-# import generative_social_choice.slates.voting_algorithms
+# Add the project root directory to the system path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
 from generative_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
     VotingAlgorithm,
@@ -36,7 +37,7 @@ class RatedVoteCase:
         - Ex: For Example Alg2.1, s1 is Pareto efficient, but not non-extremal Pareto efficient because it makes an arbitrarily large egalitarian sacrifice for an incremental utilitarian gain.
     - `expected_assignments: Optional[pd.DataFrame] = None`: An expected assignment of voters to candidates with the following columns:
         - `candidate_id`: The candidate to which the voter is assigned
-        - Other columns not guaranteed to always be present, used for functional testing only.They should always be checked in the unit tests
+        - Other columns not guaranteed to always be present, used for functional testing only. They should always be checked in the unit tests
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
@@ -76,10 +77,11 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
 )
 
 # Instances of voting algorithms to test, please add more as needed
-voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm) # (
-    # SequentialPhragmenMinimax(),
-    # SequentialPhragmenMinimax(load_magnitude_method="total"),
-# )
+# voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
+voting_algorithms_to_test = (
+    SequentialPhragmenMinimax(),
+    SequentialPhragmenMinimax(load_magnitude_method="total"),
+)
 
 voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
@@ -114,6 +116,9 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
         subtest_name = subtest._message
         self.results.at[alg_name, (vote_name, subtest_name)] = 1 if outcome is None else 0
+
+    def stopTestRun(self):
+        self.write_to_csv()
 
     def write_to_csv(self):
         self.results.to_csv(self.log_filename, index=True)
@@ -170,15 +175,14 @@ class TestVotingAlgorithms(unittest.TestCase):
         """
         Write the test results to a CSV file after all tests have run.
         """
-        suite = unittest.TestLoader().loadTestsFromTestCase(cls)
-        result = AlgorithmEvaluationResult()
-        suite.run(result)
-        result.write_to_csv()
+        # suite = unittest.TestLoader().loadTestsFromTestCase(cls)
+        # result = AlgorithmEvaluationResult()
+        # suite.run(result)
+        if hasattr(cls, "result"):
+            cls.result.write_to_csv()
 
 
-
-# if __name__ == "__main__":
-#     rated_votes = pd.DataFrame([[1, 2, 3], [1, 2, 3], [1, 2, 3]], columns=[f"s{i}" for i in range(1, 4)])
-#     slate_size = 1
-#     algo = SequentialPhragmenMinimax()
-#     print(algo.vote(rated_votes, slate_size))
+if __name__ == "__main__":
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithms)
+    runner = unittest.TextTestRunner(resultclass=AlgorithmEvaluationResult)
+    runner.run(suite)

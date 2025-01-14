@@ -1,0 +1,4 @@
+vote,k_1_s1_1_1_1_s2_2_2_2_s3_3_3_3,k_1_s1_1_1_1_s2_2_2_2_s3_3_3_3,k_1_s1_4_4_4_s2_2_2_2_s3_3_3_3,k_1_s1_4_4_4_s2_2_2_2_s3_3_3_3
+subtest,01 Pareto efficient,02 Non-extremal Pareto efficient,01 Pareto efficient,02 Non-extremal Pareto efficient
+Phragmen_marginal_slate_clear_True_redistr_True,1,1,1,1
+Phragmen_total_clear_True_redistr_True,1,1,1,1
