@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
@@ -45,14 +46,14 @@ class RatedVoteCase:
 
     def __post_init__(self):
         if isinstance(self.rated_votes, list):
-            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes) + 1)], dtype=float)
+            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes) + 1)])
 
         if self.name is None:
-            cols_str = " ".join(str(col) + ": " + ",".join(str(x) for x in self.rated_votes[col]) 
+            cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
-            self.name = f"k={self.slate_size}; {cols_str}"
+            self.name = f"k_{self.slate_size}_{cols_str}"
         elif self.name[:2] == "k=":
-            self.name = f"k={self.slate_size}; {self.name}"
+            self.name = f"k_{self.slate_size}_{self.name}"
 
 
 # The voting cases to test, please add more as needed
@@ -79,7 +80,7 @@ voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = (
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
 
-voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "_" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
+voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
 properties_to_evaluate: tuple[str, ...] = (
     "A Basic functionality",
@@ -99,17 +100,22 @@ class AlgorithmEvaluationResult(unittest.TestResult):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=self.included_subtests)
+        col_index = pd.MultiIndex.from_product([[case.name for case in rated_vote_cases], self.included_subtests], names=["vote", "subtest"])
+        self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=col_index)
 
     @override
     def addSubTest(self, test, subtest, outcome):
         super().addSubTest(test, subtest, outcome)
-        if subtest.params['msg'] not in self.included_subtests:
+        if subtest._message not in self.included_subtests:
             return
-        self.results.loc[subtest.params['voting_algorithm'].name, subtest.params['msg']] = 1 if outcome is None else 0
+        alg_name, vote_name = repr(subtest.test_case).split("___")
+        vote_name = vote_name[:-1]
+        alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
+        subtest_name = subtest._message
+        self.results.at[alg_name, (vote_name, subtest_name)] = 1 if outcome is None else 0
 
     def write_to_csv(self):
-        self.results.to_csv(self.log_filename, index=False)
+        self.results.to_csv(self.log_filename, index=True)
 
 
 class TestVotingAlgorithms(unittest.TestCase):

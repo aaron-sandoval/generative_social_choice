@@ -83,7 +83,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
     @property
     def name(self) -> str:
-        return f"Phragmen({self.load_magnitude_method}, clear={self.clear_reassigned_loads}, redistr={self.redistribute_defected_candidate_loads})"
+        return f"Phragmen_{self.load_magnitude_method}_clear_{self.clear_reassigned_loads}_redistr_{self.redistribute_defected_candidate_loads}"
 
     @override
     def vote(
