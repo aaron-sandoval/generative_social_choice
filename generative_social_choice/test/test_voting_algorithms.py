@@ -8,6 +8,7 @@ import sys
 import itertools
 import pandas as pd
 from parameterized import parameterized
+from kiwiutils.finite_valued import all_instances
 
 print([p for p in sys.path])
 # import generative_social_choice.slates.voting_algorithms
@@ -75,10 +76,10 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
 )
 
 # Instances of voting algorithms to test, please add more as needed
-voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = (
-    SequentialPhragmenMinimax(),
-    SequentialPhragmenMinimax(load_magnitude_method="total"),
-)
+voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm) # (
+    # SequentialPhragmenMinimax(),
+    # SequentialPhragmenMinimax(load_magnitude_method="total"),
+# )
 
 voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 

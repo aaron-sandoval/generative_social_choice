@@ -181,7 +181,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
         if any(is_reassigned):
             if self.load_magnitude_method == "marginal_previous":
-                new_candidate_total_load: float = 1 / (rated_votes[is_reassigned, candidate] - old_assignments["utility"]).sum()
+                new_candidate_total_load: float = 1 / (rated_votes.loc[is_reassigned, candidate] - old_assignments["utility"]).sum()
             elif self.load_magnitude_method == "marginal_slate":
                 # is_first_assignment_voters = new_assignments.loc[is_reassigned, "second_selected_candidate_id"].isna()
                 marginal_utility = new_assignments.loc[is_reassigned, "utility"]
