@@ -232,3 +232,62 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                 new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility / defected_cand_total_load**2
 
         return new_assignments
+
+@dataclass(frozen=True)
+class GreedyTotalUtilityMaximization(VotingAlgorithm):
+    name = "GreedyTotalUtilityMaximization"
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+
+        # Initialize the slate and assignments
+        slate: list[str] = []
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        cols={"candidate_id": str, "utility": float}
+        for col, dtype in cols.items():
+            assignments[col] = pd.Series(index=assignments.index, dtype=dtype)
+        
+        assignments["utility"] = BASELINE_UTILITY
+        assignments["candidate_id"] = NULL_CANDIDATE_ID
+
+        for i in range(slate_size):
+            current_total_utility = assignments["utility"].sum()
+
+            # For every candidate c not yet included in the slate, compute the maximum obtainable total utility
+            # for any mapping corresponding to the slate after adding c
+            best_candidate = None
+            new_total_utility = current_total_utility
+            for c in rated_votes.columns:
+                if c in slate:
+                    continue
+
+                combined_slate = slate + [c]
+
+                # Compare total utilities
+                potential_total_utility = rated_votes.loc[:, combined_slate].max(axis=1).sum()
+                if potential_total_utility>new_total_utility:
+                    best_candidate = c
+                    new_total_utility = potential_total_utility
+
+            # Stop if no further improvement is possible
+            if new_total_utility<=current_total_utility:
+                break
+
+            # Update the slate and assignments
+            slate.append(best_candidate)
+            assignments["candidate_id"] = rated_votes.loc[:, slate].idxmax(axis=1)
+            assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
+
+        return slate, assignments
