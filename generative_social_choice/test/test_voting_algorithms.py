@@ -7,6 +7,7 @@ import sys
 
 import itertools
 import pandas as pd
+import numpy as np
 from parameterized import parameterized
 from kiwiutils.finite_valued import all_instances
 
@@ -90,7 +91,7 @@ voting_algorithms_to_test = (
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
 
-voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = ((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
+voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
 properties_to_evaluate: tuple[str, ...] = (
     "A Basic functionality",
@@ -148,11 +149,13 @@ class TestVotingAlgorithms(unittest.TestCase):
         # Arguments
         
         """
+        # Compute the solution using the voting algorithm
         slate, assignments = voting_algorithm.vote(
-            rated_vote_case.rated_votes,
+            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
 
+        # Basic functionality and result format
         with self.subTest(msg=properties_to_evaluate[0]):
             self.assertEqual(len(slate), rated_vote_case.slate_size)
             self.assertEqual(len(set(slate)), len(slate))
@@ -176,6 +179,62 @@ class TestVotingAlgorithms(unittest.TestCase):
                 assert frozenset(slate) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
         # We'll add more property tests here
+
+    @parameterized.expand(voting_test_cases)
+    def test_voting_algorithm_for_pareto(
+        self,
+        name: str,
+        rated_vote_case: RatedVoteCase,
+        voting_algorithm: VotingAlgorithm,
+    ):
+        """
+        Test whether the algorithm satisfies various forms of Pareto efficiency.
+
+        # Arguments
+        
+        """
+        # Compute the solution using the voting algorithm
+        W, assignments = voting_algorithm.vote(
+            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
+            rated_vote_case.slate_size,
+        )
+        # Get utilities for computed solution
+        w_utilities = np.array([rated_vote_case.rated_votes.loc[a, c_id] for a,c_id in enumerate(assignments["candidate_id"])])
+
+        # Check if there is any strictly better slate
+        # TBD: Unsure if we want an assert statement in every iteration. We could also set a boolean flag and check after the for loop
+        for Wprime in itertools.combinations(rated_vote_case.rated_votes.columns, r=rated_vote_case.slate_size):
+            # Skip if same slate
+            if sorted(list(Wprime))==sorted(list(W)):
+                continue
+
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_vote_case.rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+
+            # 1st check: There is no slate for which total utility strictly improves and for no member the utility decreases
+            with self.subTest(msg="Individual Pareto efficiency"):
+                assert wprime_utilities.sum()<=w_utilities.sum() or (wprime_utilities<w_utilities).sum()>=1, \
+                    "There is a slate with strictly greater total utility and no lesser utility for any individual member"
+
+            # 2nd check: No other slate has m-th happiest person at least as good for all m and strictly better for at least one m’
+            # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
+            with self.subTest(msg="m-th happiest person Pareto efficiency"):
+                mth_happiest = np.sort(w_utilities)[::-1]
+                mth_happiest_prime = np.sort(wprime_utilities)[::-1]
+                assert (mth_happiest_prime<mth_happiest).sum()>=1 or (mth_happiest_prime>mth_happiest).sum()==0, \
+                    "There is a slate with a strictly better m-th happiest person curve"
+
+            # 3rd check (representing as many people as possible):
+            # There is no other slate with at least the same total utility and a threshold m,
+            # such that m'-th happiest person for that slate is >= for all m'>=m and > for some m*
+            with self.subTest(msg="Maximum coverage"):
+                matching_total_utility = wprime_utilities.sum()>=w_utilities.sum()
+                # To find out if such a threshold exists, take the last index where w_prime has strictly greater utility
+                strictly_greater_ms = np.where(wprime_utilities>w_utilities)[0]
+                if len(strictly_greater_ms)>0:
+                    # If from this index on, m-th happiest person never has lower utility in w_prime, then the threshold is valid
+                    threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum()==0
+                assert not matching_total_utility or not threshold_exists, "There is a slate which represents more people"
 
     @classmethod
     def tearDownClass(cls):
