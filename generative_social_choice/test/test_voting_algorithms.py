@@ -30,7 +30,7 @@ class RatedVoteCase:
     - `rated_votes: pd.DataFrame | list[list[int | float]]`: Utility of each voter (rows) for each candidate (columns)
       - If passed as a nested list, it's converted to a DataFrame with columns named `s1`, `s2`, etc.
     - `slate_size: int`: The number of candidates to be selected
-    - `pareto_efficient_slates: Sequence[list[int]]`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
+    - `pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
       - Egalitarian objective: Maximize the minimum utility among all individual voters
       - Utilitarian objective: Maximize the total utility among all individual voters
     - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
@@ -42,7 +42,7 @@ class RatedVoteCase:
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
-    pareto_efficient_slates: set[frozenset[Hashable]]
+    pareto_efficient_slates: Optional[set[frozenset[Hashable]]] = None
     non_extremal_pareto_efficient_slates: Optional[set[frozenset[Hashable]]] = None
     expected_assignments: Optional[pd.DataFrame] = None
     name: Optional[str] = None
@@ -81,6 +81,202 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         pareto_efficient_slates=[["s1"]],
         non_extremal_pareto_efficient_slates=[["s1"]],
         expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+    ),
+    RatedVoteCase(
+        name="Ex 1.1",
+        rated_votes=[
+            [3, 2, 0, 0],
+            [0, 2, 0, 0],
+            [0, 2, 0, 0],
+            [0, 0, 3, 2],
+            [0, 0, 0, 2],
+            [0, 0, 0, 2],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 1.1 modified",
+        rated_votes=[
+            [6, 2, 0, 0],
+            [0, 2, 0, 0],
+            [0, 2, 0, 0],
+            [0, 0, 6, 2],
+            [0, 0, 0, 2],
+            [0, 0, 0, 2],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex A.1",
+        rated_votes=[
+            [2, 0, 1, 1],
+            [2, 2, 1, 0],
+            [0, 2, 1, 0],
+            [0, 0, 0, 2],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 1.3",
+        rated_votes=[
+            [2, 0, 0, 0],
+            [2, 2, 1, 0],
+            [0, 2, 1, 1],
+            [0, 0, 1, 2],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 2.1",
+        rated_votes=[
+            [2, 0, 0],
+            [2, 2, 1],
+            [0, 2, 0],
+            [0, 0, 1],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 2.2",
+        rated_votes=[
+            [5, 0, 0, 1],
+            [0, 5, 0, 1],
+            [0, 5, 2, 1],
+            [0, 0, 1, 1],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 3.1",
+        rated_votes=[
+            [2, 0, 1, 0, 0, 0],
+            [1, 2, 0, 0, 0, 0],
+            [0, 1, 2, 0, 0, 0],
+            [0, 0, 0, 2, 0, 1],
+            [0, 0, 0, 1, 2, 0],
+            [0, 0, 0, 0, 1, 2],
+        ],
+        slate_size=3,
+    ),
+    RatedVoteCase(
+        name="Ex 4.1",
+        rated_votes=[
+            [2, 0, 0, 1],
+            [0, 5, 0, 1],
+            [0, 5, 2, 1],
+            [0, 0, 1, 1],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 4.4",
+        rated_votes=[
+            [3, 2, 0, 0, 0, 1],
+            [0, 2, 0, 0, 0, 0],
+            [0, 2, 0, 0, 0, 1],
+            [0, 0, 3, 2, 0, 0],
+            [0, 0, 0, 2, 3, 0],
+            [0, 0, 0, 2, 0, 1],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex B.1",
+        rated_votes=[
+            [2, 0, 0],
+            [2, 0, 2],
+            [0, 2, 0],
+            [0, 2, 1],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex B.2",
+        rated_votes=[
+            [9, 0, 0, 1],
+            [9, 0, 1, 0],
+            [0, 9, 0, 1],
+            [0, 9, 1, 0],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex B.3",
+        rated_votes=[
+            [3, 0, 2],
+            [0, 0, 1],
+            [0, 1, 0],
+            [0, 1, 0],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex C.1",
+        rated_votes=[
+            [1, 0, 3],
+            [1, 0, 1],
+            [0, 2, 0],
+            [0, 2, 0],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex C.2",
+        rated_votes=[
+            [3, 0, 0, 2],
+            [3, 0, 2, 0],
+            [0, 1, 2, 0],
+            [0, 1, 0, 2],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex D.1",
+        rated_votes=[
+            [4, 0, 0, 0, 0],
+            [4, 3, 0, 0, 0],
+            [4, 3, 2, 0, 0],
+            [0, 3, 2, 1, 0],
+            [0, 0, 2, 1, 0],
+            [0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 1],
+        ],
+        slate_size=3,
+    ),
+    RatedVoteCase(
+        name="Ex Alg1.3",
+        rated_votes=[
+            [1, 1],
+            [1, 1],
+            [1, 4],
+        ],
+        slate_size=1,
+    ),
+    RatedVoteCase(
+        name="Ex Alg1.5",
+        rated_votes=[
+            [1, 1],
+            [1, 1],
+            [1, 2],
+        ],
+        slate_size=1,
+    ),
+    RatedVoteCase(
+        name="Ex Alg A.1",
+        rated_votes=[
+            [1.01, 1, 0, 0],
+            [0, 1, 0, 0],
+            [0, 1, 0, 0],
+            [1, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [1, 0, 0, 1],
+            [0, 0, 0, 1],
+            [0, 0, 0, 1],
+        ],
+        slate_size=3,
     ),
 )
 
@@ -171,8 +367,9 @@ class TestVotingAlgorithms(unittest.TestCase):
                     if col in rated_vote_case.expected_assignments.columns:
                         assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
                     
-        with self.subTest(msg=properties_to_evaluate[3]):
-            assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+        if rated_vote_case.pareto_efficient_slates is not None:
+            with self.subTest(msg=properties_to_evaluate[3]):
+                assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
 
         if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
             with self.subTest(msg=properties_to_evaluate[4]):
