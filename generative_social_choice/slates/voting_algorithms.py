@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import abc
 from typing import Optional, Literal, override
 
+import pulp
 import pandas as pd
 import numpy as np
 
@@ -232,6 +233,73 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                 new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility / defected_cand_total_load**2
 
         return new_assignments
+
+@dataclass(frozen=True)
+class ExactTotalUtilityMaximization(VotingAlgorithm):
+    name = "ExactTotalUtilityMaximization"
+        
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+        # First we formulate the problem as integer programming problem
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        # Initialize the problem
+        prob = pulp.LpProblem("Maximize_Utility", pulp.LpMaximize)
+
+        # Decision variables
+        x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+        y = [
+            [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+            for i in range(num_agents)
+        ]
+
+        # Objective function: Maximize total utility
+        prob += pulp.lpSum(U[i][j] * y[i][j] for i in range(num_agents) for j in range(num_statements)), "TotalUtility"
+
+        # Constraint 1: Select exactly k statements
+        prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+        # Constraint 2: Each agent is assigned to exactly one statement
+        for i in range(num_agents):
+            prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+        # Constraint 3: An agent can only be assigned to a selected statement
+        for i in range(num_agents):
+            for j in range(num_statements):
+                prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+        # Now solve the problem using an existing integer programming solver
+        prob.solve()
+
+        # Extract slate and assignments from the solved problem
+        slate: list[str] = []
+        for j in range(num_statements):
+            if pulp.value(x[j]) > 0.5:  # Selected statement
+                slate.append(rated_votes.columns[j])
+
+        candidate_assignments: list[str] = []
+        for i in range(num_agents):
+            for j in range(num_statements):
+                if pulp.value(y[i][j]) > 0.5:  # Assignment made
+                    candidate_assignments.append(rated_votes.columns[j])
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(candidate_assignments, index=assignments.index, dtype=str)
+
+        return slate, assignments
 
 @dataclass(frozen=True)
 class GreedyTotalUtilityMaximization(VotingAlgorithm):
