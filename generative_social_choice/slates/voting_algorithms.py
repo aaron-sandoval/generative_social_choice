@@ -302,6 +302,73 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
         return slate, assignments
 
 @dataclass(frozen=True)
+class LPTotalUtilityMaximization(VotingAlgorithm):
+    """Linear programming relaxation of the integer programming problem
+    
+    For this approach, we can't guarantee finding an optimal solution but the algorithm runs
+    in polynomial time."""
+    name = "LPTotalUtilityMaximization"
+        
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+        # First we formulate the problem as integer programming problem
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        # Initialize the problem
+        prob = pulp.LpProblem("Maximize_Utility_LP_Relaxation", pulp.LpMaximize)
+
+        # Decision variables (now relaxed to continuous)
+        x = [pulp.LpVariable(f"x_{j}", lowBound=0, upBound=1, cat="Continuous") for j in range(num_statements)]
+        y = [
+            [pulp.LpVariable(f"y_{i}_{j}", lowBound=0, upBound=1, cat="Continuous") for j in range(num_statements)]
+            for i in range(num_agents)
+        ]
+
+        # Objective function: Maximize total utility
+        prob += pulp.lpSum(U[i][j] * y[i][j] for i in range(num_agents) for j in range(num_statements)), "TotalUtility"
+
+        # Constraint 1: Select exactly k statements
+        prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+        # Constraint 2: Each agent is assigned to exactly one statement
+        for i in range(num_agents):
+            prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+        # Constraint 3: An agent can only be assigned to a selected statement
+        for i in range(num_agents):
+            for j in range(num_statements):
+                prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+        # Now solve the problem using an existing integer programming solver
+        prob.solve()
+
+        # Extract slate and assignments from the solved problem
+        # Here, take the k statements with maximum score
+        #TODO Make it possible to do this based on stochastic selection as well?
+        statemend_ixs = np.array([pulp.value(x[j]) for j in range(num_statements)]).argsort()[::-1][:slate_size]
+        slate: list[str] = [rated_votes.columns[j] for j in statemend_ixs]
+
+        # We assign each agent to the statement with highest utility
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(rated_votes.loc[:, slate].idxmax(axis=1), index=assignments.index, dtype=str)
+
+        return slate, assignments
+
+@dataclass(frozen=True)
 class GreedyTotalUtilityMaximization(VotingAlgorithm):
     name = "GreedyTotalUtilityMaximization"
 
