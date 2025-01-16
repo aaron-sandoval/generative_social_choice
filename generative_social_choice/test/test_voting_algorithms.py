@@ -291,6 +291,21 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         ],
         slate_size=3,
     ),
+        RatedVoteCase(
+        name="Ex Alg A.2",
+        rated_votes=[
+            [1.01, 1, 0, 0, 0],
+            [0, 1, 0, 0, 1.01],
+            [0, 1, 0, 0, 0],
+            [1, 0, 1, 0, 0],
+            [0, 0, 1, 0, 1],
+            [0, 0, 1, 0, 0],
+            [1, 0, 0, 1, 0],
+            [0, 0, 0, 1, 1],
+            [0, 0, 0, 1, 0],
+        ],
+        slate_size=3,
+    ),
 )
 
 # Instances of voting algorithms to test, please add more as needed
