@@ -77,6 +77,70 @@ class TunableVotingAlgorithm(VotingAlgorithm):
 
 
 @dataclass(frozen=True)
+class UtilityTransformation(abc.ABC):
+    """
+    Abstract class for utility transformations
+    """
+    @abc.abstractmethod
+    def transform(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int
+    ) -> pd.DataFrame:
+        """
+        Compute a vote matrix with transformed utilities
+
+        # Arguments
+        - `rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+        - `slate_size: int`: The number of candidates to be selected
+
+        # Returns
+        `transformed_rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+            after transformation
+        """
+        pass
+
+@dataclass(frozen=True)
+class GeometricTransformation(UtilityTransformation):
+    """
+    Utility transformation based on geometric series.
+    
+    This transformation takes a tunable parameter p>1 and maps utility u to f(u)
+    such that
+     (i) `f(u+1)-f(u)=p*(f(u+2)-f(u+1))` for all u>=0
+     (ii) f(0) = 0
+     (iii) f(1) = 1
+     (iv) f(u) > 0 for all u>0
+     
+    The transformation is given by
+    `f(u) = (1-(1/p)^u)/(1-(1/p))
+    
+    Higher values of p make total utility increasingly egalitarian.
+    """
+    p: float=1.5
+
+    @override
+    def transform(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int
+    ) -> pd.DataFrame:
+        """
+        Compute a vote matrix with transformed utilities
+
+        # Arguments
+        - `rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+        - `slate_size: int`: The number of candidates to be selected
+
+        # Returns
+        `transformed_rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+            after transformation
+        """
+        transform_fct = lambda u: (1-(1/self.p)**u)/(1-(1/self.p))
+        transformed_rated_votes = rated_votes.apply(transform_fct)
+        return transformed_rated_votes
+
+@dataclass(frozen=True)
 class SequentialPhragmenMinimax(VotingAlgorithm):
     load_magnitude_method: Phragmen_Load_Magnitude = "marginal_slate"
     clear_reassigned_loads: bool = True
@@ -237,6 +301,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 @dataclass(frozen=True)
 class ExactTotalUtilityMaximization(VotingAlgorithm):
     name = "ExactTotalUtilityMaximization"
+    utility_transform: Optional[UtilityTransformation] = None
         
     @override
     def vote(
@@ -252,6 +317,9 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
             - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
             - `utility`: The utility of the voter for the candidate
         """
+        if self.utility_transform is not None:
+            rated_votes = self.utility_transform.transform(rated_votes=rated_votes, slate_size=slate_size)
+        
         # First we formulate the problem as integer programming problem
         num_agents = rated_votes.shape[0]
         num_statements = rated_votes.shape[1]
@@ -308,6 +376,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
     For this approach, we can't guarantee finding an optimal solution but the algorithm runs
     in polynomial time."""
     name = "LPTotalUtilityMaximization"
+    utility_transform: Optional[UtilityTransformation] = None
 
     @override
     def vote(
@@ -323,6 +392,9 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
             - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
             - `utility`: The utility of the voter for the candidate
         """
+        if self.utility_transform is not None:
+            rated_votes = self.utility_transform.transform(rated_votes=rated_votes, slate_size=slate_size)
+        
         # First we formulate the problem as integer programming problem
         num_agents = rated_votes.shape[0]
         num_statements = rated_votes.shape[1]
@@ -371,6 +443,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
 @dataclass(frozen=True)
 class GreedyTotalUtilityMaximization(VotingAlgorithm):
     name = "GreedyTotalUtilityMaximization"
+    utility_transform: Optional[UtilityTransformation] = None
 
     @override
     def vote(
@@ -386,7 +459,9 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
             - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
             - `utility`: The utility of the voter for the candidate
         """
-
+        if self.utility_transform is not None:
+            rated_votes = self.utility_transform.transform(rated_votes=rated_votes, slate_size=slate_size)
+        
         # Initialize the slate and assignments
         slate: list[str] = []
         assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
@@ -425,4 +500,5 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
             assignments["candidate_id"] = rated_votes.loc[:, slate].idxmax(axis=1)
             assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
 
+        #TODO If a utility transformation was applied, assignments["utilities"] won't match the original utilities
         return slate, assignments
