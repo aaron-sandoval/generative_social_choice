@@ -283,7 +283,7 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
                 prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
 
         # Now solve the problem using an existing integer programming solver
-        prob.solve()
+        prob.solve(pulp.PULP_CBC_CMD(msg=0))
 
         # Extract slate and assignments from the solved problem
         slate: list[str] = []
@@ -304,11 +304,11 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
 @dataclass(frozen=True)
 class LPTotalUtilityMaximization(VotingAlgorithm):
     """Linear programming relaxation of the integer programming problem
-    
+
     For this approach, we can't guarantee finding an optimal solution but the algorithm runs
     in polynomial time."""
     name = "LPTotalUtilityMaximization"
-        
+
     @override
     def vote(
         self,
@@ -354,7 +354,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
                 prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
 
         # Now solve the problem using an existing integer programming solver
-        prob.solve()
+        prob.solve(pulp.PULP_CBC_CMD(msg=0))
 
         # Extract slate and assignments from the solved problem
         # Here, take the k statements with maximum score
@@ -393,7 +393,7 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
         cols={"candidate_id": str, "utility": float}
         for col, dtype in cols.items():
             assignments[col] = pd.Series(index=assignments.index, dtype=dtype)
-        
+
         assignments["utility"] = BASELINE_UTILITY
         assignments["candidate_id"] = NULL_CANDIDATE_ID
 
