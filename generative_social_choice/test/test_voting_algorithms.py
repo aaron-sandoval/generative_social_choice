@@ -120,6 +120,16 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         slate_size=2,
     ),
     RatedVoteCase(
+        name="Ex 1.2",
+        rated_votes=[
+            [1.01, 1, 0],
+            [1.01, 0, 1],
+            [0, 5, 0],
+            [0, 0, 5],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
         name="Ex A.1",
         rated_votes=[
             [2, 0, 1, 1],
@@ -180,6 +190,45 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
             [0, 0, 1, 1],
         ],
         slate_size=2,
+    ),
+    RatedVoteCase(
+        # Bad egalitarian tradeoff
+        name="Ex 4.2",
+        rated_votes=[
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 0, 1],
+            [5, 5, 1],
+            [5, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 5, 1],
+            [0, 0, 1],
+        ],
+        slate_size=2,
+    ),
+    RatedVoteCase(
+        name="Ex 4.3",
+        rated_votes=[
+            [5, 0, 0, 0, 1],
+            [5, 5, 0, 0, 1],
+            [0, 5, 0, 0, 1],
+            [0, 0, 5, 0, 1],
+            [0, 0, 5, 5, 1],
+            [0, 0, 0, 5, 1],
+        ],
+        slate_size=3,
     ),
     RatedVoteCase(
         name="Ex 4.4",
@@ -268,11 +317,31 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         slate_size=1,
     ),
     RatedVoteCase(
+        # Bad egalitarian tradeoff
+        name="Ex Alg1.4",
+        rated_votes=[
+            [1.01, 1],
+            [1.01, 1],
+            [1.01, 4],
+        ],
+        slate_size=1,
+    ),
+    RatedVoteCase(
         name="Ex Alg1.5",
         rated_votes=[
             [1, 1],
             [1, 1],
             [1, 2],
+        ],
+        slate_size=1,
+    ),
+    RatedVoteCase(
+        # Bad utilitarian tradeoff
+        name="Ex Alg2.1",
+        rated_votes=[
+            [.01, 1],
+            [.01, 1],
+            [3, 1],
         ],
         slate_size=1,
     ),
