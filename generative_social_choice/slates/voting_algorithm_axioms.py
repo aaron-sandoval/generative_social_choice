@@ -21,7 +21,7 @@ class VotingAlgorithmAxiom(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def satisfactory_slates(self, rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> set[frozenset[str]]:
+    def satisfactory_slates(self, rated_votes: pd.DataFrame) -> set[frozenset[str]]:
         """
         Get the set of slates which satisfy the axiom.
         """
