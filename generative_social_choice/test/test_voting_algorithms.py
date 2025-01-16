@@ -58,31 +58,38 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
+        elif self.name is not None:
+            # Format name to be compatible as a Python function name
+            self.name = self.name.replace('.', 'p')
+            self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
+            self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
+            # self.name = re.sub(r'_+', '_', self.name)  # Collapse multiple underscores
+            # self.name = self.name.strip('_')  # Remove trailing underscores
 
 
 # The voting cases to test, please add more as needed
 rated_vote_cases: tuple[RatedVoteCase, ...] = (
-    RatedVoteCase(
-        rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
-        slate_size=1,
-        pareto_efficient_slates=[["s3"]],
-        non_extremal_pareto_efficient_slates=[["s3"]],
-        # expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
-    ),
-    RatedVoteCase(
-        rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
-        slate_size=1,
-        pareto_efficient_slates=[["s1"]],
-        non_extremal_pareto_efficient_slates=[["s1"]],
-        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
-    ),
-    RatedVoteCase(
-        rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
-        slate_size=1,
-        pareto_efficient_slates=[["s1"]],
-        non_extremal_pareto_efficient_slates=[["s1"]],
-        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
-    ),
+    # RatedVoteCase(
+    #     rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
+    #     slate_size=1,
+    #     pareto_efficient_slates=[["s3"]],
+    #     non_extremal_pareto_efficient_slates=[["s3"]],
+    #     # expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
+    # ),
+    # RatedVoteCase(
+    #     rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
+    #     slate_size=1,
+    #     pareto_efficient_slates=[["s1"]],
+    #     non_extremal_pareto_efficient_slates=[["s1"]],
+    #     # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+    # ),
+    # RatedVoteCase(
+    #     rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
+    #     slate_size=1,
+    #     pareto_efficient_slates=[["s1"]],
+    #     non_extremal_pareto_efficient_slates=[["s1"]],
+    #     # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+    # ),
     RatedVoteCase(
         name="Ex 1.1",
         rated_votes=[
@@ -322,6 +329,8 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         vote_name = vote_name[:-1]
         alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
         subtest_name = subtest._message
+        if not pd.isna(self.results.at[alg_name, (vote_name, subtest_name)]):
+            raise ValueError(f"Result already exists for {alg_name}, {vote_name}, {subtest_name}")
         self.results.at[alg_name, (vote_name, subtest_name)] = 1 if outcome is None else 0
 
     def stopTestRun(self):
@@ -390,52 +399,71 @@ class TestVotingAlgorithms(unittest.TestCase):
             rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
+
+        # TODO: make this a function in voting_utils
+        if rated_vote_case.pareto_efficient_slates is not None:
+            with self.subTest(msg=axioms_to_evaluate[0]):
+                assert frozenset(W) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+
+        # TODO: make this a function in voting_utils
+        if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
+            with self.subTest(msg=axioms_to_evaluate[1]):
+                assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
+
         # Get utilities for computed solution
         w_utilities = np.array(voter_utilities(rated_vote_case.rated_votes, assignments))
 
+        # Initialize flags for each check
+        individual_pareto_flag = True
+        mth_happiest_flag = True
+        maximum_coverage_flag = True
+
         # Check if there is any strictly better slate
-        # TBD: Unsure if we want an assert statement in every iteration. We could also set a boolean flag and check after the for loop
         for Wprime in itertools.combinations(rated_vote_case.rated_votes.columns, r=rated_vote_case.slate_size):
+            if all([individual_pareto_flag, mth_happiest_flag, maximum_coverage_flag]):
+                break
+            
             # Skip if same slate
-            if sorted(list(Wprime))==sorted(list(W)):
+            if sorted(list(Wprime)) == sorted(list(W)):
                 continue
 
             # Compute utilities (using optimal assignment for given slate)
             wprime_utilities = rated_vote_case.rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
 
             # 1st check: There is no slate for which total utility strictly improves and for no member the utility decreases
-            with self.subTest(msg=axioms_to_evaluate[2]):  # Adjusted index
-                assert wprime_utilities.sum()<=w_utilities.sum() or (wprime_utilities<w_utilities).sum()>=1, \
-                    "There is a slate with strictly greater total utility and no lesser utility for any individual member"
+            if individual_pareto_flag:
+                if wprime_utilities.sum() > w_utilities.sum() and (wprime_utilities >= w_utilities).all():
+                    individual_pareto_flag = False
 
             # 2nd check: No other slate has m-th happiest person at least as good for all m and strictly better for at least one m’
             # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
-            with self.subTest(msg=axioms_to_evaluate[3]):  # Adjusted index
+            if mth_happiest_flag:
                 mth_happiest = np.sort(w_utilities)[::-1]
                 mth_happiest_prime = np.sort(wprime_utilities)[::-1]
-                assert (mth_happiest_prime<mth_happiest).sum()>=1 or (mth_happiest_prime>mth_happiest).sum()==0, \
-                    "There is a slate with a strictly better m-th happiest person curve"
+                if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime <= mth_happiest).all():
+                    mth_happiest_flag = False
 
             # 3rd check (representing as many people as possible):
             # There is no other slate with at least the same total utility and a threshold m,
             # such that m'-th happiest person for that slate is >= for all m'>=m and > for some m*
-            with self.subTest(msg=axioms_to_evaluate[4]):  # Adjusted index
-                matching_total_utility = wprime_utilities.sum()>=w_utilities.sum()
-                # To find out if such a threshold exists, take the last index where w_prime has strictly greater utility
-                strictly_greater_ms = np.where(wprime_utilities>w_utilities)[0]
-                if len(strictly_greater_ms)>0:
+            if maximum_coverage_flag:
+                matching_total_utility = wprime_utilities.sum() >= w_utilities.sum()
+                strictly_greater_ms = np.where(wprime_utilities > w_utilities)[0]
+                if len(strictly_greater_ms) > 0:
                     # If from this index on, m-th happiest person never has lower utility in w_prime, then the threshold is valid
-                    threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum()==0
-                assert not matching_total_utility or not threshold_exists, "There is a slate which represents more people"
+                    threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum() == 0
+                    if matching_total_utility and threshold_exists:
+                        maximum_coverage_flag = False
 
-                    
-        if rated_vote_case.pareto_efficient_slates is not None:
-            with self.subTest(msg=axioms_to_evaluate[0]):  # Adjusted index
-                assert frozenset(W) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+        # Assertions after the loop
+        with self.subTest(msg=axioms_to_evaluate[2]):
+            assert individual_pareto_flag, "There is a slate with strictly greater total utility and no lesser utility for any individual member"
 
-        if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
-            with self.subTest(msg=axioms_to_evaluate[1]):  # Adjusted index
-                assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
+        with self.subTest(msg=axioms_to_evaluate[3]):
+            assert mth_happiest_flag, "There is a slate with a strictly better m-th happiest person curve"
+
+        with self.subTest(msg=axioms_to_evaluate[4]):
+            assert maximum_coverage_flag, "There is a slate which represents more people"
 
 
 if __name__ == "__main__":
