@@ -55,8 +55,6 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
-        elif self.name[:2] == "k=":
-            self.name = f"k_{self.slate_size}_{self.name}"
 
 
 # The voting cases to test, please add more as needed
