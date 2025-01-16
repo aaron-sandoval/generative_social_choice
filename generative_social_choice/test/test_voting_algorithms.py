@@ -22,12 +22,12 @@ from generative_social_choice.slates.voting_algorithms import (
     VotingAlgorithm,
 )
 from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
-
+from generative_social_choice.slates.voting_utils import voter_utilities, mth_highest_utility
 
 @dataclass
 class RatedVoteCase:
     """
-    A voting case with rated votes and expected results.
+    A voting case with rated votes and sets of possible results which satisfy various properties.
 
     # Arguments
     - `rated_votes: pd.DataFrame | list[list[int | float]]`: Utility of each voter (rows) for each candidate (columns)
@@ -45,9 +45,9 @@ class RatedVoteCase:
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
-    pareto_efficient_slates: Optional[set[frozenset[Hashable]]] = None
-    non_extremal_pareto_efficient_slates: Optional[set[frozenset[Hashable]]] = None
-    expected_assignments: Optional[pd.DataFrame] = None
+    pareto_efficient_slates: Optional[set[frozenset[str]]] = None
+    non_extremal_pareto_efficient_slates: Optional[set[frozenset[str]]] = None
+    # expected_assignments: Optional[pd.DataFrame] = None
     name: Optional[str] = None
 
     def __post_init__(self):
@@ -67,21 +67,21 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         slate_size=1,
         pareto_efficient_slates=[["s3"]],
         non_extremal_pareto_efficient_slates=[["s3"]],
-        expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
+        # expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
         slate_size=1,
         pareto_efficient_slates=[["s1"]],
         non_extremal_pareto_efficient_slates=[["s1"]],
-        expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
         slate_size=1,
         pareto_efficient_slates=[["s1"]],
         non_extremal_pareto_efficient_slates=[["s1"]],
-        expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
+        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         name="Ex 1.1",
@@ -293,21 +293,20 @@ voting_algorithms_to_test = (
 
 voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
 
-properties_to_evaluate: tuple[str, ...] = (
-    "A Basic functionality",
-    "B Assignments",
-    "C Assignments other columns",
-    "01 Pareto efficient",
-    "02 Non-extremal Pareto efficient",
+axioms_to_evaluate: tuple[str, ...] = (
+    "00 (Minimum, total utility) Pareto efficient",
+    "01 (Minimum, total utility) Non-extremal Pareto efficient",
+    "02 Individual Pareto efficient",
+    "03 m-th happiest person Pareto efficient",
+    "04 Maximum coverage",
 )
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
     Custom TestResult class to log test results into a DataFrame and write to CSV.
     """
-    included_subtests: tuple[str] = properties_to_evaluate[3:]  # Exclude functionality and actual debugging unit tests
+    included_subtests: tuple[str] = axioms_to_evaluate[0:]  # Adjusted to start from the new index 0
     log_filename: Path = get_base_dir_path() / "data" / "voting_algorithm_evals" / f"{get_time_string()}.csv"
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -337,7 +336,7 @@ class TestVotingAlgorithms(unittest.TestCase):
     Test the functionality and properties of voting algorithms.
     """
     @parameterized.expand(voting_test_cases)
-    def test_voting_algorithm(
+    def test_voting_algorithm_functionality(
         self,
         name: str,
         rated_vote_case: RatedVoteCase,
@@ -356,30 +355,22 @@ class TestVotingAlgorithms(unittest.TestCase):
         )
 
         # Basic functionality and result format
-        with self.subTest(msg=properties_to_evaluate[0]):
+        with self.subTest(msg="A Basic functionality"):
             self.assertEqual(len(slate), rated_vote_case.slate_size)
             self.assertEqual(len(set(slate)), len(slate))
             self.assertEqual(len(assignments), len(rated_vote_case.rated_votes))
 
         # Check that the assignments are valid. For functional debugging only, will be omitted from algorithm evaluation
         if rated_vote_case.expected_assignments is not None:
-            with self.subTest(msg=properties_to_evaluate[1]):
+            with self.subTest(msg="B Assignments"):
                 assert pd.DataFrame.equals(assignments.candidate_id, rated_vote_case.expected_assignments.candidate_id)
 
-            with self.subTest(msg=properties_to_evaluate[2]):
+            with self.subTest(msg="C Assignments other columns"):
                 for col in ["utility", "load", "utility_previous", "second_selected_candidate_id"]:
                     if col in rated_vote_case.expected_assignments.columns:
                         assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
-                    
-        if rated_vote_case.pareto_efficient_slates is not None:
-            with self.subTest(msg=properties_to_evaluate[3]):
-                assert frozenset(slate) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
 
-        if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
-            with self.subTest(msg=properties_to_evaluate[4]):
-                assert frozenset(slate) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
-
-        # We'll add more property tests here
+    # We'll add more property tests here
 
     @parameterized.expand(voting_test_cases)
     def test_voting_algorithm_for_pareto(
@@ -400,7 +391,7 @@ class TestVotingAlgorithms(unittest.TestCase):
             rated_vote_case.slate_size,
         )
         # Get utilities for computed solution
-        w_utilities = np.array([rated_vote_case.rated_votes.loc[a, c_id] for a,c_id in enumerate(assignments["candidate_id"])])
+        w_utilities = np.array(voter_utilities(rated_vote_case.rated_votes, assignments))
 
         # Check if there is any strictly better slate
         # TBD: Unsure if we want an assert statement in every iteration. We could also set a boolean flag and check after the for loop
@@ -413,13 +404,13 @@ class TestVotingAlgorithms(unittest.TestCase):
             wprime_utilities = rated_vote_case.rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
 
             # 1st check: There is no slate for which total utility strictly improves and for no member the utility decreases
-            with self.subTest(msg="Individual Pareto efficiency"):
+            with self.subTest(msg=axioms_to_evaluate[2]):  # Adjusted index
                 assert wprime_utilities.sum()<=w_utilities.sum() or (wprime_utilities<w_utilities).sum()>=1, \
                     "There is a slate with strictly greater total utility and no lesser utility for any individual member"
 
             # 2nd check: No other slate has m-th happiest person at least as good for all m and strictly better for at least one m’
             # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
-            with self.subTest(msg="m-th happiest person Pareto efficiency"):
+            with self.subTest(msg=axioms_to_evaluate[3]):  # Adjusted index
                 mth_happiest = np.sort(w_utilities)[::-1]
                 mth_happiest_prime = np.sort(wprime_utilities)[::-1]
                 assert (mth_happiest_prime<mth_happiest).sum()>=1 or (mth_happiest_prime>mth_happiest).sum()==0, \
@@ -428,7 +419,7 @@ class TestVotingAlgorithms(unittest.TestCase):
             # 3rd check (representing as many people as possible):
             # There is no other slate with at least the same total utility and a threshold m,
             # such that m'-th happiest person for that slate is >= for all m'>=m and > for some m*
-            with self.subTest(msg="Maximum coverage"):
+            with self.subTest(msg=axioms_to_evaluate[4]):  # Adjusted index
                 matching_total_utility = wprime_utilities.sum()>=w_utilities.sum()
                 # To find out if such a threshold exists, take the last index where w_prime has strictly greater utility
                 strictly_greater_ms = np.where(wprime_utilities>w_utilities)[0]
@@ -437,16 +428,14 @@ class TestVotingAlgorithms(unittest.TestCase):
                     threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum()==0
                 assert not matching_total_utility or not threshold_exists, "There is a slate which represents more people"
 
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Write the test results to a CSV file after all tests have run.
-        """
-        # suite = unittest.TestLoader().loadTestsFromTestCase(cls)
-        # result = AlgorithmEvaluationResult()
-        # suite.run(result)
-        if hasattr(cls, "result"):
-            cls.result.write_to_csv()
+                    
+        if rated_vote_case.pareto_efficient_slates is not None:
+            with self.subTest(msg=axioms_to_evaluate[0]):  # Adjusted index
+                assert frozenset(W) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+
+        if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
+            with self.subTest(msg=axioms_to_evaluate[1]):  # Adjusted index
+                assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
 
 if __name__ == "__main__":
