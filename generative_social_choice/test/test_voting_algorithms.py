@@ -16,6 +16,9 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from generative_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
+    GreedyTotalUtilityMaximization,
+    ExactTotalUtilityMaximization,
+    LPTotalUtilityMaximization,
     VotingAlgorithm,
 )
 from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
@@ -281,6 +284,9 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
+    GreedyTotalUtilityMaximization(),
+    ExactTotalUtilityMaximization(),
+    LPTotalUtilityMaximization(),
     SequentialPhragmenMinimax(),
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
