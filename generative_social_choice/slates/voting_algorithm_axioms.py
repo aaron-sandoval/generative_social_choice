@@ -1,7 +1,12 @@
 import abc
+import itertools
 from dataclasses import dataclass
+from typing import override
 
 import pandas as pd
+import numpy as np
+
+from generative_social_choice.slates.voting_utils import voter_utilities
 
 
 @dataclass(frozen=True)
@@ -14,15 +19,165 @@ class VotingAlgorithmAxiom(abc.ABC):
     name: str
 
     @abc.abstractmethod
-    def evaluate_assignment(self, rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> bool:
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         """
         Evaluate if the assignment satisfies the axiom.
         """
         pass
 
     @abc.abstractmethod
-    def satisfactory_slates(self, rated_votes: pd.DataFrame) -> set[frozenset[str]]:
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
         """
         Get the set of slates which satisfy the axiom.
         """
         pass
+
+
+class IndividualParetoAxiom(VotingAlgorithmAxiom):
+    """For all solutions, there is no slate for which total utility strictly improves and for no member the utility decreases."""
+
+    @override
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        # Get utilities for the given assignments
+        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+
+        for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+
+            # There is no slate for which total utility strictly improves and for no member the utility decreases
+            if wprime_utilities.sum() > w_utilities.sum() and (wprime_utilities >= w_utilities).all():
+                return False
+        return True
+    
+    @override
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        efficient_slates = []  # (slate, total utility, utilities)
+
+        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            total_utility = utilities.sum()
+
+            no_better_slate_exists = True
+            for other_slate, other_total_utility, other_utilities in efficient_slates[:]:
+                # If the new slate is strictly better, we drop the old one
+                if other_total_utility < total_utility and (other_utilities <= utilities).all():
+                    efficient_slates.remove( (other_slate, other_total_utility, other_utilities) )
+
+                # If strictly better combinations exist, this slate is not interesting
+                if other_total_utility > total_utility and (other_utilities >= utilities).all():
+                    no_better_slate_exists = False
+                    break
+
+            if no_better_slate_exists:
+                efficient_slates.append( (slate, total_utility, utilities) )
+
+        return [slate[0] for slate in efficient_slates]
+            
+class HappiestParetoAxiom(VotingAlgorithmAxiom):
+    """No other slate has m-th happiest person at least as good for all m and strictly better for at least one m*.
+    
+    Note that we get the m-th happiest person vector by sorting the utilities in descending order."""
+
+    @override
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        # Get utilities for the given assignments
+        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+
+        for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+
+            # No other slate has m-th happiest person at least as good for all m and strictly better for at least one m’
+            # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
+            mth_happiest = np.sort(w_utilities)[::-1]
+            mth_happiest_prime = np.sort(wprime_utilities)[::-1]
+            if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime <= mth_happiest).all():
+                return False
+        return True
+    
+    @override
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        efficient_slates = []  # (slate, mth happiest person vector)
+
+        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            mth_happiest = np.sort(utilities)[::-1]
+
+            no_better_slate_exists = True
+            for other_slate, other_mth_happiest in efficient_slates[:]:
+                # If the new slate is strictly better, we drop the old one
+                if (other_mth_happiest < mth_happiest).any() and (other_mth_happiest >= mth_happiest).all():
+                    efficient_slates.remove( (other_slate, other_mth_happiest) )
+
+                # If strictly better combinations exist, this slate is not interesting
+                if (other_mth_happiest > mth_happiest).any() and (other_mth_happiest <= mth_happiest).all():
+                    no_better_slate_exists = False
+                    break
+
+            if no_better_slate_exists:
+                efficient_slates.append( (slate, mth_happiest) )
+
+        return [slate[0] for slate in efficient_slates]
+    
+class CoverageAxiom(VotingAlgorithmAxiom):
+    """Representing as many people as possible:
+    There is no other slate with assignment wprime with at least the same total utility and a threshold m, such that
+    - h(w,mprime)>=h(wprime,mprime) for all mprime>=m [h(w,mprime) is mprime-th happiest person under assignment w]
+    - h(w,m*)>h(wprime,m*) for some m*>=m
+    """
+
+    @override
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        # Get utilities for the given assignments
+        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+
+        for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+
+            # There is no other slate with at least the same total utility and a threshold m,
+            # such that m'-th happiest person for that slate is >= for all m'>=m and > for some m*
+            matching_total_utility = wprime_utilities.sum() >= w_utilities.sum()
+            strictly_greater_ms = np.where(wprime_utilities > w_utilities)[0]
+            if len(strictly_greater_ms) > 0:
+                # If from this index on, m-th happiest person never has lower utility in w_prime, then the threshold is valid
+                threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum() == 0
+                if matching_total_utility and threshold_exists:
+                    return False
+        return True
+    
+    @override
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        efficient_slates = []  # (slate, total_utility, utilities)
+
+        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            total_utility = utilities.sum()
+
+            no_better_slate_exists = True
+            for other_slate, other_total_utility, other_utilities in efficient_slates[:]:
+                # If the new slate is strictly better, we drop the old one
+                if other_total_utility <= total_utility:
+                    strictly_greater_ms = np.where(other_utilities < utilities)[0]
+                    if len(strictly_greater_ms) > 0:
+                        threshold_exists = (other_utilities[strictly_greater_ms.max():] > utilities[strictly_greater_ms.max():]).sum() == 0
+                        if threshold_exists:
+                            efficient_slates.remove( (other_slate, other_total_utility, other_utilities) )
+
+                # If strictly better combinations exist, this slate is not interesting
+                if other_total_utility >= total_utility:
+                    strictly_greater_ms = np.where(other_utilities > utilities)[0]
+                    if len(strictly_greater_ms) > 0:
+                        threshold_exists = (other_utilities[strictly_greater_ms.max():] < utilities[strictly_greater_ms.max():]).sum() == 0
+                        if threshold_exists:
+                            no_better_slate_exists = False
+                            break
+
+            if no_better_slate_exists:
+                efficient_slates.append( (slate, total_utility, utilities) )
+
+        return [slate[0] for slate in efficient_slates]
