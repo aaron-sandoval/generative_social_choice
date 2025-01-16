@@ -973,6 +973,17 @@ sortedcontainers = ">=2.2,<3.0"
 test = ["black (>=21.8b)", "coverage (>=6.0,<7.0)", "pytest (>=7.0,<8.0)"]
 
 [[package]]
+name = "pulp"
+version = "2.9.0"
+description = "PuLP is an LP modeler written in python. PuLP can generate MPS or LP files and call GLPK, COIN CLP/CBC, CPLEX, and GUROBI to solve linear problems."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "PuLP-2.9.0-py3-none-any.whl", hash = "sha256:ad6a9b566d8458f4d05f4bfe2cea59e32885dd1da6929a361be579222107987c"},
+    {file = "pulp-2.9.0.tar.gz", hash = "sha256:2e30e6c0ef2c0edac185220e3e53faca62eb786a9bd68465208f05bc63e850f3"},
+]
+
+[[package]]
 name = "pydantic"
 version = "2.10.4"
 description = "Data validation using Python type hints"
@@ -1335,4 +1346,4 @@ six = "*"
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12"
-content-hash = "702e75eb9e7a7ace35cafc8178388680bbf18123ccd75fcea6dcfa48b429ea52"
+content-hash = "6330619e4808daf842d68699ca203530c045bf40cae57155075ba5adfd70943b"
