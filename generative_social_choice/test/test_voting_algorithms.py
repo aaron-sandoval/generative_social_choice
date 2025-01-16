@@ -20,6 +20,7 @@ from generative_social_choice.slates.voting_algorithms import (
     ExactTotalUtilityMaximization,
     LPTotalUtilityMaximization,
     VotingAlgorithm,
+    GeometricTransformation,
 )
 from generative_social_choice.slates.voting_algorithm_axioms import (
     IndividualParetoAxiom,
@@ -383,6 +384,9 @@ voting_algorithms_to_test = (
     GreedyTotalUtilityMaximization(),
     ExactTotalUtilityMaximization(),
     LPTotalUtilityMaximization(),
+    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     SequentialPhragmenMinimax(),
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
