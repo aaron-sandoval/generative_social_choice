@@ -21,6 +21,11 @@ from generative_social_choice.slates.voting_algorithms import (
     LPTotalUtilityMaximization,
     VotingAlgorithm,
 )
+from generative_social_choice.slates.voting_algorithm_axioms import (
+    IndividualParetoAxiom,
+    HappiestParetoAxiom,
+    CoverageAxiom,
+)
 from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
 from generative_social_choice.slates.voting_utils import voter_utilities, mth_highest_utility
 
@@ -47,7 +52,7 @@ class RatedVoteCase:
     slate_size: int
     pareto_efficient_slates: Optional[set[frozenset[str]]] = None
     non_extremal_pareto_efficient_slates: Optional[set[frozenset[str]]] = None
-    # expected_assignments: Optional[pd.DataFrame] = None
+    expected_assignments: Optional[pd.DataFrame] = None
     name: Optional[str] = None
 
     def __post_init__(self):
@@ -412,60 +417,21 @@ class TestVotingAlgorithms(unittest.TestCase):
             with self.subTest(msg=axioms_to_evaluate[1]):
                 assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
-        # Get utilities for computed solution
-        w_utilities = np.array(voter_utilities(rated_vote_case.rated_votes, assignments))
-
-        # Initialize flags for each check
-        individual_pareto_flag = True
-        mth_happiest_flag = True
-        maximum_coverage_flag = True
-
-        # Check if there is any strictly better slate
-        for Wprime in itertools.combinations(rated_vote_case.rated_votes.columns, r=rated_vote_case.slate_size):
-            if all([individual_pareto_flag, mth_happiest_flag, maximum_coverage_flag]):
-                break
-            
-            # Skip if same slate
-            if sorted(list(Wprime)) == sorted(list(W)):
-                continue
-
-            # Compute utilities (using optimal assignment for given slate)
-            wprime_utilities = rated_vote_case.rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
-
-            # 1st check: There is no slate for which total utility strictly improves and for no member the utility decreases
-            if individual_pareto_flag:
-                if wprime_utilities.sum() > w_utilities.sum() and (wprime_utilities >= w_utilities).all():
-                    individual_pareto_flag = False
-
-            # 2nd check: No other slate has m-th happiest person at least as good for all m and strictly better for at least one m’
-            # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
-            if mth_happiest_flag:
-                mth_happiest = np.sort(w_utilities)[::-1]
-                mth_happiest_prime = np.sort(wprime_utilities)[::-1]
-                if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime <= mth_happiest).all():
-                    mth_happiest_flag = False
-
-            # 3rd check (representing as many people as possible):
-            # There is no other slate with at least the same total utility and a threshold m,
-            # such that m'-th happiest person for that slate is >= for all m'>=m and > for some m*
-            if maximum_coverage_flag:
-                matching_total_utility = wprime_utilities.sum() >= w_utilities.sum()
-                strictly_greater_ms = np.where(wprime_utilities > w_utilities)[0]
-                if len(strictly_greater_ms) > 0:
-                    # If from this index on, m-th happiest person never has lower utility in w_prime, then the threshold is valid
-                    threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum() == 0
-                    if matching_total_utility and threshold_exists:
-                        maximum_coverage_flag = False
-
         # Assertions after the loop
         with self.subTest(msg=axioms_to_evaluate[2]):
-            assert individual_pareto_flag, "There is a slate with strictly greater total utility and no lesser utility for any individual member"
+            axiom = IndividualParetoAxiom("Individual Pareto Efficiency")
+            assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+                "There is a slate with strictly greater total utility and no lesser utility for any individual member"
 
         with self.subTest(msg=axioms_to_evaluate[3]):
-            assert mth_happiest_flag, "There is a slate with a strictly better m-th happiest person curve"
+            axiom = HappiestParetoAxiom("m-th Happiest Person Pareto Efficiency")
+            assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+                "There is a slate with a strictly better m-th happiest person curve"
 
         with self.subTest(msg=axioms_to_evaluate[4]):
-            assert maximum_coverage_flag, "There is a slate which represents more people"
+            axiom = CoverageAxiom("Maximum Coverage")
+            assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+                "There is a slate which represents more people"
 
 
 if __name__ == "__main__":
