@@ -181,3 +181,25 @@ class CoverageAxiom(VotingAlgorithmAxiom):
                 efficient_slates.append( (slate, total_utility, utilities) )
 
         return [slate[0] for slate in efficient_slates]
+    
+
+class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
+    """There is no other slate with strictly better minimum utility and total utility among individual voters.
+    """
+
+    @override
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        # Get utilities for the given assignments
+        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+
+        for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+            if wprime_utilities.min() >= w_utilities.min() and wprime_utilities.sum() >= w_utilities.sum():
+                if wprime_utilities.min() > w_utilities.min() or wprime_utilities.sum() > w_utilities.sum():
+                    return False
+        return True
+    
+    @override
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        efficient_slates = []  # (slate, min_utility, total_utility)
