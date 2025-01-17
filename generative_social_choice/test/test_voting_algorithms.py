@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from parameterized import parameterized
 from kiwiutils.finite_valued import all_instances
+from kiwiutils.kiwilib import getAllSubclasses
 
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -26,357 +27,15 @@ from generative_social_choice.slates.voting_algorithm_axioms import (
     IndividualParetoAxiom,
     HappiestParetoAxiom,
     CoverageAxiom,
+    MinimumAndTotalUtilityParetoAxiom,
+    VotingAlgorithmAxiom,
 )
-from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
-from generative_social_choice.slates.voting_utils import voter_utilities, mth_highest_utility
-
-@dataclass
-class RatedVoteCase:
-    """
-    A voting case with rated votes and sets of possible results which satisfy various properties.
-
-    # Arguments
-    - `rated_votes: pd.DataFrame | list[list[int | float]]`: Utility of each voter (rows) for each candidate (columns)
-      - If passed as a nested list, it's converted to a DataFrame with columns named `s1`, `s2`, etc.
-    - `slate_size: int`: The number of candidates to be selected
-    - `pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
-      - Egalitarian objective: Maximize the minimum utility among all individual voters
-      - Utilitarian objective: Maximize the total utility among all individual voters
-    - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
-        - Subset of `pareto_efficient_slates` which don't make arbitrarily large egalitarian-utilitarian sacrifices in either direction.
-        - Ex: For Example Alg2.1, s1 is Pareto efficient, but not non-extremal Pareto efficient because it makes an arbitrarily large egalitarian sacrifice for an incremental utilitarian gain.
-    - `expected_assignments: Optional[pd.DataFrame] = None`: An expected assignment of voters to candidates with the following columns:
-        - `candidate_id`: The candidate to which the voter is assigned
-        - Other columns not guaranteed to always be present, used for functional testing only. They should always be checked in the unit tests
-    """
-    rated_votes: pd.DataFrame | list[list[int | float]]
-    slate_size: int
-    pareto_efficient_slates: Optional[set[frozenset[str]]] = None
-    non_extremal_pareto_efficient_slates: Optional[set[frozenset[str]]] = None
-    expected_assignments: Optional[pd.DataFrame] = None
-    name: Optional[str] = None
-
-    def __post_init__(self):
-        if isinstance(self.rated_votes, list):
-            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes[0]) + 1)])
-
-        if self.name is None:
-            cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
-                              for col in self.rated_votes.columns)
-            self.name = f"k_{self.slate_size}_{cols_str}"
-        elif self.name is not None:
-            # Format name to be compatible as a Python function name
-            self.name = self.name.replace('.', 'p')
-            self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
-            self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
-            # self.name = re.sub(r'_+', '_', self.name)  # Collapse multiple underscores
-            # self.name = self.name.strip('_')  # Remove trailing underscores
-
-
-# The voting cases to test, please add more as needed
-rated_vote_cases: tuple[RatedVoteCase, ...] = (
-    RatedVoteCase(
-        rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
-        slate_size=1,
-        pareto_efficient_slates=[["s3"]],
-        non_extremal_pareto_efficient_slates=[["s3"]],
-        # expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
-    ),
-    RatedVoteCase(
-        rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
-        slate_size=1,
-        pareto_efficient_slates=[["s1"]],
-        non_extremal_pareto_efficient_slates=[["s1"]],
-        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
-    ),
-    RatedVoteCase(
-        rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
-        slate_size=1,
-        pareto_efficient_slates=[["s1"]],
-        non_extremal_pareto_efficient_slates=[["s1"]],
-        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
-    ),
-    RatedVoteCase(
-        name="Ex 1.1",
-        rated_votes=[
-            [3, 2, 0, 0],
-            [0, 2, 0, 0],
-            [0, 2, 0, 0],
-            [0, 0, 3, 2],
-            [0, 0, 0, 2],
-            [0, 0, 0, 2],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 1.1 modified",
-        rated_votes=[
-            [6, 2, 0, 0],
-            [0, 2, 0, 0],
-            [0, 2, 0, 0],
-            [0, 0, 6, 2],
-            [0, 0, 0, 2],
-            [0, 0, 0, 2],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 1.2",
-        rated_votes=[
-            [1.01, 1, 0],
-            [1.01, 0, 1],
-            [0, 5, 0],
-            [0, 0, 5],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex A.1",
-        rated_votes=[
-            [2, 0, 1, 1],
-            [2, 2, 1, 0],
-            [0, 2, 1, 0],
-            [0, 0, 0, 2],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 1.3",
-        rated_votes=[
-            [2, 0, 0, 0],
-            [2, 2, 1, 0],
-            [0, 2, 1, 1],
-            [0, 0, 1, 2],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 2.1",
-        rated_votes=[
-            [2, 0, 0],
-            [2, 2, 1],
-            [0, 2, 0],
-            [0, 0, 1],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 2.2",
-        rated_votes=[
-            [5, 0, 0, 1],
-            [0, 5, 0, 1],
-            [0, 5, 2, 1],
-            [0, 0, 1, 1],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 3.1",
-        rated_votes=[
-            [2, 0, 1, 0, 0, 0],
-            [1, 2, 0, 0, 0, 0],
-            [0, 1, 2, 0, 0, 0],
-            [0, 0, 0, 2, 0, 1],
-            [0, 0, 0, 1, 2, 0],
-            [0, 0, 0, 0, 1, 2],
-        ],
-        slate_size=3,
-    ),
-    RatedVoteCase(
-        name="Ex 4.1",
-        rated_votes=[
-            [2, 0, 0, 1],
-            [0, 5, 0, 1],
-            [0, 5, 2, 1],
-            [0, 0, 1, 1],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        # Bad egalitarian tradeoff
-        name="Ex 4.2",
-        rated_votes=[
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 0, 1],
-            [5, 5, 1],
-            [5, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 5, 1],
-            [0, 0, 1],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex 4.3",
-        rated_votes=[
-            [5, 0, 0, 0, 1],
-            [5, 5, 0, 0, 1],
-            [0, 5, 0, 0, 1],
-            [0, 0, 5, 0, 1],
-            [0, 0, 5, 5, 1],
-            [0, 0, 0, 5, 1],
-        ],
-        slate_size=3,
-    ),
-    RatedVoteCase(
-        name="Ex 4.4",
-        rated_votes=[
-            [3, 2, 0, 0, 0, 1],
-            [0, 2, 0, 0, 0, 0],
-            [0, 2, 0, 0, 0, 1],
-            [0, 0, 3, 2, 0, 0],
-            [0, 0, 0, 2, 3, 0],
-            [0, 0, 0, 2, 0, 1],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex B.1",
-        rated_votes=[
-            [2, 0, 0],
-            [2, 0, 2],
-            [0, 2, 0],
-            [0, 2, 1],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex B.2",
-        rated_votes=[
-            [9, 0, 0, 1],
-            [9, 0, 1, 0],
-            [0, 9, 0, 1],
-            [0, 9, 1, 0],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex B.3",
-        rated_votes=[
-            [3, 0, 2],
-            [0, 0, 1],
-            [0, 1, 0],
-            [0, 1, 0],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex C.1",
-        rated_votes=[
-            [1, 0, 3],
-            [1, 0, 1],
-            [0, 2, 0],
-            [0, 2, 0],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex C.2",
-        rated_votes=[
-            [3, 0, 0, 2],
-            [3, 0, 2, 0],
-            [0, 1, 2, 0],
-            [0, 1, 0, 2],
-        ],
-        slate_size=2,
-    ),
-    RatedVoteCase(
-        name="Ex D.1",
-        rated_votes=[
-            [4, 0, 0, 0, 0],
-            [4, 3, 0, 0, 0],
-            [4, 3, 2, 0, 0],
-            [0, 3, 2, 1, 0],
-            [0, 0, 2, 1, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 1],
-        ],
-        slate_size=3,
-    ),
-    RatedVoteCase(
-        name="Ex Alg1.3",
-        rated_votes=[
-            [1, 1],
-            [1, 1],
-            [1, 4],
-        ],
-        slate_size=1,
-    ),
-    RatedVoteCase(
-        # Bad egalitarian tradeoff
-        name="Ex Alg1.4",
-        rated_votes=[
-            [1.01, 1],
-            [1.01, 1],
-            [1.01, 4],
-        ],
-        slate_size=1,
-    ),
-    RatedVoteCase(
-        name="Ex Alg1.5",
-        rated_votes=[
-            [1, 1],
-            [1, 1],
-            [1, 2],
-        ],
-        slate_size=1,
-    ),
-    RatedVoteCase(
-        # Bad utilitarian tradeoff
-        name="Ex Alg2.1",
-        rated_votes=[
-            [.01, 1],
-            [.01, 1],
-            [3, 1],
-        ],
-        slate_size=1,
-    ),
-    RatedVoteCase(
-        name="Ex Alg A.1",
-        rated_votes=[
-            [1.01, 1, 0, 0],
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [1, 0, 1, 0],
-            [0, 0, 1, 0],
-            [0, 0, 1, 0],
-            [1, 0, 0, 1],
-            [0, 0, 0, 1],
-            [0, 0, 0, 1],
-        ],
-        slate_size=3,
-    ),
-        RatedVoteCase(
-        name="Ex Alg A.2",
-        rated_votes=[
-            [1.01, 1, 0, 0, 0],
-            [0, 1, 0, 0, 1.01],
-            [0, 1, 0, 0, 0],
-            [1, 0, 1, 0, 0],
-            [0, 0, 1, 0, 1],
-            [0, 0, 1, 0, 0],
-            [1, 0, 0, 1, 0],
-            [0, 0, 0, 1, 1],
-            [0, 0, 0, 1, 0],
-        ],
-        slate_size=3,
-    ),
+from generative_social_choice.utils.helper_functions import (
+    get_time_string,
+    get_base_dir_path,
+    sanitize_name,
 )
+from generative_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
 
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
@@ -391,38 +50,33 @@ voting_algorithms_to_test = (
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
 
-voting_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
+voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
-axioms_to_evaluate: tuple[str, ...] = (
-    "00 (Minimum, total utility) Pareto efficient",
-    "01 (Minimum, total utility) Non-extremal Pareto efficient",
-    "02 Individual Pareto efficient",
-    "03 m-th happiest person Pareto efficient",
-    "04 Maximum coverage",
-)
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in getAllSubclasses(VotingAlgorithmAxiom))
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
     Custom TestResult class to log test results into a DataFrame and write to CSV.
     """
-    included_subtests: set[str] = set(axioms_to_evaluate)
+    included_subtests: tuple[VotingAlgorithmAxiom, ...] = axioms_to_evaluate
     log_filename: Path = get_base_dir_path() / "data" / "voting_algorithm_evals" / f"{get_time_string()}.csv"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        col_index = pd.MultiIndex.from_product([[case.name for case in rated_vote_cases], self.included_subtests], names=["vote", "subtest"])
+        col_index = pd.MultiIndex.from_product([rated_vote_cases.keys(), [axiom.name for axiom in self.included_subtests]], names=["vote", "subtest"])
         self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=col_index)
 
     @override
     def addSubTest(self, test, subtest, outcome):
         super().addSubTest(test, subtest, outcome)
-        if subtest._message not in self.included_subtests:
-            return
+        # if subtest._message not in self.included_subtests:
+        #     return
         if outcome is not None:
             a = 1 # DEBUG
         alg_name, vote_name = repr(subtest.test_case).split("___")
-        vote_name = vote_name[:-1]
+        vote_name = sanitize_name(vote_name)
         alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
+        alg_name = sanitize_name(alg_name)
         subtest_name = subtest._message
         if not pd.isna(self.results.at[alg_name, (vote_name, subtest_name)]):
             raise ValueError(f"Result already exists for {alg_name}, {vote_name}, {subtest_name}")
@@ -435,11 +89,11 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         self.results.to_csv(self.log_filename, index=True)
 
 
-class TestVotingAlgorithms(unittest.TestCase):
+class TestVotingAlgorithmFunctionality(unittest.TestCase):
     """
     Test the functionality and properties of voting algorithms.
     """
-    @parameterized.expand(voting_test_cases)
+    @parameterized.expand(voting_algorithm_test_cases)
     def test_voting_algorithm_functionality(
         self,
         name: str,
@@ -464,19 +118,20 @@ class TestVotingAlgorithms(unittest.TestCase):
             self.assertEqual(len(set(slate)), len(slate))
             self.assertEqual(len(assignments), len(rated_vote_case.rated_votes))
 
+        # TODO: These types of tests will move to separate test cases for each algorithm
         # Check that the assignments are valid. For functional debugging only, will be omitted from algorithm evaluation
-        if rated_vote_case.expected_assignments is not None:
-            with self.subTest(msg="B Assignments"):
-                assert pd.DataFrame.equals(assignments.candidate_id, rated_vote_case.expected_assignments.candidate_id)
+        # if rated_vote_case.expected_assignments is not None:
+        #     with self.subTest(msg="B Assignments"):
+        #         assert pd.DataFrame.equals(assignments.candidate_id, rated_vote_case.expected_assignments.candidate_id)
 
-            with self.subTest(msg="C Assignments other columns"):
-                for col in ["utility", "load", "utility_previous", "second_selected_candidate_id"]:
-                    if col in rated_vote_case.expected_assignments.columns:
-                        assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
+        #     with self.subTest(msg="C Assignments other columns"):
+        #         for col in ["utility", "load", "utility_previous", "second_selected_candidate_id"]:
+        #             if col in rated_vote_case.expected_assignments.columns:
+        #                 assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
 
-    # We'll add more property tests here
 
-    @parameterized.expand(voting_test_cases)
+class TestVotingAlgorithmAxioms(unittest.TestCase):
+    @parameterized.expand(voting_algorithm_test_cases)
     def test_voting_algorithm_for_pareto(
         self,
         name: str,
@@ -495,34 +150,37 @@ class TestVotingAlgorithms(unittest.TestCase):
             rated_vote_case.slate_size,
         )
 
-        # TODO: make this a function in voting_utils
-        if rated_vote_case.pareto_efficient_slates is not None:
-            with self.subTest(msg=axioms_to_evaluate[0]):
-                assert frozenset(W) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+        for axiom in axioms_to_evaluate:
+            with self.subTest(msg=axiom.name):
+                assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+                    f"{axiom.name} is not satisfied"
 
-        # TODO: make this a function in voting_utils
-        if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
-            with self.subTest(msg=axioms_to_evaluate[1]):
-                assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
+        # with self.subTest(msg=axioms_to_evaluate[0]):
+        #     axiom = MinimumAndTotalUtilityParetoAxiom()
+        #     assert frozenset(W) in axiom.satisfactory_slates(rated_vote_case.rated_votes, rated_vote_case.slate_size), "The selected slate is not among the Pareto efficient slates"
 
-        # Assertions after the loop
-        with self.subTest(msg=axioms_to_evaluate[2]):
-            axiom = IndividualParetoAxiom("Individual Pareto Efficiency")
-            assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-                "There is a slate with strictly greater total utility and no lesser utility for any individual member"
+        # # TODO: make this a function in voting_utils
+        # if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
+        #     with self.subTest(msg=axioms_to_evaluate[1]):
+        #         assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
-        with self.subTest(msg=axioms_to_evaluate[3]):
-            axiom = HappiestParetoAxiom("m-th Happiest Person Pareto Efficiency")
-            assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-                "There is a slate with a strictly better m-th happiest person curve"
+        # with self.subTest(msg=axioms_to_evaluate[2]):
+        #     axiom = IndividualParetoAxiom()
+        #     assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+        #         "There is a slate with strictly greater total utility and no lesser utility for any individual member"
 
-        with self.subTest(msg=axioms_to_evaluate[4]):
-            axiom = CoverageAxiom("Maximum Coverage")
-            assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-                "There is a slate which represents more people"
+        # with self.subTest(msg=axioms_to_evaluate[3]):
+        #     axiom = HappiestParetoAxiom()
+        #     assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+        #         "There is a slate with a strictly better m-th happiest person curve"
+
+        # with self.subTest(msg=axioms_to_evaluate[4]):
+        #     axiom = CoverageAxiom()
+        #     assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
+        #         "There is a slate which represents more people"
 
 
 if __name__ == "__main__":
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithms)
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithmAxioms)
     runner = unittest.TextTestRunner(resultclass=AlgorithmEvaluationResult)
     runner.run(suite)

@@ -1,7 +1,10 @@
-from typing import Optional
+from collections.abc import Iterable
+from typing import Optional, Sequence, Callable, Hashable
+import itertools
 
 import pandas as pd
 import numpy as np
+from jaxtyping import Float, Bool
 
 
 def voter_utilities(rated_votes: pd.DataFrame, assignments: pd.DataFrame, column_name: str = "utility") -> pd.Series:
@@ -11,6 +14,10 @@ def voter_utilities(rated_votes: pd.DataFrame, assignments: pd.DataFrame, column
     utilities = np.diag(rated_votes.loc[assignments.index, assignments["candidate_id"]])
     print(f"utilities: {utilities}")
     return pd.Series(utilities, index=assignments.index, name=column_name)
+
+
+def voter_max_utilities_from_slate(rated_votes: pd.DataFrame, slate: set[str]) -> pd.Series:
+    return rated_votes.loc[:, slate].max(axis=1)
 
 
 def total_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> float:
@@ -38,4 +45,82 @@ def min_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> pd.Seri
     - A length-1 Series with the voter ID and their utility.
     """
     return voter_utilities(rated_votes, assignments).nsmallest(1)
+
+
+def pareto_dominates(a: Sequence[float], b: Sequence[float]) -> bool:
+    if len(a) != len(b):
+        raise ValueError("a and b must have the same length")
+    return all(a[i] >= b[i] for i in range(len(a))) and any(a[i] > b[i] for i in range(len(a)))
+
+
+def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"], abs_tol: float = 1e-6) -> Bool[np.ndarray, "slate"]:
+    """
+    Finds the boolean mask of pareto efficiency among an array of candidates.
+
+    Higher utilities must be better for all metrics.
+    If this is not the case for some metric, invert/negate that column before calling this function.
+    Source: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+
+    # Arguments
+    - `positive_metrics: Float[np.ndarray, "slate metric_type"]`: The metrics to be maximized
+    - `abs_tol: float`: Absolute tolerance for floating point comparisons
+      - A metric a is considered to be greater than another metric b if a > b + abs_tol for all metrics.
+      - If two slates have metrics which are all within abs_tol of each other, both are considered efficient.
+    """
+    is_efficient = np.ones(positive_metrics.shape[0], dtype=bool)
+    for i, u in enumerate(positive_metrics):
+        if is_efficient[i]:
+            is_efficient[is_efficient] = np.any(positive_metrics[is_efficient] > u + abs_tol, axis=1)  # Keep any point with a lower cost
+            is_efficient[i] = True  # And keep self
+
+    # Efficiently find pairs of slates where each pair of values in all columns is within abs_tol
+    efficient_indices = np.where(is_efficient)[0]
+    non_efficient_indices = np.where(~is_efficient)[0]
+
+    for i in efficient_indices:
+        for j in non_efficient_indices:
+            if is_efficient[j]:  # Skip if a previous iteration already found j to be efficient
+                continue
+            if np.all(np.abs(positive_metrics[i] - positive_metrics[j]) <= abs_tol):
+                is_efficient[j] = True
+
+    return is_efficient
+
+
+def pareto_efficient_slates(
+    rated_votes: pd.DataFrame,
+    slate_size: int, 
+    positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]
+) -> set[frozenset[Hashable]]:
+    """
+    Find all pareto efficient slates of a given size according to a set of positive metrics.
+
+
+    This function assumes that voters are assigned to their highest utility candidate in the slate.
+
+    # Arguments
+    - `rated_votes: pd.DataFrame`: The utility of each voter for each candidate
+    - `slate_size: int`: The number of candidates to be selected
+    - `positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]`: The metrics to be maximized
+      - The metrics are a function only of a 1D array of voter utilities.
+      - Support for metrics which are a function of additional arguments beyond this 1D array is not supported.
+      - The metrics must all be defined such that higher valued are better.
+      - If this is not the case for some metric, use an inversion/negation within the `Callable`.
+    
+
+    # Returns
+    - A set of frozensets of candidate IDs that are pareto efficient.
+    """
+    metric_values: Float[np.ndarray, "slate metric_type"] = pd.DataFrame(
+        index=itertools.combinations(rated_votes.columns, r=slate_size),
+        columns=range(len(positive_metrics)),
+        dtype=float
+    )
+    # Could parallelize this if needed
+    for slate in metric_values.index:
+        utilities = voter_max_utilities_from_slate(rated_votes, slate)
+        for metric_index, metric in enumerate(positive_metrics):
+            metric_values.at[slate, metric_index] = metric(utilities).astype(np.float64)
+    
+    return set(frozenset(cand_tuple) for cand_tuple in metric_values.index[is_pareto_efficient(metric_values.values)])
 

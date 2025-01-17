@@ -1,6 +1,7 @@
 from pathlib import Path
 from dataclasses import dataclass
 import abc
+import re
 from typing import Optional, Literal, override
 
 import pulp
@@ -10,8 +11,48 @@ import numpy as np
 from generative_social_choice.utils.helper_functions import (
     get_time_string,
     get_base_dir_path,
+    sanitize_name,
 )
 from generative_social_choice.queries.query_interface import Agent, Generator
+
+@dataclass
+class RatedVoteCase:
+    """
+    A voting case with rated votes and sets of possible results which satisfy various properties.
+
+    # Arguments
+    - `rated_votes: pd.DataFrame | list[list[int | float]]`: Utility of each voter (rows) for each candidate (columns)
+      - If passed as a nested list, it's converted to a DataFrame with columns named `s1`, `s2`, etc.
+    - `slate_size: int`: The number of candidates to be selected
+    - `pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
+      - Egalitarian objective: Maximize the minimum utility among all individual voters
+      - Utilitarian objective: Maximize the total utility among all individual voters
+    - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
+        - Subset of `pareto_efficient_slates` which don't make arbitrarily large egalitarian-utilitarian sacrifices in either direction.
+        - Ex: For Example Alg2.1, s1 is Pareto efficient, but not non-extremal Pareto efficient because it makes an arbitrarily large egalitarian sacrifice for an incremental utilitarian gain.
+    - `expected_assignments: Optional[pd.DataFrame] = None`: An expected assignment of voters to candidates with the following columns:
+        - `candidate_id`: The candidate to which the voter is assigned
+        - Other columns not guaranteed to always be present, used for functional testing only. They should always be checked in the unit tests
+    """
+    rated_votes: pd.DataFrame | list[list[int | float]]
+    slate_size: int
+    name: Optional[str] = None
+
+    def __post_init__(self):
+        if isinstance(self.rated_votes, list):
+            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes[0]) + 1)])
+
+        if self.name is None:
+            cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
+                              for col in self.rated_votes.columns)
+            self.name = f"k_{self.slate_size}_{cols_str}"
+        elif self.name is not None:
+            # Format name to be compatible as a Python function name
+            self.name = self.name.replace('.', 'p')
+            self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
+            self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
+            # self.name = re.sub(r'_+', '_', self.name)  # Collapse multiple underscores
+            # self.name = self.name.strip('_')  # Remove trailing underscores
 
 
 Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous", "total"]
@@ -60,7 +101,7 @@ class VotingAlgorithm(abc.ABC):
         """
         Succinct name of the voting algorithm, used in labeling test cases.
         """
-        return repr(self)
+        return sanitize_name(repr(self))
 
 
 @dataclass(frozen=True)
@@ -300,7 +341,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
 @dataclass(frozen=True)
 class ExactTotalUtilityMaximization(VotingAlgorithm):
-    name = "ExactTotalUtilityMaximization"
+    # name = "ExactTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
         
     @override
@@ -375,7 +416,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
 
     For this approach, we can't guarantee finding an optimal solution but the algorithm runs
     in polynomial time."""
-    name = "LPTotalUtilityMaximization"
+    # name = "LPTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
 
     @override
@@ -442,7 +483,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
 
 @dataclass(frozen=True)
 class GreedyTotalUtilityMaximization(VotingAlgorithm):
-    name = "GreedyTotalUtilityMaximization"
+    # name = "GreedyTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
 
     @override

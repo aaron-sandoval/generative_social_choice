@@ -1,12 +1,18 @@
 import abc
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import override
 
 import pandas as pd
 import numpy as np
+import bisect
 
-from generative_social_choice.slates.voting_utils import voter_utilities
+from generative_social_choice.slates.voting_utils import (
+    voter_utilities,
+    voter_max_utilities_from_slate,
+    pareto_dominates,
+    pareto_efficient_slates
+)
 
 
 @dataclass(frozen=True)
@@ -17,6 +23,10 @@ class VotingAlgorithmAxiom(abc.ABC):
     An algorithm satisfies an axiom if it satisfies the axiom for all possible rated votes and slate sizes.
     """
     name: str
+
+    def __post_init__(self):
+        if not self.name:
+            object.__setattr__(self, "name", type(self).__name__)
 
     @abc.abstractmethod
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -33,8 +43,11 @@ class VotingAlgorithmAxiom(abc.ABC):
         pass
 
 
+@dataclass(frozen=True)
 class IndividualParetoAxiom(VotingAlgorithmAxiom):
     """For all solutions, there is no slate for which total utility strictly improves and for no member the utility decreases."""
+
+    name: str = "Individual Pareto Efficiency"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -74,11 +87,15 @@ class IndividualParetoAxiom(VotingAlgorithmAxiom):
                 efficient_slates.append( (slate, total_utility, utilities) )
 
         return [slate[0] for slate in efficient_slates]
-            
+
+
+@dataclass(frozen=True)            
 class HappiestParetoAxiom(VotingAlgorithmAxiom):
     """No other slate has m-th happiest person at least as good for all m and strictly better for at least one m*.
     
     Note that we get the m-th happiest person vector by sorting the utilities in descending order."""
+
+    name: str = "m-th Happiest Person Pareto Efficiency"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -122,12 +139,16 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
 
         return [slate[0] for slate in efficient_slates]
     
+
+@dataclass(frozen=True)
 class CoverageAxiom(VotingAlgorithmAxiom):
     """Representing as many people as possible:
     There is no other slate with assignment wprime with at least the same total utility and a threshold m, such that
     - h(w,mprime)>=h(wprime,mprime) for all mprime>=m [h(w,mprime) is mprime-th happiest person under assignment w]
     - h(w,m*)>h(wprime,m*) for some m*>=m
     """
+
+    name: str = "Maximum Coverage"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -181,3 +202,31 @@ class CoverageAxiom(VotingAlgorithmAxiom):
                 efficient_slates.append( (slate, total_utility, utilities) )
 
         return [slate[0] for slate in efficient_slates]
+    
+
+@dataclass(frozen=True)
+class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
+    """There is no other slate with strictly better minimum utility and total utility among individual voters.
+    """
+
+    name: str = "Minimum Utility and Total Utility Pareto Efficiency"
+
+    @override
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        # Get utilities for the given assignments
+        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+
+        for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+            if wprime_utilities.min() >= w_utilities.min() and wprime_utilities.sum() >= w_utilities.sum():
+                if wprime_utilities.min() > w_utilities.min() or wprime_utilities.sum() > w_utilities.sum():
+                    return False
+        return True
+    
+    @override
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        return pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
+        
+
+
