@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from parameterized import parameterized
 from kiwiutils.finite_valued import all_instances
+from kiwiutils.kiwilib import get_all_subclasses
 
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
