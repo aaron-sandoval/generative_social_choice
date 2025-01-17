@@ -27,6 +27,7 @@ class TestParetoDominates(unittest.TestCase):
         ((1, 2, 3), (1, 2, 3), False),
         ((1, 2, 3), (1, 3, 2), False),
         ((1, 2, 3), (1, 1, 1), True),
+        ((1., 2., 3.), (1., 2., 3.), False),
         ((1,), (0,), True),
         ((), (), False),
         ((1,), (1, 2), ValueError),
@@ -45,9 +46,11 @@ class TestIsParetoEfficient(unittest.TestCase):
         (np.array([[1, 2], [2, 1], [3, 0]]), np.array([True, True, True])),
         (np.array([[1, 2], [2, 1], [2, 0]]), np.array([True, True, False])),
         (np.array([[1, 2], [2, 1], [2, 2]]), np.array([False, False, True])),
+        (np.array([[4, 2], [5, 2], [4, 1]]), np.array([False, True, False])),
         (np.array([[1, 2, 3], [2, 1, 2], [2, 2, 1]]), np.array([True, True, True])),
         (np.array([[1, 2, 3], [0, 1, 2], [0, 2, 1]]), np.array([True, False, False])),
         (np.array([[1, 2, 3], [2, 1, 2], [2, 2, 1], [1, 1, 1]]), np.array([True, True, True, False])),
+        (np.array([[1., 2.], [1., 2.]]), np.array([True, True])),
 
     ])
     def test_is_pareto_efficient(self, utilities: Float[np.ndarray, "slate metric_type"], expected: Bool[np.ndarray, "slate"]):
@@ -56,22 +59,60 @@ class TestIsParetoEfficient(unittest.TestCase):
 class TestParetoEfficientSlates(unittest.TestCase):
     @parameterized.expand([
         (
-            pd.DataFrame([[1, 2], [2, 1], [3, 0]]), 
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 1, 0]]), 
             1, 
             [lambda x: x.sum()], 
-            {frozenset({0, 1, 2})}
+            {frozenset(slate) for slate in [[0], [1], [2]]}
         ),
         (
-            pd.DataFrame([[1, 3], [2, 1], [3, 0]]), 
+            pd.DataFrame([[1, 2, 3], 
+                          [3, 1, 0]]), 
             1, 
             [lambda x: x.sum()], 
             {frozenset({0})}
         ),
         (
-            pd.DataFrame([[1, 2], [2, 1], [3, 0]]), 
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 1, 0]]), 
             1, 
             [lambda x: x[0], lambda x: x[1]], 
-            {frozenset({0, 1, 2})}
+            {frozenset(slate) for slate in [[0], [1], [2]]}
+        ),
+        (
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 1, 0]]), 
+            2, 
+            [lambda x: x.sum(), lambda x: x.min()], 
+            {frozenset(slate) for slate in [[0, 2]]}
+        ),
+        (
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 1, 0]]), 
+            2, 
+            [lambda x: x.min()], 
+            {frozenset(slate) for slate in [[0, 1], [0, 2]]}
+        ),
+        (
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 1, 0]]), 
+            2, 
+            [lambda x: x.max()], 
+            {frozenset(slate) for slate in [[0, 2], [1, 2]]}
+        ),
+        (
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 1, 0]]), 
+            2, 
+            [lambda x: -x.std()], 
+            {frozenset(slate) for slate in [[0, 1]]}
+        ),
+        (
+            pd.DataFrame([[1, 2, 3], 
+                          [2, 3, 4]]), 
+            2, 
+            [lambda x: -x.std()], 
+            {frozenset(slate) for slate in [[0, 1], [1, 2], [0, 2]]}
         ),
     ])
     def test_pareto_efficient_slates(

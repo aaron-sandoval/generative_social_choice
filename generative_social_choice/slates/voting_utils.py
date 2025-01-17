@@ -1,6 +1,7 @@
 from collections.abc import Iterable
-from typing import Optional, Sequence, Callable
+from typing import Optional, Sequence, Callable, Hashable
 import itertools
+
 import pandas as pd
 import numpy as np
 from jaxtyping import Float, Bool
@@ -52,19 +53,37 @@ def pareto_dominates(a: Sequence[float], b: Sequence[float]) -> bool:
     return all(a[i] >= b[i] for i in range(len(a))) and any(a[i] > b[i] for i in range(len(a)))
 
 
-def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"]) -> Bool[np.ndarray, "slate"]:
+def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"], abs_tol: float = 1e-6) -> Bool[np.ndarray, "slate"]:
     """
     Finds the boolean mask of pareto efficiency among an array of candidates.
 
-    Higher utilities are better for all columns.
+    Higher utilities must be better for all metrics.
     If this is not the case for some metric, invert/negate that column before calling this function.
     Source: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+
+    # Arguments
+    - `positive_metrics: Float[np.ndarray, "slate metric_type"]`: The metrics to be maximized
+    - `abs_tol: float`: Absolute tolerance for floating point comparisons
+      - A metric a is considered to be greater than another metric b if a > b + abs_tol for all metrics.
+      - If two slates have metrics which are all within abs_tol of each other, both are considered efficient.
     """
-    is_efficient = np.ones(positive_metrics.shape[0], dtype = bool)
+    is_efficient = np.ones(positive_metrics.shape[0], dtype=bool)
     for i, u in enumerate(positive_metrics):
         if is_efficient[i]:
-            is_efficient[is_efficient] = np.any(positive_metrics[is_efficient]>u, axis=1)  # Keep any point with a lower cost
+            is_efficient[is_efficient] = np.any(positive_metrics[is_efficient] > u + abs_tol, axis=1)  # Keep any point with a lower cost
             is_efficient[i] = True  # And keep self
+
+    # Efficiently find pairs of slates where each pair of values in all columns is within abs_tol
+    efficient_indices = np.where(is_efficient)[0]
+    non_efficient_indices = np.where(~is_efficient)[0]
+
+    for i in efficient_indices:
+        for j in non_efficient_indices:
+            if is_efficient[j]:  # Skip if a previous iteration already found j to be efficient
+                continue
+            if np.all(np.abs(positive_metrics[i] - positive_metrics[j]) <= abs_tol):
+                is_efficient[j] = True
+
     return is_efficient
 
 
@@ -72,7 +91,7 @@ def pareto_efficient_slates(
     rated_votes: pd.DataFrame,
     slate_size: int, 
     positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]
-) -> set[frozenset[str]]:
+) -> set[frozenset[Hashable]]:
     """
     Find all pareto efficient slates of a given size according to a set of positive metrics.
 
@@ -94,14 +113,14 @@ def pareto_efficient_slates(
     """
     metric_values: Float[np.ndarray, "slate metric_type"] = pd.DataFrame(
         index=itertools.combinations(rated_votes.columns, r=slate_size),
-        columns=positive_metrics,
+        columns=range(len(positive_metrics)),
         dtype=float
     )
     # Could parallelize this if needed
     for slate in metric_values.index:
         utilities = voter_max_utilities_from_slate(rated_votes, slate)
-        for metric in positive_metrics:
-            metric_values.at[slate, metric] = metric(utilities)
+        for metric_index, metric in enumerate(positive_metrics):
+            metric_values.at[slate, metric_index] = metric(utilities).astype(np.float64)
     
-    return set(metric_values.index[is_pareto_efficient(metric_values.values)])
+    return set(frozenset(cand_tuple) for cand_tuple in metric_values.index[is_pareto_efficient(metric_values.values)])
 
