@@ -385,6 +385,17 @@ files = [
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
 
 [[package]]
+name = "jaxtyping"
+version = "0.2.36"
+description = "Type annotations and runtime checking for shape and dtype of JAX/NumPy/PyTorch/etc. arrays."
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "jaxtyping-0.2.36-py3-none-any.whl", hash = "sha256:b19bcbd4009df8734602203402483a4066ad2eb3382904432e370588e9c9707d"},
+    {file = "jaxtyping-0.2.36.tar.gz", hash = "sha256:781ac44a3cf8982063d7ee48b5008ccfad7b13793bf878eb3058d5319aa08f0f"},
+]
+
+[[package]]
 name = "jiter"
 version = "0.8.2"
 description = "Fast iterable JSON parser."
@@ -1346,4 +1357,4 @@ six = "*"
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12"
-content-hash = "6330619e4808daf842d68699ca203530c045bf40cae57155075ba5adfd70943b"
+content-hash = "1cbde3c439e622bbe5ac82cfb6458c7033f71533085cdd36e64426823bfada78"
