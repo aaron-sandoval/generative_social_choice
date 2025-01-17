@@ -45,11 +45,13 @@ def min_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> pd.Seri
     return voter_utilities(rated_votes, assignments).nsmallest(1)
 
 
-def pareto_dominates(a: tuple[float, ...], b: tuple[float, ...]) -> bool:
+def pareto_dominates(a: Sequence[float], b: Sequence[float]) -> bool:
+    if len(a) != len(b):
+        raise ValueError("a and b must have the same length")
     return all(a[i] >= b[i] for i in range(len(a))) and any(a[i] > b[i] for i in range(len(a)))
 
 
-def is_pareto_efficient(utilities: Float[np.ndarray, "candidate utility_type"]) -> Bool[np.ndarray, "candidate"]:
+def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"]) -> Bool[np.ndarray, "slate"]:
     """
     Finds the boolean mask of pareto efficiency among an array of candidates.
 
@@ -57,10 +59,10 @@ def is_pareto_efficient(utilities: Float[np.ndarray, "candidate utility_type"]) 
     If this is not the case for some metric, invert/negate that column before calling this function.
     Source: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
     """
-    is_efficient = np.ones(utilities.shape[0], dtype = bool)
-    for i, u in enumerate(utilities):
+    is_efficient = np.ones(positive_metrics.shape[0], dtype = bool)
+    for i, u in enumerate(positive_metrics):
         if is_efficient[i]:
-            is_efficient[is_efficient] = np.any(utilities[is_efficient]>u, axis=1)  # Keep any point with a lower cost
+            is_efficient[is_efficient] = np.any(positive_metrics[is_efficient]>u, axis=1)  # Keep any point with a lower cost
             is_efficient[i] = True  # And keep self
     return is_efficient
 

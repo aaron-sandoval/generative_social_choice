@@ -16,9 +16,25 @@ from generative_social_choice.slates.voting_utils import (
     voter_utilities,
     mth_highest_utility,
     is_pareto_efficient,
-    pareto_efficient_slates
+    pareto_efficient_slates,
+    pareto_dominates
 )
-
 class TestVotingUtils(unittest.TestCase):
-    def test_voter_utilities(self):
-        self.assertEqual(voter_utilities(pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}), pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})), [1, 2, 3])
+    @parameterized.expand([
+        ((1, 2, 3), (2, 1, 3), False),
+        ((1, 2, 3), (1, 2, 3), False),
+        ((1, 2, 3), (1, 3, 2), False),
+        ((1, 2, 3), (1, 1, 1), True),
+        ((1,), (0,), True),
+        ((), (), False),
+        ((1,), (1, 2), ValueError),
+        (1, 2, TypeError),
+    ])
+    def test_pareto_dominates(self, a: tuple[float, ...], b: tuple[float, ...], expected):
+        if isinstance(expected, bool):
+            self.assertEqual(pareto_dominates(a, b), expected)
+        else:
+            with self.assertRaises(expected):
+                pareto_dominates(a, b)
+
+    # def test_is_pareto_efficient(self):
