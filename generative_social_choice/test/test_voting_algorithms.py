@@ -43,7 +43,7 @@ voting_algorithms_to_test = (
     SequentialPhragmenMinimax(load_magnitude_method="total"),
 )
 
-voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases, voting_algorithms_to_test))
+voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
 axioms_to_evaluate: tuple[str, ...] = (
     "00 (Minimum, total utility) Pareto efficient",
@@ -62,7 +62,7 @@ class AlgorithmEvaluationResult(unittest.TestResult):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        col_index = pd.MultiIndex.from_product([[case.name for case in rated_vote_cases], self.included_subtests], names=["vote", "subtest"])
+        col_index = pd.MultiIndex.from_product([rated_vote_cases.keys(), self.included_subtests], names=["vote", "subtest"])
         self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=col_index)
 
     @override

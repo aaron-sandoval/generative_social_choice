@@ -48,7 +48,7 @@ class RatedVoteCase:
 
 
 # The voting cases to test, please add more as needed
-rated_vote_cases: tuple[RatedVoteCase, ...] = (
+_rated_vote_cases: tuple[RatedVoteCase, ...] = (
     RatedVoteCase(
         rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
         slate_size=1,
@@ -351,3 +351,5 @@ rated_vote_cases: tuple[RatedVoteCase, ...] = (
         slate_size=3,
     ),
 )
+
+rated_vote_cases: dict[str, RatedVoteCase] = {case.name: case for case in _rated_vote_cases}
