@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Optional, Sequence, Callable
 import itertools
 import pandas as pd
@@ -70,7 +71,7 @@ def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"]
 def pareto_efficient_slates(
     rated_votes: pd.DataFrame,
     slate_size: int, 
-    positive_metrics: Sequence[Callable[[Float[np.ndarray, "voter_utility"]], float]]
+    positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]
 ) -> set[frozenset[str]]:
     """
     Find all pareto efficient slates of a given size according to a set of positive metrics.
@@ -81,7 +82,7 @@ def pareto_efficient_slates(
     # Arguments
     - `rated_votes: pd.DataFrame`: The utility of each voter for each candidate
     - `slate_size: int`: The number of candidates to be selected
-    - `positive_metrics: Sequence[Callable[[Float[np.ndarray, "voter_utility"]], float]]`: The metrics to be maximized
+    - `positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]`: The metrics to be maximized
       - The metrics are a function only of a 1D array of voter utilities.
       - Support for metrics which are a function of additional arguments beyond this 1D array is not supported.
       - The metrics must all be defined such that higher valued are better.
@@ -93,12 +94,14 @@ def pareto_efficient_slates(
     """
     metric_values: Float[np.ndarray, "slate metric_type"] = pd.DataFrame(
         index=itertools.combinations(rated_votes.columns, r=slate_size),
-        columns=positive_metrics
+        columns=positive_metrics,
+        dtype=float
     )
+    # Could parallelize this if needed
     for slate in metric_values.index:
         utilities = voter_max_utilities_from_slate(rated_votes, slate)
         for metric in positive_metrics:
-            metric_values.loc[slate, metric] = metric(utilities)
+            metric_values.at[slate, metric] = metric(utilities)
     
     return set(metric_values.index[is_pareto_efficient(metric_values.values)])
 
