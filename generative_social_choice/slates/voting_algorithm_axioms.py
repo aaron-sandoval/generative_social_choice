@@ -26,7 +26,7 @@ class VotingAlgorithmAxiom(abc.ABC):
 
     def __post_init__(self):
         if self.name == "":
-            self.name = type(self).__name__
+            object.__setattr__(self, "name", type(self).__name__)  # Hacky b/c frozen dataclass
 
     @abc.abstractmethod
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -43,6 +43,7 @@ class VotingAlgorithmAxiom(abc.ABC):
         pass
 
 
+@dataclass(frozen=True)
 class IndividualParetoAxiom(VotingAlgorithmAxiom):
     """For all solutions, there is no slate for which total utility strictly improves and for no member the utility decreases."""
 
@@ -86,7 +87,9 @@ class IndividualParetoAxiom(VotingAlgorithmAxiom):
                 efficient_slates.append( (slate, total_utility, utilities) )
 
         return [slate[0] for slate in efficient_slates]
-            
+
+
+@dataclass(frozen=True)            
 class HappiestParetoAxiom(VotingAlgorithmAxiom):
     """No other slate has m-th happiest person at least as good for all m and strictly better for at least one m*.
     
@@ -137,6 +140,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
         return [slate[0] for slate in efficient_slates]
     
 
+@dataclass(frozen=True)
 class CoverageAxiom(VotingAlgorithmAxiom):
     """Representing as many people as possible:
     There is no other slate with assignment wprime with at least the same total utility and a threshold m, such that
@@ -200,6 +204,7 @@ class CoverageAxiom(VotingAlgorithmAxiom):
         return [slate[0] for slate in efficient_slates]
     
 
+@dataclass(frozen=True)
 class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
     """There is no other slate with strictly better minimum utility and total utility among individual voters.
     """

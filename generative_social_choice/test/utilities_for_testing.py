@@ -12,23 +12,14 @@ _rated_vote_cases: tuple[RatedVoteCase, ...] = (
     RatedVoteCase(
         rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
         slate_size=1,
-        pareto_efficient_slates=[["s3"]],
-        non_extremal_pareto_efficient_slates=[["s3"]],
-        # expected_assignments=pd.DataFrame(["s3"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
         slate_size=1,
-        pareto_efficient_slates=[["s1"]],
-        non_extremal_pareto_efficient_slates=[["s1"]],
-        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
         slate_size=1,
-        pareto_efficient_slates=[["s1"]],
-        non_extremal_pareto_efficient_slates=[["s1"]],
-        # expected_assignments=pd.DataFrame(["s1"]*3, columns=["candidate_id"])
     ),
     RatedVoteCase(
         name="Ex 1.1",
