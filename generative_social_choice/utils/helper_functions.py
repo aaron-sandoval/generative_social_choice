@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from datetime import datetime, timezone
+import re
 
 
 def get_base_dir_path() -> Path:
@@ -25,3 +26,15 @@ def get_time_string() -> str:
     time_string = now.strftime("%Y-%m-%d-%H%M%S")
 
     return time_string
+
+def sanitize_name(name: str) -> str:
+    """
+    Sanitize a name to be compatible as a Python function name.
+    """
+    if name[0] in ["0123456789"]:
+        name = "_" + name
+    name = name.replace('.', 'p')
+    name = re.sub(r'[^a-zA-Z0-9_]', '_', name)  
+    name = name.rstrip('_')  # Remove trailing underscores only
+    return name
+

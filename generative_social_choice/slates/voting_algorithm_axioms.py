@@ -22,11 +22,11 @@ class VotingAlgorithmAxiom(abc.ABC):
 
     An algorithm satisfies an axiom if it satisfies the axiom for all possible rated votes and slate sizes.
     """
-    name: str = ""
+    name: str
 
     def __post_init__(self):
-        if self.name == "":
-            object.__setattr__(self, "name", type(self).__name__)  # Hacky b/c frozen dataclass
+        if not self.name:
+            object.__setattr__(self, "name", type(self).__name__)
 
     @abc.abstractmethod
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -47,7 +47,7 @@ class VotingAlgorithmAxiom(abc.ABC):
 class IndividualParetoAxiom(VotingAlgorithmAxiom):
     """For all solutions, there is no slate for which total utility strictly improves and for no member the utility decreases."""
 
-    name = "Individual Pareto Efficiency"
+    name: str = "Individual Pareto Efficiency"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -95,7 +95,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
     
     Note that we get the m-th happiest person vector by sorting the utilities in descending order."""
 
-    name = "m-th Happiest Person Pareto Efficiency"
+    name: str = "m-th Happiest Person Pareto Efficiency"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -148,7 +148,7 @@ class CoverageAxiom(VotingAlgorithmAxiom):
     - h(w,m*)>h(wprime,m*) for some m*>=m
     """
 
-    name = "Maximum Coverage"
+    name: str = "Maximum Coverage"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -209,7 +209,7 @@ class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
     """There is no other slate with strictly better minimum utility and total utility among individual voters.
     """
 
-    name = "Minimum Utility and Total Utility Pareto Efficiency"
+    name: str = "Minimum Utility and Total Utility Pareto Efficiency"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:

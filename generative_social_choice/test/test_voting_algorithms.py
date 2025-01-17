@@ -30,7 +30,11 @@ from generative_social_choice.slates.voting_algorithm_axioms import (
     MinimumAndTotalUtilityParetoAxiom,
     VotingAlgorithmAxiom,
 )
-from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
+from generative_social_choice.utils.helper_functions import (
+    get_time_string,
+    get_base_dir_path,
+    sanitize_name,
+)
 from generative_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
 
 # Instances of voting algorithms to test, please add more as needed
@@ -54,24 +58,25 @@ class AlgorithmEvaluationResult(unittest.TestResult):
     """
     Custom TestResult class to log test results into a DataFrame and write to CSV.
     """
-    included_subtests: set[str] = set(axioms_to_evaluate)
+    included_subtests: tuple[VotingAlgorithmAxiom, ...] = axioms_to_evaluate
     log_filename: Path = get_base_dir_path() / "data" / "voting_algorithm_evals" / f"{get_time_string()}.csv"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        col_index = pd.MultiIndex.from_product([rated_vote_cases.keys(), self.included_subtests], names=["vote", "subtest"])
+        col_index = pd.MultiIndex.from_product([rated_vote_cases.keys(), [axiom.name for axiom in self.included_subtests]], names=["vote", "subtest"])
         self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=col_index)
 
     @override
     def addSubTest(self, test, subtest, outcome):
         super().addSubTest(test, subtest, outcome)
-        if subtest._message not in self.included_subtests:
-            return
+        # if subtest._message not in self.included_subtests:
+        #     return
         if outcome is not None:
             a = 1 # DEBUG
         alg_name, vote_name = repr(subtest.test_case).split("___")
-        vote_name = vote_name[:-1]
+        vote_name = sanitize_name(vote_name)
         alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
+        alg_name = sanitize_name(alg_name)
         subtest_name = subtest._message
         if not pd.isna(self.results.at[alg_name, (vote_name, subtest_name)]):
             raise ValueError(f"Result already exists for {alg_name}, {vote_name}, {subtest_name}")
@@ -125,7 +130,7 @@ class TestVotingAlgorithmFunctionality(unittest.TestCase):
         #                 assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
 
 
-class TestVotingAlgorithmParetoAxioms(unittest.TestCase):
+class TestVotingAlgorithmAxioms(unittest.TestCase):
     @parameterized.expand(voting_algorithm_test_cases)
     def test_voting_algorithm_for_pareto(
         self,
@@ -176,6 +181,6 @@ class TestVotingAlgorithmParetoAxioms(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithms)
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithmAxioms)
     runner = unittest.TextTestRunner(resultclass=AlgorithmEvaluationResult)
     runner.run(suite)

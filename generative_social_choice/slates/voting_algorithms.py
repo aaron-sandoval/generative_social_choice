@@ -11,6 +11,7 @@ import numpy as np
 from generative_social_choice.utils.helper_functions import (
     get_time_string,
     get_base_dir_path,
+    sanitize_name,
 )
 from generative_social_choice.queries.query_interface import Agent, Generator
 
@@ -100,7 +101,7 @@ class VotingAlgorithm(abc.ABC):
         """
         Succinct name of the voting algorithm, used in labeling test cases.
         """
-        return repr(self)
+        return sanitize_name(repr(self))
 
 
 @dataclass(frozen=True)
@@ -340,7 +341,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
 @dataclass(frozen=True)
 class ExactTotalUtilityMaximization(VotingAlgorithm):
-    name = "ExactTotalUtilityMaximization"
+    # name = "ExactTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
         
     @override
@@ -415,7 +416,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
 
     For this approach, we can't guarantee finding an optimal solution but the algorithm runs
     in polynomial time."""
-    name = "LPTotalUtilityMaximization"
+    # name = "LPTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
 
     @override
@@ -482,7 +483,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
 
 @dataclass(frozen=True)
 class GreedyTotalUtilityMaximization(VotingAlgorithm):
-    name = "GreedyTotalUtilityMaximization"
+    # name = "GreedyTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
 
     @override
