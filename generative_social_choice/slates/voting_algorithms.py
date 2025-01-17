@@ -100,6 +100,8 @@ class VotingAlgorithm(abc.ABC):
     def name(self) -> str:
         """
         Succinct name of the voting algorithm, used in labeling test cases.
+
+        Name must be a valid Python function name.
         """
         return sanitize_name(repr(self))
 
