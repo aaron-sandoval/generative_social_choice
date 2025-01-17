@@ -1,6 +1,7 @@
 from pathlib import Path
 from dataclasses import dataclass
 import abc
+import re
 from typing import Optional, Literal, override
 
 import pulp
@@ -34,9 +35,6 @@ class RatedVoteCase:
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
-    pareto_efficient_slates: Optional[set[frozenset[str]]] = None
-    non_extremal_pareto_efficient_slates: Optional[set[frozenset[str]]] = None
-    expected_assignments: Optional[pd.DataFrame] = None
     name: Optional[str] = None
 
     def __post_init__(self):

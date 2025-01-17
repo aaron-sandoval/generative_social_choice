@@ -26,6 +26,7 @@ from generative_social_choice.slates.voting_algorithm_axioms import (
     IndividualParetoAxiom,
     HappiestParetoAxiom,
     CoverageAxiom,
+    MinimumAndTotalUtilityParetoAxiom,
 )
 from generative_social_choice.utils.helper_functions import get_time_string, get_base_dir_path
 from generative_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
@@ -116,6 +117,7 @@ class TestVotingAlgorithms(unittest.TestCase):
             self.assertEqual(len(set(slate)), len(slate))
             self.assertEqual(len(assignments), len(rated_vote_case.rated_votes))
 
+        # TODO: These types of tests will move to separate test cases for each algorithm
         # Check that the assignments are valid. For functional debugging only, will be omitted from algorithm evaluation
         if rated_vote_case.expected_assignments is not None:
             with self.subTest(msg="B Assignments"):
@@ -125,8 +127,6 @@ class TestVotingAlgorithms(unittest.TestCase):
                 for col in ["utility", "load", "utility_previous", "second_selected_candidate_id"]:
                     if col in rated_vote_case.expected_assignments.columns:
                         assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
-
-    # We'll add more property tests here
 
     @parameterized.expand(voting_algorithm_test_cases)
     def test_voting_algorithm_for_pareto(
@@ -147,29 +147,27 @@ class TestVotingAlgorithms(unittest.TestCase):
             rated_vote_case.slate_size,
         )
 
-        # TODO: make this a function in voting_utils
-        if rated_vote_case.pareto_efficient_slates is not None:
-            with self.subTest(msg=axioms_to_evaluate[0]):
-                assert frozenset(W) in frozenset({frozenset(pareto_slate) for pareto_slate in rated_vote_case.pareto_efficient_slates}), "The selected slate is not among the Pareto efficient slates"
+        with self.subTest(msg=axioms_to_evaluate[0]):
+            axiom = MinimumAndTotalUtilityParetoAxiom()
+            assert frozenset(W) in axiom.satisfactory_slates(rated_vote_case.rated_votes, rated_vote_case.slate_size), "The selected slate is not among the Pareto efficient slates"
 
         # TODO: make this a function in voting_utils
         if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
             with self.subTest(msg=axioms_to_evaluate[1]):
                 assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
 
-        # Assertions after the loop
         with self.subTest(msg=axioms_to_evaluate[2]):
-            axiom = IndividualParetoAxiom("Individual Pareto Efficiency")
+            axiom = IndividualParetoAxiom()
             assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
                 "There is a slate with strictly greater total utility and no lesser utility for any individual member"
 
         with self.subTest(msg=axioms_to_evaluate[3]):
-            axiom = HappiestParetoAxiom("m-th Happiest Person Pareto Efficiency")
+            axiom = HappiestParetoAxiom()
             assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
                 "There is a slate with a strictly better m-th happiest person curve"
 
         with self.subTest(msg=axioms_to_evaluate[4]):
-            axiom = CoverageAxiom("Maximum Coverage")
+            axiom = CoverageAxiom()
             assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
                 "There is a slate which represents more people"
 

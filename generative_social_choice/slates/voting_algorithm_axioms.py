@@ -22,7 +22,9 @@ class VotingAlgorithmAxiom(abc.ABC):
 
     An algorithm satisfies an axiom if it satisfies the axiom for all possible rated votes and slate sizes.
     """
-    name: str
+    @property
+    def name(self) -> str:
+        return type(self).__name__
 
     @abc.abstractmethod
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -41,6 +43,10 @@ class VotingAlgorithmAxiom(abc.ABC):
 
 class IndividualParetoAxiom(VotingAlgorithmAxiom):
     """For all solutions, there is no slate for which total utility strictly improves and for no member the utility decreases."""
+
+    @property
+    def name(self) -> str:
+        return "Individual Pareto Efficiency"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
@@ -86,6 +92,10 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
     
     Note that we get the m-th happiest person vector by sorting the utilities in descending order."""
 
+    @property
+    def name(self) -> str:
+        return "m-th Happiest Person Pareto Efficiency"
+
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -128,12 +138,17 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
 
         return [slate[0] for slate in efficient_slates]
     
+    
 class CoverageAxiom(VotingAlgorithmAxiom):
     """Representing as many people as possible:
     There is no other slate with assignment wprime with at least the same total utility and a threshold m, such that
     - h(w,mprime)>=h(wprime,mprime) for all mprime>=m [h(w,mprime) is mprime-th happiest person under assignment w]
     - h(w,m*)>h(wprime,m*) for some m*>=m
     """
+
+    @property
+    def name(self) -> str:
+        return "Maximum Coverage"
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
