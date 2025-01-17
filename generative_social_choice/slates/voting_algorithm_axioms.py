@@ -10,7 +10,8 @@ import bisect
 from generative_social_choice.slates.voting_utils import (
     voter_utilities,
     voter_max_utilities_from_slate,
-    pareto_dominates
+    pareto_dominates,
+    pareto_efficient_slates
 )
 
 
@@ -207,27 +208,7 @@ class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
     
     @override
     def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
-        efficient_slates = []  # (slate, min_utility, total_utility)
-        pareto_front: list[tuple[float, float]] = []  # (total_utility, min_utility)
-        for W in itertools.combinations(rated_votes.columns, r=slate_size):
-            utilities = voter_max_utilities_from_slate(rated_votes, W)
-            total_utility = utilities.sum()
-            min_utility = utilities.min()
-
-            # Find the position to insert the new utility tuple
-            index = bisect.bisect_left(pareto_front, (total_utility, min_utility))
-
-            # Check if the entry one above is dominated
-            if index < len(pareto_front) and pareto_dominates(pareto_front[index], (total_utility, min_utility)):
-                continue
-
-            # Insert the new entry
-            pareto_front.insert(index, (total_utility, min_utility))
-
-            # Remove dominated entries below the new entry
-            pareto_front = pareto_front[:index + 1] + [
-                entry for entry in pareto_front[index + 1:]
-                if entry[1] > min_utility
-            ]
+        return pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
+        
 
 
