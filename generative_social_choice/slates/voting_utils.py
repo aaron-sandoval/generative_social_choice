@@ -55,6 +55,7 @@ def is_pareto_efficient(utilities: Float[np.ndarray, "candidate utility_type"]) 
 
     Higher utilities are better for all columns.
     If this is not the case for some metric, invert/negate that column before calling this function.
+    Source: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
     """
     is_efficient = np.ones(utilities.shape[0], dtype = bool)
     for i, u in enumerate(utilities):
