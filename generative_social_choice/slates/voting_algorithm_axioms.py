@@ -249,7 +249,8 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     The assignment meets the axiom if there exists no other slate with average utility = u_avg - delta and min utility u_min + epsilon, 
     where epsilon/delta >= `max_tradeoff` and epsilon > 0 and delta > 0.
     """
-
+    
+    max_tradeoff: float = 20.0
     name: str = "Non-radical Total Utility Pareto Efficiency"
 
     @override

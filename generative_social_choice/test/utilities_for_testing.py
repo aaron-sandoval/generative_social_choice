@@ -10,14 +10,17 @@ from generative_social_choice.slates.voting_algorithms import RatedVoteCase
 # The voting cases to test, please add more as needed
 _rated_vote_cases: tuple[RatedVoteCase, ...] = (
     RatedVoteCase(
+        name="Simple 1",
         rated_votes=[[1, 2, 3], [1, 2, 3], [1, 2, 3]],
         slate_size=1,
     ),
     RatedVoteCase(
+        name="Simple 2",
         rated_votes=[[4, 2, 3], [4, 2, 3], [4, 2, 3]],
         slate_size=1,
     ),
     RatedVoteCase(
+        name="Simple 3",
         rated_votes=[[1, 1] , [1.1, 1], [1, 1]],
         slate_size=1,
     ),
