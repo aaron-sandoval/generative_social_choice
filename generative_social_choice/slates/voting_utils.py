@@ -12,7 +12,6 @@ def voter_utilities(rated_votes: pd.DataFrame, assignments: pd.DataFrame, column
     Get the utility of each voter for a given assignment.
     """
     utilities = np.diag(rated_votes.loc[assignments.index, assignments["candidate_id"]])
-    print(f"utilities: {utilities}")
     return pd.Series(utilities, index=assignments.index, name=column_name)
 
 

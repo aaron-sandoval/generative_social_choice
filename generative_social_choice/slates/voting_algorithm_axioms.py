@@ -5,7 +5,7 @@ from typing import override
 
 import pandas as pd
 import numpy as np
-import bisect
+from jaxtyping import Float
 
 from generative_social_choice.slates.voting_utils import (
     voter_utilities,
@@ -41,6 +41,17 @@ class VotingAlgorithmAxiom(abc.ABC):
         Get the set of slates which satisfy the axiom.
         """
         pass
+
+
+@dataclass(frozen=True)
+class NonRadicalAxiom(VotingAlgorithmAxiom):
+    """
+    ABC for axioms governing allowable tradeoffs between two metrics.
+
+    # Arguments
+    - `max_tradeoff`: A maximum allowable tradeoff ratio between two metrics.
+    """
+    max_tradeoff: float
 
 
 @dataclass(frozen=True)
@@ -228,5 +239,70 @@ class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
     def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
         return pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
         
+
+@dataclass(frozen=True)
+class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
+    """
+    There is no other slate with much higher min utility and slightly lower average utility.
+
+    The assignment output of a voting algorithm has the minimum utility is u_min and the average utility u_avg. 
+    The assignment meets the axiom if there exists no other slate with average utility = u_avg - delta and min utility u_min + epsilon, 
+    where epsilon/delta >= `max_tradeoff` and epsilon > 0 and delta > 0.
+    """
+
+    name: str = "Non-radical Total Utility Pareto Efficiency"
+
+    @override
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+            if alternate_utilities.min() < utilities.min() or alternate_utilities.mean() > utilities.mean():
+                return -1.0
+            return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
+
+        utilities = voter_utilities(rated_votes, set(assignments.values())).values()
+        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
+
+        for alt_slate in worst_alt_slates:
+            alt_utilities = voter_utilities(rated_votes, alt_slate).values()
+            this_tradeoff = utility_tradeoff(alt_utilities)
+            if this_tradeoff > self.max_tradeoff:
+                return False
+        return True
+
+    @override
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        """
+        Identify slates that satisfy the non-radical total utility axiom.
+        """
+        # Compute utility tuples for each slate
+        slate_utilities = []
+        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+            utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            avg_utility = utilities.mean()
+            min_utility = utilities.min()
+            slate_utilities.append((frozenset(slate), avg_utility, min_utility))
+
+        # Sort slates by average utility in descending order
+        slate_utilities.sort(key=lambda x: x[1], reverse=True)
+
+        # Start with all slates assumed valid
+        valid_slates = {slate for slate, _, _ in slate_utilities}
+
+        # Check each ordered pair (primary, alternate)
+        for i, (primary_slate, primary_avg, primary_min) in enumerate(slate_utilities):
+            if primary_slate not in valid_slates:
+                continue
+
+            for alternate_slate, alternate_avg, alternate_min in slate_utilities[i+1:]:
+                epsilon = alternate_min - primary_min
+                delta = primary_avg - alternate_avg
+
+                # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
+                if epsilon > 0 and delta > 0 and (epsilon / delta) >= self.max_tradeoff:
+                    valid_slates.discard(primary_slate)
+                    break
+
+        return valid_slates
+
 
 
