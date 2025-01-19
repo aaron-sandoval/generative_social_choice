@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 
 from generative_social_choice.slates.voting_utils import voter_utilities, voter_max_utilities_from_slate
+from generative_social_choice.utils.helper_functions import geq_lib
 
 @dataclass
 class RatedVoteCase:
@@ -41,13 +42,6 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
-        # elif self.name is not None:
-        #     # Format name to be compatible as a Python function name
-        #     self.name = self.name.replace('.', 'p')
-        #     self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
-        #     self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
-            # self.name = re.sub(r'_+', '_', self.name)  # Collapse multiple underscores
-            # self.name = self.name.strip('_')  # Remove trailing underscores
 
 
 Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous", "total"]
@@ -229,6 +223,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         while len(slate) < slate_size and i <= len(rated_votes.columns)+1:
             i += 1
             min_load = float("inf")
+            min_load_among_reassigned_voters = float("inf")
             min_load_candidate_id: int = NULL_CANDIDATE_ID
             # min_load_assignments = assignments.copy()
             for candidate in valid_candidates:
@@ -239,8 +234,12 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                     rated_votes,
                     candidate,
                 )
-                if assignments_with_candidate["load"].max() < min_load:
-                    min_load = assignments_with_candidate["load"].min()
+                reassigned_voters = assignments_with_candidate["candidate_id"] != assignments["candidate_id"]
+                all_voters_max_load = assignments_with_candidate["load"].max()
+                reassigned_max_load = assignments_with_candidate.loc[reassigned_voters, "load"].max()
+                if not geq_lib((all_voters_max_load, reassigned_max_load), (min_load, min_load_among_reassigned_voters), abs_tol=1e-9):
+                    min_load = all_voters_max_load
+                    min_load_among_reassigned_voters = reassigned_max_load
                     min_load_candidate_id = candidate
                     min_load_assignments = assignments_with_candidate.copy()
 
@@ -343,7 +342,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
                     # Redistribute the loads
                     defected_cand_total_load = 1 / (marginal_utility.sum())
-                    new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility / defected_cand_total_load**2
+                    new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility * defected_cand_total_load**2
 
         return new_assignments
 

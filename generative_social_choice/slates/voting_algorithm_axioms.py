@@ -117,7 +117,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
             # Compute utilities (using optimal assignment for given slate)
             wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
 
-            # No other slate has m-th happiest person at least as good for all m and strictly better for at least one m’
+            # No other slate has m-th happiest person at least as good for all m and strictly better for at least one m'
             # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
             mth_happiest = np.sort(w_utilities)[::-1]
             mth_happiest_prime = np.sort(wprime_utilities)[::-1]
@@ -301,6 +301,71 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
 
                 # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
                 if epsilon > 0 and delta > 0 and (epsilon / delta) >= self.max_tradeoff:
+                    valid_slates.discard(primary_slate)
+                    break
+
+        return valid_slates
+
+
+@dataclass(frozen=True)
+class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
+    """
+    There is no other slate with much higher total utility and slightly lower minimum utility.
+
+    The assignment output of a voting algorithm has the minimum utility u_min and the total utility u_total.
+    The assignment meets the axiom if there exists no other slate with total utility = u_total + delta and min utility u_min - epsilon,
+    where delta/epsilon >= `max_tradeoff` and epsilon > 0 and delta > 0.
+    """
+    
+    max_tradeoff: float = 20.0
+    name: str = "Non-radical Minimum Utility Pareto Efficiency"
+    abs_tol: float = 1e-8
+
+    def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
+        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+            if alternate_utilities.mean() - self.abs_tol <= utilities.mean() or alternate_utilities.min() + self.abs_tol >= utilities.min():
+                return -1.0
+            return (utilities.mean() - alternate_utilities.mean()) / (utilities.min() - alternate_utilities.min())
+
+        utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
+        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
+
+        for alt_slate in worst_alt_slates:
+            alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
+            this_tradeoff = utility_tradeoff(alt_utilities)
+            if this_tradeoff > self.max_tradeoff:
+                return False
+        return True
+
+    def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
+        """
+        Identify slates that satisfy the non-radical minimum utility axiom.
+        """
+        # Compute utility tuples for each slate
+        slate_utilities = []
+        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+            utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            avg_utility = utilities.mean()
+            min_utility = utilities.min()
+            slate_utilities.append((frozenset(slate), avg_utility, min_utility))
+
+        # Sort slates by minimum utility in ascending order
+        slate_utilities.sort(key=lambda x: x[2])
+
+        # Start with all slates assumed valid
+        valid_slates = {slate for slate, _, _ in slate_utilities}
+
+        # Check each ordered pair (primary, alternate)
+        for i, (primary_slate, primary_avg, primary_min) in enumerate(slate_utilities):
+            if primary_slate not in valid_slates:
+                continue
+
+            for alternate_slate, alternate_avg, alternate_min in slate_utilities[i+1:]:
+                epsilon = primary_min - alternate_min
+                delta = alternate_avg - primary_avg
+
+                # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
+                if epsilon > 0 and delta > 0 and (delta / epsilon) >= self.max_tradeoff:
                     valid_slates.discard(primary_slate)
                     break
 

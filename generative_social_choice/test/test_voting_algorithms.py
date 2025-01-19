@@ -145,7 +145,7 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         
         """
         # Compute the solution using the voting algorithm
-        _, assignments = voting_algorithm.vote(
+        slate, assignments = voting_algorithm.vote(
             rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
@@ -153,8 +153,40 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         for axiom in axioms_to_evaluate:
             with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
                 assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-                    f"{axiom.name} is not satisfied"
+                    f"Slate {slate} does not satisfy {axiom.name}"
 
+
+class TestVotingAlgorithmAssignments(unittest.TestCase):
+
+    @parameterized.expand([
+        (rated_vote_cases["Ex 1.2"], ["s2", "s3"], None, {}),
+        (rated_vote_cases["Ex 1.2"], ["s2", "s3"], None, dict(load_magnitude_method="total")),
+        (rated_vote_cases["Ex 1.1"], ["s2", "s4"], None, {}),
+        (rated_vote_cases["Ex 1.1"], ["s2", "s4"], None, dict(load_magnitude_method="total")),
+        (rated_vote_cases["Ex 1.1 modified"], ["s2", "s4"], None, {}),
+        (rated_vote_cases["Ex 1.1 modified"], ["s2", "s4"], None, dict(load_magnitude_method="total")),
+        # (rated_vote_cases["Ex Alg A.1"], ["s1", "s3", "s4"], None, {}), # Stochastic selection
+    ])
+    def test_phragmen_assignments(
+        self,
+        rated_vote_case: RatedVoteCase,
+        expected_slate: Optional[list[str]] = None,
+        expected_assignments: Optional[list[str]] = None,
+        algorithm_kwargs: Optional[dict]={},
+    ):
+        
+        slate, assignments = SequentialPhragmenMinimax(**algorithm_kwargs).vote(
+            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
+            rated_vote_case.slate_size,
+        )
+
+        if expected_slate is not None:
+            expected_slate = frozenset(expected_slate)
+            self.assertEqual(set(slate), expected_slate)
+        if expected_assignments is not None:
+            expected_assignments = pd.DataFrame({"candidate_id": expected_assignments}, index=rated_vote_case.rated_votes.index)
+
+        pass
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithmAgainstAxioms)
