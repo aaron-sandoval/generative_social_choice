@@ -145,7 +145,7 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         
         """
         # Compute the solution using the voting algorithm
-        _, assignments = voting_algorithm.vote(
+        slate, assignments = voting_algorithm.vote(
             rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
@@ -153,7 +153,7 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         for axiom in axioms_to_evaluate:
             with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
                 assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-                    f"{axiom.name} is not satisfied"
+                    f"Slate {slate} does not satisfy {axiom.name}"
 
 
 class TestVotingAlgorithmAssignments(unittest.TestCase):
