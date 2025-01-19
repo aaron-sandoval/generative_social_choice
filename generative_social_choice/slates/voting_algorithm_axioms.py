@@ -257,7 +257,7 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
-            if alternate_utilities.min() + self.abs_tol <= utilities.min() or alternate_utilities.mean() - self.abs_tol >= utilities.mean():
+            if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
                 return -1.0
             return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
 
