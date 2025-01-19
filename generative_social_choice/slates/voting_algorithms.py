@@ -229,6 +229,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         while len(slate) < slate_size and i <= len(rated_votes.columns)+1:
             i += 1
             min_load = float("inf")
+            min_load_among_reassigned_voters = float("inf")
             min_load_candidate_id: int = NULL_CANDIDATE_ID
             # min_load_assignments = assignments.copy()
             for candidate in valid_candidates:
@@ -239,8 +240,12 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                     rated_votes,
                     candidate,
                 )
-                if assignments_with_candidate["load"].max() < min_load:
-                    min_load = assignments_with_candidate["load"].min()
+                reassigned_voters = assignments_with_candidate["candidate_id"] != assignments["candidate_id"]
+                all_voters_max_load = assignments_with_candidate["load"].max()
+                reassigned_max_load = assignments_with_candidate.loc[reassigned_voters, "load"].max()
+                if (all_voters_max_load, reassigned_max_load) < (min_load, min_load_among_reassigned_voters):
+                    min_load = all_voters_max_load
+                    min_load_among_reassigned_voters = reassigned_max_load
                     min_load_candidate_id = candidate
                     min_load_assignments = assignments_with_candidate.copy()
 
