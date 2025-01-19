@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+import math
 from pathlib import Path
 import os
 from datetime import datetime, timezone
@@ -38,3 +40,43 @@ def sanitize_name(name: str) -> str:
     name = name.rstrip('_')  # Remove trailing underscores only
     return name
 
+
+def geq_lib(
+    a: float | int | Sequence[float | int],
+    b: float | int | Sequence[float | int],
+    rel_tol: float = 1e-9,
+    abs_tol: float = 0.0,
+) -> bool:
+    """
+    Returns True if a is greater than or close to b.
+    Supports both individual numbers and sequences of numbers.
+    """
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        for x, y in zip(a, b):
+            if not math.isclose(x, y, rel_tol=rel_tol, abs_tol=abs_tol):
+                return x > y
+        return len(a) >= len(b)
+    elif isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) or a >= b
+    else:
+        raise TypeError("Both arguments must be numbers or sequences of numbers")
+
+def leq_lib(
+    a: float | int | Sequence[float | int],
+    b: float | int | Sequence[float | int],
+    rel_tol: float = 1e-9,
+    abs_tol: float = 0.0,
+) -> bool:
+    """
+    Returns True if a is less than or close to b.
+    Supports both individual numbers and sequences of numbers.
+    """
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        for x, y in zip(a, b):
+            if not math.isclose(x, y, rel_tol=rel_tol, abs_tol=abs_tol):
+                return x < y
+        return len(a) <= len(b)
+    elif isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) or a <= b
+    else:
+        raise TypeError("Both arguments must be numbers or sequences of numbers")
