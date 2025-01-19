@@ -63,7 +63,7 @@ class IndividualParetoAxiom(VotingAlgorithmAxiom):
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
-        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+        w_utilities = np.array(voter_utilities(rated_votes, assignments["candidate_id"]))
 
         for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
             # Compute utilities (using optimal assignment for given slate)
@@ -111,7 +111,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
-        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+        w_utilities = np.array(voter_utilities(rated_votes, assignments["candidate_id"]))
 
         for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
             # Compute utilities (using optimal assignment for given slate)
@@ -164,7 +164,7 @@ class CoverageAxiom(VotingAlgorithmAxiom):
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
-        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+        w_utilities = np.array(voter_utilities(rated_votes, assignments["candidate_id"]))
 
         for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
             # Compute utilities (using optimal assignment for given slate)
@@ -225,7 +225,7 @@ class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
-        w_utilities = np.array(voter_utilities(rated_votes, assignments))
+        w_utilities = np.array(voter_utilities(rated_votes, assignments["candidate_id"]))
 
         for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
             # Compute utilities (using optimal assignment for given slate)
@@ -261,11 +261,11 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
                 return -1.0
             return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
 
-        utilities = voter_utilities(rated_votes, assignments).values
+        utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
         worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
 
         for alt_slate in worst_alt_slates:
-            alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate).values
+            alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
             this_tradeoff = utility_tradeoff(alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False

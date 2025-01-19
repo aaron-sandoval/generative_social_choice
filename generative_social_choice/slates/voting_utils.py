@@ -7,23 +7,31 @@ import numpy as np
 from jaxtyping import Float, Bool
 
 
-def voter_utilities(rated_votes: pd.DataFrame, assignments: pd.DataFrame, column_name: str = "utility") -> pd.Series:
+def voter_utilities(rated_votes: pd.DataFrame, assignments_series: pd.Series, output_column_name: str = "utility") -> pd.Series:
     """
     Get the utility of each voter for a given assignment.
     """
-    utilities = np.diag(rated_votes.loc[assignments.index, assignments["candidate_id"]])
-    return pd.Series(utilities, index=assignments.index, name=column_name)
+    utilities = np.diag(rated_votes.loc[assignments_series.index, assignments_series.values])
+    return pd.Series(utilities, index=assignments_series.index, name=output_column_name)
 
 
 def voter_max_utilities_from_slate(rated_votes: pd.DataFrame, slate: set[str]) -> pd.Series:
-    return rated_votes.loc[:, slate].max(axis=1)
+    """
+    Get the maximum possible utility of each voter within a given slate.
+    """
+    max_utilities = rated_votes.loc[:, slate].max(axis=1)
+    max_candidates = rated_votes.loc[:, slate].idxmax(axis=1)
+    return pd.DataFrame({
+        "candidate_id": max_candidates,
+        "utility": max_utilities
+    }, index=rated_votes.index)
 
 
 def total_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> float:
     """
     Get the total utility of a given assignment.
     """
-    return voter_utilities(rated_votes, assignments).sum()
+    return voter_utilities(rated_votes, assignments["candidate_id"]).sum()
 
 
 def mth_highest_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame, m: int) -> pd.Series:
@@ -33,7 +41,7 @@ def mth_highest_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame, m:
     # Returns
     - A length-1 Series with the voter ID and their utility.
     """
-    return voter_utilities(rated_votes, assignments).nlargest(m).tail(1)
+    return voter_utilities(rated_votes, assignments["candidate_id"]).nlargest(m).tail(1)
 
 
 def min_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> pd.Series:
@@ -43,7 +51,7 @@ def min_utility(rated_votes: pd.DataFrame, assignments: pd.DataFrame) -> pd.Seri
     # Returns
     - A length-1 Series with the voter ID and their utility.
     """
-    return voter_utilities(rated_votes, assignments).nsmallest(1)
+    return voter_utilities(rated_votes, assignments["candidate_id"]).nsmallest(1)
 
 
 def pareto_dominates(a: Sequence[float], b: Sequence[float]) -> bool:
@@ -117,7 +125,7 @@ def pareto_efficient_slates(
     )
     # Could parallelize this if needed
     for slate in metric_values.index:
-        utilities = voter_max_utilities_from_slate(rated_votes, slate)
+        utilities = voter_max_utilities_from_slate(rated_votes, slate)["utility"]
         for metric_index, metric in enumerate(positive_metrics):
             metric_values.at[slate, metric_index] = metric(utilities)
     
