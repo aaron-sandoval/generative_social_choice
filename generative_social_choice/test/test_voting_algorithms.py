@@ -4,13 +4,14 @@ import unittest
 from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
 import sys
+import inspect
 
 import itertools
 import pandas as pd
 import numpy as np
 from parameterized import parameterized
 from kiwiutils.finite_valued import all_instances
-from kiwiutils.kiwilib import getAllSubclasses
+from kiwiutils.kiwilib import leafClasses
 
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -37,6 +38,8 @@ from generative_social_choice.utils.helper_functions import (
 )
 from generative_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
 
+_NAME_DELIMITER = "$&$"
+
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
@@ -52,7 +55,7 @@ voting_algorithms_to_test = (
 
 voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
-axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in getAllSubclasses(VotingAlgorithmAxiom))
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), leafClasses(VotingAlgorithmAxiom)))
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
@@ -73,11 +76,7 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         #     return
         if outcome is not None:
             a = 1 # DEBUG
-        alg_name, vote_name = repr(subtest.test_case).split("___")
-        vote_name = sanitize_name(vote_name)
-        alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
-        alg_name = sanitize_name(alg_name)
-        subtest_name = subtest._message
+        alg_name, vote_name, subtest_name = subtest._message.split(_NAME_DELIMITER)
         if not pd.isna(self.results.at[alg_name, (vote_name, subtest_name)]):
             raise ValueError(f"Result already exists for {alg_name}, {vote_name}, {subtest_name}")
         self.results.at[alg_name, (vote_name, subtest_name)] = 1 if outcome is None else 0
@@ -117,6 +116,7 @@ class TestVotingAlgorithmFunctionality(unittest.TestCase):
             self.assertEqual(len(slate), rated_vote_case.slate_size)
             self.assertEqual(len(set(slate)), len(slate))
             self.assertEqual(len(assignments), len(rated_vote_case.rated_votes))
+            self.assertLessEqual(set(assignments.candidate_id), set(slate))
 
         # TODO: These types of tests will move to separate test cases for each algorithm
         # Check that the assignments are valid. For functional debugging only, will be omitted from algorithm evaluation
@@ -130,7 +130,7 @@ class TestVotingAlgorithmFunctionality(unittest.TestCase):
         #                 assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
 
 
-class TestVotingAlgorithmAxioms(unittest.TestCase):
+class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
     @parameterized.expand(voting_algorithm_test_cases)
     def test_voting_algorithm_for_pareto(
         self,
@@ -145,42 +145,18 @@ class TestVotingAlgorithmAxioms(unittest.TestCase):
         
         """
         # Compute the solution using the voting algorithm
-        W, assignments = voting_algorithm.vote(
+        _, assignments = voting_algorithm.vote(
             rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
 
         for axiom in axioms_to_evaluate:
-            with self.subTest(msg=axiom.name):
+            with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
                 assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
                     f"{axiom.name} is not satisfied"
 
-        # with self.subTest(msg=axioms_to_evaluate[0]):
-        #     axiom = MinimumAndTotalUtilityParetoAxiom()
-        #     assert frozenset(W) in axiom.satisfactory_slates(rated_vote_case.rated_votes, rated_vote_case.slate_size), "The selected slate is not among the Pareto efficient slates"
-
-        # # TODO: make this a function in voting_utils
-        # if rated_vote_case.non_extremal_pareto_efficient_slates is not None:
-        #     with self.subTest(msg=axioms_to_evaluate[1]):
-        #         assert frozenset(W) in {frozenset(pareto_slate) for pareto_slate in rated_vote_case.non_extremal_pareto_efficient_slates}, "The selected slate is not among the non-extremal Pareto efficient slates"
-
-        # with self.subTest(msg=axioms_to_evaluate[2]):
-        #     axiom = IndividualParetoAxiom()
-        #     assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-        #         "There is a slate with strictly greater total utility and no lesser utility for any individual member"
-
-        # with self.subTest(msg=axioms_to_evaluate[3]):
-        #     axiom = HappiestParetoAxiom()
-        #     assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-        #         "There is a slate with a strictly better m-th happiest person curve"
-
-        # with self.subTest(msg=axioms_to_evaluate[4]):
-        #     axiom = CoverageAxiom()
-        #     assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-        #         "There is a slate which represents more people"
-
 
 if __name__ == "__main__":
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithmAxioms)
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestVotingAlgorithmAgainstAxioms)
     runner = unittest.TextTestRunner(resultclass=AlgorithmEvaluationResult)
     runner.run(suite)

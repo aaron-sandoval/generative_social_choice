@@ -8,12 +8,7 @@ import pulp
 import pandas as pd
 import numpy as np
 
-from generative_social_choice.utils.helper_functions import (
-    get_time_string,
-    get_base_dir_path,
-    sanitize_name,
-)
-from generative_social_choice.queries.query_interface import Agent, Generator
+from generative_social_choice.slates.voting_utils import voter_utilities, voter_max_utilities_from_slate
 
 @dataclass
 class RatedVoteCase:
@@ -46,11 +41,11 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
-        elif self.name is not None:
-            # Format name to be compatible as a Python function name
-            self.name = self.name.replace('.', 'p')
-            self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
-            self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
+        # elif self.name is not None:
+        #     # Format name to be compatible as a Python function name
+        #     self.name = self.name.replace('.', 'p')
+        #     self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
+        #     self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
             # self.name = re.sub(r'_+', '_', self.name)  # Collapse multiple underscores
             # self.name = self.name.strip('_')  # Remove trailing underscores
 
@@ -103,7 +98,7 @@ class VotingAlgorithm(abc.ABC):
 
         Name must be a valid Python function name.
         """
-        return sanitize_name(repr(self))
+        return repr(self)
 
 
 @dataclass(frozen=True)
@@ -191,7 +186,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
     @property
     def name(self) -> str:
-        return f"Phragmen_{self.load_magnitude_method}_clear_{self.clear_reassigned_loads}_redistr_{self.redistribute_defected_candidate_loads}"
+        return f"Phragmen({self.load_magnitude_method}, clear={self.clear_reassigned_loads}, redist={self.redistribute_defected_candidate_loads})"
 
     @override
     def vote(
@@ -257,6 +252,15 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         # Remove the null candidate column in case the modification would persist outside the function
         rated_votes = rated_votes.drop(columns=[NULL_CANDIDATE_ID])
 
+        # Check that the assignments are valid and assign any NULL_CANDIDATE_ID entries to their max utility candidate from the slate
+        null_assigned = assignments["candidate_id"] == NULL_CANDIDATE_ID
+        if any(null_assigned):
+            max_utility_assignments = voter_max_utilities_from_slate(rated_votes, slate)
+            assignments.loc[null_assigned, "candidate_id"] = max_utility_assignments.loc[
+                null_assigned, "candidate_id"]
+            assignments.loc[null_assigned, "utility"] = max_utility_assignments.loc[
+                null_assigned, "utility"]
+
         return slate, assignments
 
     def _phragmen_update_assignments(
@@ -309,35 +313,37 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
             else:
                 raise ValueError(f"Invalid load magnitude method: {self.load_magnitude_method}")
         
-        # Calculate the loads for the reassigned voters
-        new_candidate_loads: pd.Series = rated_votes.loc[is_reassigned, candidate] * new_candidate_total_load**2
-        if self.clear_reassigned_loads:
-            new_assignments.loc[is_reassigned, "load"] = new_candidate_loads
-        else:
-            new_assignments.loc[is_reassigned, "load"] += new_candidate_loads
-        
-        if self.redistribute_defected_candidate_loads:
-            affected_candidates = old_assignments.loc[is_reassigned, "candidate_id"].unique()
-            for affected_cand in affected_candidates:
-                if affected_cand == NULL_CANDIDATE_ID:
-                    continue
-                affected_cand_voters = new_assignments[new_assignments["candidate_id"] == affected_cand]
-                if len(affected_cand_voters) == 0:
-                    continue
-                if self.load_magnitude_method == "marginal_previous":
-                    marginal_utility = affected_cand_voters["utility"] - affected_cand_voters["utility_previous"]
-                    # defected_cand_total_load = 1 / (affected_cand_voters["utility_previous"] - old_assignments.loc[old_assignments["candidate_id"] == affected_cand, "utility_previous"]).sum()
-                elif self.load_magnitude_method == "marginal_slate":
-                    # is_first_assignment_voters = affected_cand_voters.loc[affected_cand_voters["second_selected_candidate_id"]].isna()
-                    marginal_utility = affected_cand_voters["utility"] 
-                    marginal_utility -= affected_cand_voters["second_selected_candidate_id"]
-                    # marginal_utility[is_first_assignment_voters] -= BASELINE_UTILITY
-                elif self.load_magnitude_method == "total":
-                    marginal_utility = affected_cand_voters["utility"]
+            # Calculate the loads for the reassigned voters
+            new_candidate_loads: pd.Series = rated_votes.loc[is_reassigned, candidate] * new_candidate_total_load**2
+            if self.clear_reassigned_loads:
+                new_assignments.loc[is_reassigned, "load"] = new_candidate_loads
+            else:
+                new_assignments.loc[is_reassigned, "load"] += new_candidate_loads
+            
+            if self.redistribute_defected_candidate_loads:
+                affected_candidates = old_assignments.loc[is_reassigned, "candidate_id"].unique()
+                for affected_cand in affected_candidates:
+                    if affected_cand == NULL_CANDIDATE_ID:
+                        continue
+                    affected_cand_voters = new_assignments[new_assignments["candidate_id"] == affected_cand]
+                    if len(affected_cand_voters) == 0:
+                        continue
+                    if self.load_magnitude_method == "marginal_previous":
+                        marginal_utility = affected_cand_voters["utility"] - affected_cand_voters["utility_previous"]
+                        # defected_cand_total_load = 1 / (affected_cand_voters["utility_previous"] - old_assignments.loc[old_assignments["candidate_id"] == affected_cand, "utility_previous"]).sum()
+                    elif self.load_magnitude_method == "marginal_slate":
+                        # is_first_assignment_voters = affected_cand_voters.loc[affected_cand_voters["second_selected_candidate_id"]].isna()
+                        marginal_utility = affected_cand_voters["utility"] 
+                        next_best_utility = voter_utilities(rated_votes, affected_cand_voters["second_selected_candidate_id"]).values
+                        # next_best_utility = np.diag(rated_votes.loc[affected_cand_voters.index, affected_cand_voters["second_selected_candidate_id"]].to_numpy())
+                        marginal_utility -= pd.Series(next_best_utility, index=affected_cand_voters.index).fillna(BASELINE_UTILITY)
+                        # marginal_utility[is_first_assignment_voters] -= BASELINE_UTILITY
+                    elif self.load_magnitude_method == "total":
+                        marginal_utility = affected_cand_voters["utility"]
 
-                # Redistribute the loads
-                defected_cand_total_load = 1 / (marginal_utility.sum())
-                new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility / defected_cand_total_load**2
+                    # Redistribute the loads
+                    defected_cand_total_load = 1 / (marginal_utility.sum())
+                    new_assignments.loc[affected_cand_voters.index, "load"] = marginal_utility / defected_cand_total_load**2
 
         return new_assignments
 
