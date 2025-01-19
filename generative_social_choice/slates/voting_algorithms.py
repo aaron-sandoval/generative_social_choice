@@ -46,11 +46,11 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
-        elif self.name is not None:
-            # Format name to be compatible as a Python function name
-            self.name = self.name.replace('.', 'p')
-            self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
-            self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
+        # elif self.name is not None:
+        #     # Format name to be compatible as a Python function name
+        #     self.name = self.name.replace('.', 'p')
+        #     self.name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name)
+        #     self.name = re.sub(r'^[^a-zA-Z_]+', '', self.name)  # Remove leading non-letters
             # self.name = re.sub(r'_+', '_', self.name)  # Collapse multiple underscores
             # self.name = self.name.strip('_')  # Remove trailing underscores
 
@@ -103,7 +103,7 @@ class VotingAlgorithm(abc.ABC):
 
         Name must be a valid Python function name.
         """
-        return sanitize_name(repr(self))
+        return repr(self)
 
 
 @dataclass(frozen=True)
@@ -191,7 +191,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
     @property
     def name(self) -> str:
-        return f"Phragmen_{self.load_magnitude_method}_clear_{self.clear_reassigned_loads}_redistr_{self.redistribute_defected_candidate_loads}"
+        return f"Phragmen({self.load_magnitude_method}, clear={self.clear_reassigned_loads}, redist={self.redistribute_defected_candidate_loads})"
 
     @override
     def vote(

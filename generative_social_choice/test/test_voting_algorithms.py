@@ -38,6 +38,8 @@ from generative_social_choice.utils.helper_functions import (
 )
 from generative_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
 
+NAME_DELIMITER = "$&$"
+
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
@@ -74,11 +76,7 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         #     return
         if outcome is not None:
             a = 1 # DEBUG
-        alg_name, vote_name = repr(subtest.test_case).split("___")
-        vote_name = sanitize_name(vote_name)
-        alg_name = re.sub(r'^.*?_[0-9]+_', '', alg_name)
-        alg_name = sanitize_name(alg_name)
-        subtest_name = subtest._message
+        alg_name, vote_name, subtest_name = subtest._message.split(NAME_DELIMITER)
         if not pd.isna(self.results.at[alg_name, (vote_name, subtest_name)]):
             raise ValueError(f"Result already exists for {alg_name}, {vote_name}, {subtest_name}")
         self.results.at[alg_name, (vote_name, subtest_name)] = 1 if outcome is None else 0
@@ -152,7 +150,7 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         )
 
         for axiom in axioms_to_evaluate:
-            with self.subTest(msg=axiom.name):
+            with self.subTest(msg=NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
                 assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
                     f"{axiom.name} is not satisfied"
 

@@ -119,7 +119,7 @@ def pareto_efficient_slates(
     for slate in metric_values.index:
         utilities = voter_max_utilities_from_slate(rated_votes, slate)
         for metric_index, metric in enumerate(positive_metrics):
-            metric_values.at[slate, metric_index] = metric(utilities).astype(np.float64)
+            metric_values.at[slate, metric_index] = metric(utilities)
     
     return set(frozenset(cand_tuple) for cand_tuple in metric_values.index[is_pareto_efficient(metric_values.values)])
 

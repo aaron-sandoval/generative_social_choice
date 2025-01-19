@@ -252,19 +252,20 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     
     max_tradeoff: float = 20.0
     name: str = "Non-radical Total Utility Pareto Efficiency"
+    abs_tol: float = 1e-8
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
-            if alternate_utilities.min() < utilities.min() or alternate_utilities.mean() > utilities.mean():
+            if alternate_utilities.min() + self.abs_tol <= utilities.min() or alternate_utilities.mean() - self.abs_tol >= utilities.mean():
                 return -1.0
             return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
 
-        utilities = voter_utilities(rated_votes, set(assignments.values())).values()
+        utilities = voter_utilities(rated_votes, assignments).values
         worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
 
         for alt_slate in worst_alt_slates:
-            alt_utilities = voter_utilities(rated_votes, alt_slate).values()
+            alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate).values
             this_tradeoff = utility_tradeoff(alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False
