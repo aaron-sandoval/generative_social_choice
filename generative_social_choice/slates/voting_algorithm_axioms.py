@@ -165,18 +165,20 @@ class CoverageAxiom(VotingAlgorithmAxiom):
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
         w_utilities = np.array(voter_utilities(rated_votes, assignments["candidate_id"]))
+        mth_happiest = np.sort(w_utilities)[::-1]
 
         for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
             # Compute utilities (using optimal assignment for given slate)
             wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+            other_mth_happiest = np.sort(wprime_utilities)[::-1]
 
             # There is no other slate with at least the same total utility and a threshold m,
             # such that m'-th happiest person for that slate is >= for all m'>=m and > for some m*
             matching_total_utility = wprime_utilities.sum() >= w_utilities.sum()
-            strictly_greater_ms = np.where(wprime_utilities > w_utilities)[0]
+            strictly_greater_ms = np.where(other_mth_happiest > mth_happiest)[0]
             if len(strictly_greater_ms) > 0:
                 # If from this index on, m-th happiest person never has lower utility in w_prime, then the threshold is valid
-                threshold_exists = (wprime_utilities[strictly_greater_ms.max():] < w_utilities[strictly_greater_ms.max():]).sum() == 0
+                threshold_exists = (other_mth_happiest[strictly_greater_ms.max():] >= mth_happiest[strictly_greater_ms.max():]).all()
                 if matching_total_utility and threshold_exists:
                     return False
         return True
@@ -188,29 +190,30 @@ class CoverageAxiom(VotingAlgorithmAxiom):
         for slate in itertools.combinations(rated_votes.columns, r=slate_size):
             # Compute utilities (using optimal assignment for given slate)
             utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            mth_happiest = np.sort(utilities)[::-1]
             total_utility = utilities.sum()
 
             no_better_slate_exists = True
-            for other_slate, other_total_utility, other_utilities in efficient_slates[:]:
+            for other_slate, other_total_utility, other_mth_happiest in efficient_slates[:]:
                 # If the new slate is strictly better, we drop the old one
                 if other_total_utility <= total_utility:
-                    strictly_greater_ms = np.where(other_utilities < utilities)[0]
+                    strictly_greater_ms = np.where(other_mth_happiest < mth_happiest)[0]
                     if len(strictly_greater_ms) > 0:
-                        threshold_exists = (other_utilities[strictly_greater_ms.max():] > utilities[strictly_greater_ms.max():]).sum() == 0
+                        threshold_exists = (other_mth_happiest[strictly_greater_ms.max():] <= mth_happiest[strictly_greater_ms.max():]).all()
                         if threshold_exists:
                             efficient_slates.remove( (other_slate, other_total_utility, other_utilities) )
 
                 # If strictly better combinations exist, this slate is not interesting
                 if other_total_utility >= total_utility:
-                    strictly_greater_ms = np.where(other_utilities > utilities)[0]
+                    strictly_greater_ms = np.where(other_mth_happiest > mth_happiest)[0]
                     if len(strictly_greater_ms) > 0:
-                        threshold_exists = (other_utilities[strictly_greater_ms.max():] < utilities[strictly_greater_ms.max():]).sum() == 0
+                        threshold_exists = (other_mth_happiest[strictly_greater_ms.max():] >= mth_happiest[strictly_greater_ms.max():]).all()
                         if threshold_exists:
                             no_better_slate_exists = False
                             break
 
             if no_better_slate_exists:
-                efficient_slates.append( (slate, total_utility, utilities) )
+                efficient_slates.append( (slate, total_utility, mth_happiest) )
 
         return [slate[0] for slate in efficient_slates]
     
