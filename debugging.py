@@ -10,6 +10,7 @@ from generative_social_choice.slates.voting_algorithm_axioms import (
 from generative_social_choice.slates.voting_algorithms import (
     GreedyTotalUtilityMaximization,
     GeometricTransformation,
+    SequentialPhragmenMinimax,
 )
 from generative_social_choice.test.utilities_for_testing import _rated_vote_cases
 
@@ -26,6 +27,8 @@ if __name__=="__main__":
             # Compute solution
             #algorithm = GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5))
             algorithm = GreedyTotalUtilityMaximization()
+            #algorithm = SequentialPhragmenMinimax()
+            #algorithm = SequentialPhragmenMinimax(load_magnitude_method="total")
             slate, assignments = algorithm.vote(
                 test_case.rated_votes.copy(),  # Voting algorithms might append columns
                 test_case.slate_size,
@@ -43,7 +46,7 @@ if __name__=="__main__":
         for i in range(all_assignments.shape[1]):
             num_assignments = len(set(list(all_assignments[:, i])))
             if num_assignments>1:
-                print("Variation found for test case {test_case.name} member {i}: {num_assignments} different assignments")
+                print(f"Variation found for test case {test_case.name} member {i}: {num_assignments} different assignments")
 
         # Check if there are any differences across runs
         # (If exactly 0 or 1 it means there was no variation!)
