@@ -49,13 +49,12 @@ voting_algorithms_to_test = (
     GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    SequentialPhragmenMinimax(),
-    SequentialPhragmenMinimax(load_magnitude_method="total"),
+    *all_instances(SequentialPhragmenMinimax),
 )
 
 voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
-axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), leafClasses(VotingAlgorithmAxiom)))
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """

@@ -19,6 +19,7 @@ parameterized = "^0.9.0"
 kiwiutils = "^0.1.1"
 pulp = "^2.9.0"
 jaxtyping = "^0.2.36"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
