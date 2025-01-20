@@ -201,7 +201,7 @@ class CoverageAxiom(VotingAlgorithmAxiom):
                     if len(strictly_greater_ms) > 0:
                         threshold_exists = (other_mth_happiest[strictly_greater_ms.max():] <= mth_happiest[strictly_greater_ms.max():]).all()
                         if threshold_exists:
-                            efficient_slates.remove( (other_slate, other_total_utility, other_utilities) )
+                            efficient_slates.remove( (other_slate, other_total_utility, other_mth_happiest) )
 
                 # If strictly better combinations exist, this slate is not interesting
                 if other_total_utility >= total_utility:
