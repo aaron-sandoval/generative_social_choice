@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 from dataclasses import dataclass
 import abc
@@ -218,7 +219,11 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
         rated_votes[NULL_CANDIDATE_ID] = BASELINE_UTILITY  # Append a column for the null candidate
 
         i = 0
-        valid_candidates = set(rated_votes.loc[:, :NULL_CANDIDATE_ID].columns) - rejected_candidates
+        valid_candidates = defaultdict(lambda: None)
+        for candidate in rated_votes.loc[:, :NULL_CANDIDATE_ID].columns:
+            valid_candidates[candidate] = None
+        valid_candidates.pop(NULL_CANDIDATE_ID)
+        # valid_candidates = set(rated_votes.loc[:, :NULL_CANDIDATE_ID].columns) - rejected_candidates
 
         while len(slate) < slate_size and i <= len(rated_votes.columns)+1:
             i += 1
@@ -245,8 +250,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 
             slate.append(min_load_candidate_id)
             assignments = min_load_assignments
-            rejected_candidates.update(set(slate) ^ set(assignments["candidate_id"]))
-            valid_candidates -= rejected_candidates.union(slate)  # Remove candidates not to be considered in the next iteration
+            valid_candidates.pop(min_load_candidate_id)
         
         # Remove the null candidate column in case the modification would persist outside the function
         rated_votes = rated_votes.drop(columns=[NULL_CANDIDATE_ID])
