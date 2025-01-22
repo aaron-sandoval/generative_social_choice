@@ -9,67 +9,23 @@ from generative_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )
-from generative_social_choice.queries.query_chatbot_personalization import generate_fewshot_prompt_template, ChatbotPersonalizationAgent
 
 SURVEY_DATA_PATH = get_base_dir_path() / "data/chatbot_personalization_data.csv"
 SUMMARY_DATA_PATH = get_base_dir_path() / "data/user_summaries_generation.csv"
 
+# Notes on survey data format
+# - question_type "multiple choice + text" (detailed_question_type "rating_statement") has
+#   - numeric ratings in column choice_numeric of the statement in column statement. (Should be same 6 statements for everyone.)
+#   - In the column text, there is an additional explanation from the user.
+# - detailed_question_type "general opinion" has additional opinions in field text
+# - detailed_question_type "example scenario" describes a scenario in question_text, and has thoughts on it in field text
+# - Rows with question_type "reading" can be skipped
 
-def check_survey_data():
-    df = pd.read_csv(SURVEY_DATA_PATH)
-    #print(len(df))
-    #print(df.iloc[10])
+from generative_social_choice.queries.query_interface import Agent
+from generative_social_choice.statements.statement_generation import SimplePersonalizationAgent
 
-    # Format
-    # - question_type "multiple choice + text" (detailed_question_type "rating_statement") has
-    #   - numeric ratings in column choice_numeric of the statement in column statement. (Should be same 6 statements for everyone.)
-    #   - In the column text, there is an additional explanation from the user.
-    # - detailed_question_type "general opinion" has additional opinions in field text
-    # - detailed_question_type "example scenario" describes a scenario in question_text, and has thoughts on it in field text
-    # - Rows with question_type "reading" can be skipped
-
-    # Checking how their discriminative prompt is created
-    user_data = df[df["user_id"]=="generation1"]
-    #result = generate_fewshot_prompt_template(survey_responses=user_data, approval_levels=ChatbotPersonalizationAgent.approval_levels)
-    #print("\nRESULT")
-    #print(result)
-    # But how to call this on a new statement?
-    # -> Use class ChatbotPersonalizationAgent. Init giving relevant responses and summary, then call the respective method with statement as arg
-
-    # User embeddings can now be done based on
-    # - Their statements ratings (simplest but ignoring free-form texts)
-    # - Embedding everything with an LLM
-    # - Embedding the summary of their responses with an LLM or other NLP methods
-
-    # Just create a simple vector from statement ratings for test purposes:
-    statements = []  # To fix ordering
-    user_ratings = {}
-    for row in user_data.to_records():
-        if row["statement"]!=row["statement"]:
-            continue  # NaN
-        user_ratings[row["statement"]] = row["choice_numeric"]
-
-        if len(statements)<6:
-            statements.append(row["statement"])
-        else:
-            assert row["statement"] in statements
-    user_ratings = np.array([user_ratings[statement] for statement in statements])
-    print(user_ratings)
-
-
-from generative_social_choice.statements.statement_generation import (
-    DummyGenerator,
-    SimplePersonalizationAgent,
-    NamedChatbotPersonalizationGenerator,
-    LLMGenerator,
-)
-
-def generate_statements(num_agents: Optional[int] = None, model: str = "default"):
-    #NOTE: This uses stuff from paper_replication.generate_slate
-    gen_query_model_arg = {"model": model} if model != "default" else {}
-
-    # Set up agents
-
+def get_simple_agents():
+    """Utility function to get all agents based on survey data and summaries"""
     df = pd.read_csv(get_base_dir_path() / "data/chatbot_personalization_data.csv")
     df = df[df["sample_type"] == "generation"]
     agent_id_to_summary = (
@@ -86,6 +42,35 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
             summary=agent_id_to_summary[id],
         )
         agents.append(agent)
+    return agents
+
+from typing import List
+from generative_social_choice.queries.query_interface import Agent
+
+def compute_embeddings(agents: List[SimplePersonalizationAgent]):
+    # First get all statements so that we can fix ordering
+    statements = agents[0].survey_responses["statement"].dropna().to_list()
+
+    # Compute these embeddings for all agents
+    embeddings = []
+    for agent in agents:
+        df = agent.survey_responses
+        df = df[df["detailed_question_type"]=="rating statement"]
+        user_ratings = df.set_index("statement")["choice_numeric"].to_dict()
+        embeddings.append(np.array([user_ratings[statement] for statement in statements]))
+    return embeddings
+
+from generative_social_choice.statements.statement_generation import (
+    DummyGenerator,
+    NamedChatbotPersonalizationGenerator,
+    LLMGenerator,
+)
+
+def generate_statements(num_agents: Optional[int] = None, model: str = "default"):
+    gen_query_model_arg = {"model": model} if model != "default" else {}
+
+    # Set up agents
+    agents = get_simple_agents()
 
     # Subsample agents
     if num_agents is not None:
@@ -98,18 +83,17 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     # local random seed. So, their behavior was determined by this global seed
 
     generators = [
-        #DummyGenerator(),
+        DummyGenerator(),
         #NamedChatbotPersonalizationGenerator(
         #    seed=0, gpt_temperature=0, **gen_query_model_arg
         #),
-        LLMGenerator(
-            seed=0, gpt_temperature=0, **gen_query_model_arg
-        ),
+        #LLMGenerator(
+        #    seed=0, gpt_temperature=0, **gen_query_model_arg
+        #),
         #NamedChatbotPersonalizationGenerator(
         #    seed=0, gpt_temperature=1, **gen_query_model_arg
         #),
     ]
-    # ---- End of copied code -----
 
     # Now for all the generators, generate statements, then write the results to some file
     results = []
@@ -150,10 +134,16 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
 
 if __name__=="__main__":
-    # NOTE For embeddings we might want to use caching still, like writing to some file (but also, this is rather optional!)
-    generate_statements(num_agents=5, model="gpt-4o-mini")
+    #generate_statements(num_agents=5, model="gpt-4o-mini")
 
     #TODO
-    # - Add function to compute embeddings (for now based on ratings of 6 statements only)
     # - Write clean interface for embeddings and adjust script such that caching is possible
+    #   -> Subclass Agent class to EmbeddingAgent which has method to get embeddings?
     # - Move script files to new folder scripts
+    agents = get_simple_agents()
+    print(compute_embeddings(agents=agents))
+
+    # User embeddings can now be done based on
+    # - Their statements ratings (simplest but ignoring free-form texts)
+    # - Embedding everything with an LLM
+    # - Embedding the summary of their responses with an LLM or other NLP methods
