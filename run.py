@@ -122,9 +122,12 @@ if __name__=="__main__":
     #generate_statements(num_agents=5, model="gpt-4o-mini")
 
     #TODO
-    # - Write clean interface for embeddings and adjust script such that caching is possible
     # - Move script files to new folder scripts
     # - Add some tests as well
-    from generative_social_choice.statements.embeddings import BaselineEmbedding
+    from generative_social_choice.statements.partitioning import BaselineEmbedding
     agents = get_simple_agents()
-    print(BaselineEmbedding().compute(agents=agents))
+    #print(BaselineEmbedding().compute(agents=agents))
+
+    from generative_social_choice.statements.partitioning import KMeansClustering
+    partitioning = KMeansClustering(embedding_method=BaselineEmbedding())
+    print(partitioning.assign(agents=agents, num_partitions=3))

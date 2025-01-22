@@ -2,8 +2,12 @@ from typing import List, override
 import abc
 
 import numpy as np
+from sklearn.cluster import KMeans
 
 from generative_social_choice.statements.statement_generation import SimplePersonalizationAgent
+
+#TODO Make it possible to store embeddings to avoid having to call LLMs all the time
+# (Can be done by having separate script to precompute embeddings to a file, and embedding class to read from a file)
 
 # TODO Implement further embedding methods
 # User embeddings can now be done based on
@@ -11,7 +15,6 @@ from generative_social_choice.statements.statement_generation import SimplePerso
 # - Embedding everything with an LLM
 # - Embedding the summary of their responses with an LLM or other NLP methods
 
-#TODO! Proceed with using the embeddings for clustering
 #TODO! Use clustering in Generator method
 
 class Embedding(abc.ABC):
@@ -49,3 +52,39 @@ class BaselineEmbedding(Embedding):
             user_ratings = df.set_index("statement")["choice_numeric"].to_dict()
             embeddings.append([user_ratings[statement] for statement in statements])
         return np.array(embeddings)
+
+
+class Partition(abc.ABC):
+    """Abstract base class for partitioning agents"""
+
+    @abc.abstractmethod
+    def assign(self, agents: List[SimplePersonalizationAgent], num_partitions: int) -> List[int]:
+        """
+        Assign the given agents to different partitions.
+
+        # Arguments
+        - `agents: List[SimplePersonalizationAgent]`: Agents to partition.
+          Note that we use SimplePersonalizationAgent rather than Agent to be sure that all survey responses are
+          available.
+        - `num_partitions: int`: Number of partitions to create
+
+        # Returns
+        `assignment: List[int]`: Assignment of agents to partitions, where `assignment[i]` contains the index
+          of the partition `agents[i]` is assigned to.
+        """
+        pass
+
+
+class KMeansClustering(Partition):
+    
+    def __init__(self, embedding_method: Embedding):
+        self.embedding_method = embedding_method
+    
+    @override
+    def assign(self, agents: List[SimplePersonalizationAgent], num_partitions: int) -> List[int]:
+        embeddings = self.embedding_method.compute(agents=agents)
+
+        kmeans = KMeans(n_clusters=num_partitions)
+        kmeans.fit(embeddings)
+
+        return kmeans.labels_

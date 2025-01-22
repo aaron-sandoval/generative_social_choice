@@ -20,6 +20,7 @@ kiwiutils = "^0.1.1"
 pulp = "^2.9.0"
 jaxtyping = "^0.2.36"
 ipykernel = "^6.29.5"
+scikit-learn = "^1.6.1"
 
 [build-system]
 requires = ["poetry-core"]
