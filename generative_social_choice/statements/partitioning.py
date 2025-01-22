@@ -6,7 +6,7 @@ from sklearn.cluster import KMeans
 
 from generative_social_choice.statements.statement_generation import SimplePersonalizationAgent
 
-#TODO Make it possible to store embeddings to avoid having to call LLMs all the time
+#TODO Make it possible to store embeddings to avoid having to call LLMs all the time (or wait for kmeans results)
 # (Can be done by having separate script to precompute embeddings to a file, and embedding class to read from a file)
 
 # TODO Implement further embedding methods
@@ -15,7 +15,6 @@ from generative_social_choice.statements.statement_generation import SimplePerso
 # - Embedding everything with an LLM
 # - Embedding the summary of their responses with an LLM or other NLP methods
 
-#TODO! Use clustering in Generator method
 
 class Embedding(abc.ABC):
     """Abstract base class for computing embeddings"""

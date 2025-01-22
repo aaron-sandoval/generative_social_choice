@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from typing import override, Tuple, List
 
 import pandas as pd
+import numpy as np
 
 from generative_social_choice.queries.query_interface import Generator,Agent
 from generative_social_choice.utils.gpt_wrapper import LLMLog, GPT
 from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator
+from generative_social_choice.statements.partitioning import Partition
 
 
 class SimplePersonalizationAgent(Agent):
@@ -41,12 +43,32 @@ class SimplePersonalizationAgent(Agent):
         raise NotImplementedError()
 
 
+@dataclass
+class GenerationResult:
+    """Data class to manage resukts of statement generation.
+    
+    Note that other in addition to the statements we also want to include context information for logging."""
+
+    statement: str
+    generation_method: str
+    agent_ids: list[str]
+
+
 class NamedGenerator(Generator):
     """Interface class for generation methods
     
     Almost the same as Generator, but we want to ensure that the arguments passed to init
     can be obtained later for logging purposes."""
     _init_args: dict={}  # Remember init arguments for logging purposes
+
+    def generate_with_context(self, agents: List[Agent]) -> Tuple[List[GenerationResult], List[LLMLog]]:
+        """Same as generate() but returns additional context in the first part of the returned variable.
+        
+        This additional context is useful for logging in case the generator calls other generators."""
+        statements, logs = self.generate(agents=agents)
+        results = [GenerationResult(statement=statement, generation_method=self.name, agent_ids=sorted([agent.id for agent in agents]))
+                   for statement in statements]
+        return results, logs
 
     @property
     def name(self):
@@ -174,3 +196,37 @@ Importantly, each statement has to satisfy the following conditions:
         statements = json.loads(response)["statements"]
 
         return statements, [{**log, "query_type": "generative"}]
+
+
+class PartitionGenerator(NamedGenerator):
+    """Nested method which takes a partitioning method and basic generator,
+    and generates statements by partitioning all agents and running the basic generator
+    on each partition."""
+
+    def __init__(self, partitioning: Partition, base_generator: NamedGenerator, num_partitions: int):
+        self.partitioning = partitioning
+        self.base_generator = base_generator
+        self.num_partitions = num_partitions
+
+    @override
+    def generate_with_context(self, agents: List[SimplePersonalizationAgent]) -> Tuple[List[GenerationResult], List[LLMLog]]:
+        partitions = self.partitioning.assign(agents=agents, num_partitions=self.num_partitions)
+
+        results = []
+        logs = []
+        for i in range(self.num_partitions):
+            assigned_agent_ixs = np.where(partitions==i)[0]
+            if len(assigned_agent_ixs)<1:
+                continue
+
+            assigned_agents = [agent for ix, agent in enumerate(agents) if ix in assigned_agent_ixs]
+
+            result, lgs = self.base_generator.generate_with_context(agents=assigned_agents)
+            results.extend(result)
+            logs.extend(lgs)
+        return results, logs
+    
+    def generate(self, agents: List[SimplePersonalizationAgent]) -> Tuple[List[str], List[LLMLog]]:
+        results, logs = self.generate_with_context(agents=agents)
+        statements = [result.statement for result in results]
+        return statements, logs

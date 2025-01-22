@@ -125,9 +125,16 @@ if __name__=="__main__":
     # - Move script files to new folder scripts
     # - Add some tests as well
     from generative_social_choice.statements.partitioning import BaselineEmbedding
-    agents = get_simple_agents()
+    agents = get_simple_agents()[:10]
     #print(BaselineEmbedding().compute(agents=agents))
 
     from generative_social_choice.statements.partitioning import KMeansClustering
-    partitioning = KMeansClustering(embedding_method=BaselineEmbedding())
-    print(partitioning.assign(agents=agents, num_partitions=3))
+    from generative_social_choice.statements.statement_generation import PartitionGenerator
+    generator = PartitionGenerator(
+        partitioning=KMeansClustering(embedding_method=BaselineEmbedding()),
+        base_generator=DummyGenerator(num_statements=2),
+        num_partitions=3,
+    )
+
+    results, logs = generator.generate_with_context(agents=agents)
+    print(results)
