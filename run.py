@@ -61,6 +61,7 @@ from generative_social_choice.statements.statement_generation import (
     DummyGenerator,
     SimplePersonalizationAgent,
     NamedChatbotPersonalizationGenerator,
+    LLMGenerator,
 )
 
 def generate_statements(num_agents: Optional[int] = None, model: str = "default"):
@@ -98,8 +99,10 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     generators = [
         #DummyGenerator(),
-        #TODO Make it possible to generate several statements at once with the LLM!
-        NamedChatbotPersonalizationGenerator(
+        #NamedChatbotPersonalizationGenerator(
+        #    seed=0, gpt_temperature=0, **gen_query_model_arg
+        #),
+        LLMGenerator(
             seed=0, gpt_temperature=0, **gen_query_model_arg
         ),
         #NamedChatbotPersonalizationGenerator(
@@ -147,11 +150,10 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
 
 if __name__=="__main__":
-    # Should we use their Generator interface to generate statements? -> Check the output format and how it's used in the pipeline
-    # In the pipeline, it initializes a bunch of generators and then does the heavy lifting in slate_generation generate_slate_ensemble_greedy
-    # In there, several rounds are done where all generators are called on agents not yet assigned
-    # -> Make sure this works with caching and doesn't do unnecessary LLM calls to DISC, but otherwise seems good to use!
-    #    -> How about implementing another Agent subclass with a dummy approval method that raises an exception if called?
-    #       Do use the Generator class then, so we can probably just take their implementation as the baseline class!
     # NOTE For embeddings we might want to use caching still, like writing to some file (but also, this is rather optional!)
     generate_statements(num_agents=5, model="gpt-4o-mini")
+
+    #TODO
+    # - Add function to compute embeddings (for now based on ratings of 6 statements only)
+    # - Write clean interface for embeddings and adjust script such that caching is possible
+    # - Move script files to new folder scripts
