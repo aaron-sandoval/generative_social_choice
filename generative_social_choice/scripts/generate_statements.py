@@ -1,13 +1,21 @@
 import os
 import random
 import pandas as pd
-import numpy as np
 
 from typing import Optional
 
 from generative_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
+)
+from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
+from generative_social_choice.statements.partitioning import BaselineEmbedding
+from generative_social_choice.statements.partitioning import KMeansClustering
+from generative_social_choice.statements.statement_generation import (
+    DummyGenerator,
+    NamedChatbotPersonalizationGenerator,
+    LLMGenerator,
+    PartitionGenerator,
 )
 
 SURVEY_DATA_PATH = get_base_dir_path() / "data/chatbot_personalization_data.csv"
@@ -21,8 +29,6 @@ SUMMARY_DATA_PATH = get_base_dir_path() / "data/user_summaries_generation.csv"
 # - detailed_question_type "example scenario" describes a scenario in question_text, and has thoughts on it in field text
 # - Rows with question_type "reading" can be skipped
 
-from generative_social_choice.queries.query_interface import Agent
-from generative_social_choice.statements.statement_generation import SimplePersonalizationAgent
 
 def get_simple_agents():
     """Utility function to get all agents based on survey data and summaries"""
@@ -45,13 +51,7 @@ def get_simple_agents():
     return agents
 
 
-from generative_social_choice.statements.statement_generation import (
-    DummyGenerator,
-    NamedChatbotPersonalizationGenerator,
-    LLMGenerator,
-)
-
-def generate_statements(num_agents: Optional[int] = None, model: str = "default"):
+def generate_statements(num_agents: Optional[int] = None, model: str = "default", debug_mode: bool=False):
     gen_query_model_arg = {"model": model} if model != "default" else {}
 
     # Set up agents
@@ -63,10 +63,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     # Set up generators
 
-    random.seed(0)
-    # Due to a implementation oversight, NN generators didn't set their own
-    # local random seed. So, their behavior was determined by this global seed
-
+    #TODO Our generators don't use seeds yet
     generators = [
         DummyGenerator(),
         #NamedChatbotPersonalizationGenerator(
@@ -78,15 +75,18 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
         #NamedChatbotPersonalizationGenerator(
         #    seed=0, gpt_temperature=1, **gen_query_model_arg
         #),
+        PartitionGenerator(
+            partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
+            base_generator=DummyGenerator(num_statements=2),
+        ),
     ]
 
     # Now for all the generators, generate statements, then write the results to some file
     results = []
     logs = []
     for generator in generators:
-        statements, lgs = generator.generate(agents=agents)
-        results.extend([{"statement": statement, "generator": generator.name, "agents": sorted([agent.id for agent in agents])}
-                        for statement in statements])
+        r, lgs = generator.generate_with_context(agents=agents)
+        results.extend([result.to_dict() for result in r])
         logs.extend(lgs)
     
     # Output into data/demo_data with timestring prepended
@@ -95,8 +95,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     dirname = (
         get_base_dir_path()
         / "data/demo_data"
-        #/ f"{timestring}_statement_generation"
-        / "TEST_statement_generation"  #TODO use other version after debugging
+        / (f"{timestring}_statement_generation" if not debug_mode else "TEST_statement_generation")
     )
     if not os.path.exists(dirname):
         os.makedirs(dirname)
@@ -119,22 +118,10 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
 
 if __name__=="__main__":
-    #generate_statements(num_agents=5, model="gpt-4o-mini")
+    # NOTE For running this, you need to have the package installed
+    # (`pip install -e .` from the folder where README.md is located)
+    generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
 
     #TODO
-    # - Move script files to new folder scripts
     # - Add some tests as well
-    from generative_social_choice.statements.partitioning import BaselineEmbedding
-    agents = get_simple_agents()[:10]
-    #print(BaselineEmbedding().compute(agents=agents))
-
-    from generative_social_choice.statements.partitioning import KMeansClustering
-    from generative_social_choice.statements.statement_generation import PartitionGenerator
-    generator = PartitionGenerator(
-        partitioning=KMeansClustering(embedding_method=BaselineEmbedding()),
-        base_generator=DummyGenerator(num_statements=2),
-        num_partitions=3,
-    )
-
-    results, logs = generator.generate_with_context(agents=agents)
-    print(results)
+    # - Add option to save embeddings and load from file

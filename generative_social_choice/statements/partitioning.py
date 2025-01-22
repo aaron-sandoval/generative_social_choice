@@ -4,7 +4,7 @@ import abc
 import numpy as np
 from sklearn.cluster import KMeans
 
-from generative_social_choice.statements.statement_generation import SimplePersonalizationAgent
+from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
 
 #TODO Make it possible to store embeddings to avoid having to call LLMs all the time (or wait for kmeans results)
 # (Can be done by having separate script to precompute embeddings to a file, and embedding class to read from a file)
@@ -55,9 +55,10 @@ class BaselineEmbedding(Embedding):
 
 class Partition(abc.ABC):
     """Abstract base class for partitioning agents"""
+    num_partitions: int
 
     @abc.abstractmethod
-    def assign(self, agents: List[SimplePersonalizationAgent], num_partitions: int) -> List[int]:
+    def assign(self, agents: List[SimplePersonalizationAgent]) -> List[int]:
         """
         Assign the given agents to different partitions.
 
@@ -76,14 +77,15 @@ class Partition(abc.ABC):
 
 class KMeansClustering(Partition):
     
-    def __init__(self, embedding_method: Embedding):
+    def __init__(self, num_partitions: int, embedding_method: Embedding):
+        self.num_partitions = num_partitions
         self.embedding_method = embedding_method
     
     @override
-    def assign(self, agents: List[SimplePersonalizationAgent], num_partitions: int) -> List[int]:
+    def assign(self, agents: List[SimplePersonalizationAgent]) -> List[int]:
         embeddings = self.embedding_method.compute(agents=agents)
 
-        kmeans = KMeans(n_clusters=num_partitions)
+        kmeans = KMeans(n_clusters=self.num_partitions)
         kmeans.fit(embeddings)
 
         return kmeans.labels_

@@ -9,38 +9,8 @@ import numpy as np
 
 from generative_social_choice.queries.query_interface import Generator,Agent
 from generative_social_choice.utils.gpt_wrapper import LLMLog, GPT
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator
+from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator, SimplePersonalizationAgent
 from generative_social_choice.statements.partitioning import Partition
-
-
-class SimplePersonalizationAgent(Agent):
-    """Simple agent representation which doesn't require connecting to any LLM
-    but can't be used to get approvals.
-    
-    We use this class in statement generation as computing new approvals
-    is unnecessary."""
-
-    def __init__(
-        self,
-        *,
-        id: str,
-        survey_responses: pd.DataFrame,
-        summary: str,
-    ):
-        self.id = id
-        self.survey_responses = survey_responses
-        self.summary = summary
-
-    def get_id(self):
-        return self.id
-
-    def get_description(self):
-        return self.summary
-
-    def get_approval(
-        self, statement: str, use_logprobs: bool = True
-    ) -> tuple[float, list[LLMLog]]:
-        raise NotImplementedError()
 
 
 @dataclass
@@ -53,6 +23,8 @@ class GenerationResult:
     generation_method: str
     agent_ids: list[str]
 
+    def to_dict(self):
+        return {"statement": self.statement, "generation_method": self.generation_method, "agent_ids": self.agent_ids}
 
 class NamedGenerator(Generator):
     """Interface class for generation methods
@@ -203,18 +175,17 @@ class PartitionGenerator(NamedGenerator):
     and generates statements by partitioning all agents and running the basic generator
     on each partition."""
 
-    def __init__(self, partitioning: Partition, base_generator: NamedGenerator, num_partitions: int):
+    def __init__(self, partitioning: Partition, base_generator: NamedGenerator):
         self.partitioning = partitioning
         self.base_generator = base_generator
-        self.num_partitions = num_partitions
 
     @override
     def generate_with_context(self, agents: List[SimplePersonalizationAgent]) -> Tuple[List[GenerationResult], List[LLMLog]]:
-        partitions = self.partitioning.assign(agents=agents, num_partitions=self.num_partitions)
+        partitions = self.partitioning.assign(agents=agents)
 
         results = []
         logs = []
-        for i in range(self.num_partitions):
+        for i in sorted(list(set(partitions))):
             assigned_agent_ixs = np.where(partitions==i)[0]
             if len(assigned_agent_ixs)<1:
                 continue
