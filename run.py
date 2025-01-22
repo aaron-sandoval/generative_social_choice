@@ -44,21 +44,6 @@ def get_simple_agents():
         agents.append(agent)
     return agents
 
-from typing import List
-from generative_social_choice.queries.query_interface import Agent
-
-def compute_embeddings(agents: List[SimplePersonalizationAgent]):
-    # First get all statements so that we can fix ordering
-    statements = agents[0].survey_responses["statement"].dropna().to_list()
-
-    # Compute these embeddings for all agents
-    embeddings = []
-    for agent in agents:
-        df = agent.survey_responses
-        df = df[df["detailed_question_type"]=="rating statement"]
-        user_ratings = df.set_index("statement")["choice_numeric"].to_dict()
-        embeddings.append(np.array([user_ratings[statement] for statement in statements]))
-    return embeddings
 
 from generative_social_choice.statements.statement_generation import (
     DummyGenerator,
@@ -138,12 +123,8 @@ if __name__=="__main__":
 
     #TODO
     # - Write clean interface for embeddings and adjust script such that caching is possible
-    #   -> Subclass Agent class to EmbeddingAgent which has method to get embeddings?
     # - Move script files to new folder scripts
+    # - Add some tests as well
+    from generative_social_choice.statements.embeddings import BaselineEmbedding
     agents = get_simple_agents()
-    print(compute_embeddings(agents=agents))
-
-    # User embeddings can now be done based on
-    # - Their statements ratings (simplest but ignoring free-form texts)
-    # - Embedding everything with an LLM
-    # - Embedding the summary of their responses with an LLM or other NLP methods
+    print(BaselineEmbedding().compute(agents=agents))
