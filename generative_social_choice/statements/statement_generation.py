@@ -7,10 +7,32 @@ from typing import override, Tuple, List
 import pandas as pd
 import numpy as np
 
+from generative_social_choice.utils.helper_functions import get_base_dir_path
 from generative_social_choice.queries.query_interface import Generator,Agent
 from generative_social_choice.utils.gpt_wrapper import LLMLog, GPT
 from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator, SimplePersonalizationAgent
 from generative_social_choice.statements.partitioning import Partition
+
+
+def get_simple_agents():
+    """Utility function to get all agents based on survey data and summaries"""
+    df = pd.read_csv(get_base_dir_path() / "data/chatbot_personalization_data.csv")
+    df = df[df["sample_type"] == "generation"]
+    agent_id_to_summary = (
+        pd.read_csv(get_base_dir_path() / "data/user_summaries_generation.csv")
+        .set_index("user_id")["summary"]
+        .to_dict()
+    )
+
+    agents = []
+    for id in df.user_id.unique():
+        agent = SimplePersonalizationAgent(
+            id=id,
+            survey_responses=df[df.user_id == id],
+            summary=agent_id_to_summary[id],
+        )
+        agents.append(agent)
+    return agents
 
 
 @dataclass

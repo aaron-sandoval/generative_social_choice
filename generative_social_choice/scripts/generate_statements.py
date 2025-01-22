@@ -30,27 +30,6 @@ SUMMARY_DATA_PATH = get_base_dir_path() / "data/user_summaries_generation.csv"
 # - Rows with question_type "reading" can be skipped
 
 
-def get_simple_agents():
-    """Utility function to get all agents based on survey data and summaries"""
-    df = pd.read_csv(get_base_dir_path() / "data/chatbot_personalization_data.csv")
-    df = df[df["sample_type"] == "generation"]
-    agent_id_to_summary = (
-        pd.read_csv(get_base_dir_path() / "data/user_summaries_generation.csv")
-        .set_index("user_id")["summary"]
-        .to_dict()
-    )
-
-    agents = []
-    for id in df.user_id.unique():
-        agent = SimplePersonalizationAgent(
-            id=id,
-            survey_responses=df[df.user_id == id],
-            summary=agent_id_to_summary[id],
-        )
-        agents.append(agent)
-    return agents
-
-
 def generate_statements(num_agents: Optional[int] = None, model: str = "default", debug_mode: bool=False):
     gen_query_model_arg = {"model": model} if model != "default" else {}
 
@@ -123,5 +102,5 @@ if __name__=="__main__":
     generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
 
     #TODO
-    # - Add some tests as well
+    # - Add some tests for partitioning as well
     # - Add option to save embeddings and load from file
