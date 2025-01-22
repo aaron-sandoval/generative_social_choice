@@ -12,6 +12,7 @@ from generative_social_choice.statements.partitioning import (
     BaselineEmbedding,
     KMeansClustering,
     PrecomputedEmbedding,
+    PrecomputedPartition,
 )
 from generative_social_choice.statements.statement_generation import (
     get_simple_agents,
@@ -104,14 +105,23 @@ if __name__=="__main__":
     # (`pip install -e .` from the folder where README.md is located)
     #generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
 
-    #TODO
-    # - Add option to save embeddings and load from file
-    # - Save and load partitioning from a file
-    embedding_file = get_base_dir_path() / "data/demo_data/TEST_embeddings.json"
+    # How to use precomputed embeddings
+    #embedding_file = get_base_dir_path() / "data/demo_data/TEST_embeddings.json"
+    #agents = get_simple_agents()
+    #print("Computing embeddings and saving them to disk ...")
+    #BaselineEmbedding().precompute(agents=agents, filepath=embedding_file)
+
+    #print("Using precomputed embeddings for clustering")
+    #partitioning = KMeansClustering(num_partitions=3, embedding_method=PrecomputedEmbedding(filepath=embedding_file))
+    #print(partitioning.assign(agents=agents[10:20]))
+
+    # Using precomputed assignments
+    partition_file = get_base_dir_path() / "data/demo_data/TEST_partitioning.json"
     agents = get_simple_agents()
-    print("Computing embeddings and saving them to disk ...")
-    BaselineEmbedding().precompute(agents=agents, filepath=embedding_file)
+    #print("Computing embeddings and saving them to disk ...")
+    #partitioning = KMeansClustering(num_partitions=5, embedding_method=BaselineEmbedding())
+    #partitioning.precompute(agents=agents, filepath=partition_file)
 
     print("Using precomputed embeddings for clustering")
-    partitioning = KMeansClustering(num_partitions=3, embedding_method=PrecomputedEmbedding(filepath=embedding_file))
-    print(partitioning.assign(agents=agents[10:20]))
+    partitioning = PrecomputedPartition(filepath=partition_file)
+    print(partitioning.assign(agents=agents))

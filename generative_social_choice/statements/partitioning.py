@@ -8,14 +8,16 @@ from sklearn.cluster import KMeans
 
 from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
 
-#TODO Make it possible to store embeddings to avoid having to call LLMs all the time (or wait for kmeans results)
-# (Can be done by having separate script to precompute embeddings to a file, and embedding class to read from a file)
 
 # TODO Implement further embedding methods
 # User embeddings can now be done based on
 # - Embedding everything with an LLM (ideally using embedding endpoint)
 # - Embedding the summary of their responses with an LLM or other NLP methods
 
+
+##################################################
+# Embedding methods
+##################################################
 
 def store_embeddings(filepath: Path, embeddings: np.ndarray, agent_ids: List[str]):
     """
@@ -111,6 +113,27 @@ class PrecomputedEmbedding(Embedding):
         return filtered_embeddings
 
 
+##################################################
+# Partitioning
+##################################################
+
+def store_assignments(filepath: Path, assignments: np.ndarray, agent_ids: List[str]):
+    """
+    Saves partitioning and corresponding agent IDs to a file.
+
+    Args:
+        filepath (str): Path to the file where data will be saved.
+        assignments (numpy.ndarray): A 1D array where each entry is the index of the assign partition for an agent.
+        agent_ids (list of str): A list of agent IDs corresponding to the partitioning.
+    """
+    data = {
+        "agent_ids": agent_ids,
+        "assignments": assignments.tolist()
+    }
+    with open(filepath, "w") as file:
+        json.dump(data, file)
+
+
 class Partition(abc.ABC):
     """Abstract base class for partitioning agents"""
     num_partitions: int
@@ -131,6 +154,19 @@ class Partition(abc.ABC):
           of the partition `agents[i]` is assigned to.
         """
         pass
+    
+    def precompute(self, agents: List[SimplePersonalizationAgent], filepath: Path):
+        """
+        Compute assignments and store them to a file
+
+        # Arguments
+        - `agents: List[SimplePersonalizationAgent]`: Agents to compute embeddings for.
+          Note that we use SimplePersonalizationAgent rather than Agent to be sure that all survey responses are
+          available.
+        - `filepath: Path`: File to store the assignments.
+        """
+        assignments = self.assign(agents=agents)
+        store_assignments(filepath=filepath, agent_ids=[agent.id for agent in agents], assignments=assignments)
 
 
 class KMeansClustering(Partition):
@@ -147,3 +183,30 @@ class KMeansClustering(Partition):
         kmeans.fit(embeddings)
 
         return kmeans.labels_
+    
+
+class PrecomputedPartition(Partition):
+    """Class to read precomputed assignments from a file"""
+
+    def __init__(self, filepath: Path):
+        with open(filepath, "r") as file:
+          data = json.load(file)
+
+        self.agent_ids = data["agent_ids"]
+        self.assignments = np.array(data["assignments"])
+        assert self.assignments.shape[0]==len(self.agent_ids)
+
+    @override
+    def assign(self, agents: List[SimplePersonalizationAgent]) -> List[int] | np.ndarray:
+        requested_ids = [agent.id for agent in agents]
+        for i in requested_ids:
+            assert i in self.agent_ids
+
+        # Map requested IDs to indices
+        id_to_index = {agent_id: idx for idx, agent_id in enumerate(self.agent_ids)}
+
+        # Filter embeddings for requested IDs
+        filtered_ids = [agent_id for agent_id in requested_ids if agent_id in id_to_index]
+        filtered_assignments = np.array([self.assignments[id_to_index[agent_id]] for agent_id in filtered_ids])
+
+        return filtered_assignments
