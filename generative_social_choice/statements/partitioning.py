@@ -1,5 +1,7 @@
-from typing import List, override
 import abc
+import json
+from typing import List, override
+from pathlib import Path
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -11,9 +13,25 @@ from generative_social_choice.queries.query_chatbot_personalization import Simpl
 
 # TODO Implement further embedding methods
 # User embeddings can now be done based on
-# - Their statements ratings (simplest but ignoring free-form texts)
-# - Embedding everything with an LLM
+# - Embedding everything with an LLM (ideally using embedding endpoint)
 # - Embedding the summary of their responses with an LLM or other NLP methods
+
+
+def store_embeddings(filepath: Path, embeddings: np.ndarray, agent_ids: List[str]):
+    """
+    Saves embeddings and corresponding agent IDs to a file.
+
+    Args:
+        filepath (str): Path to the file where data will be saved.
+        embeddings (numpy.ndarray): A 2D array where each row is the embedding for an agent.
+        agent_ids (list of str): A list of agent IDs corresponding to the embeddings.
+    """
+    data = {
+        "agent_ids": agent_ids,
+        "embeddings": embeddings.tolist()
+    }
+    with open(filepath, "w") as file:
+        json.dump(data, file)
 
 
 class Embedding(abc.ABC):
@@ -33,6 +51,19 @@ class Embedding(abc.ABC):
         `embeddings: np.array`: Embedding matrix with embeddings of `agents[i]` in row i (counting from 0)
         """
         pass
+    
+    def precompute(self, agents: List[SimplePersonalizationAgent], filepath: Path):
+        """
+        Compute embeddings and store them to a file
+
+        # Arguments
+        - `agents: List[SimplePersonalizationAgent]`: Agents to compute embeddings for.
+          Note that we use SimplePersonalizationAgent rather than Agent to be sure that all survey responses are
+          available.
+        - `filepath: Path`: File to store the embeddings.
+        """
+        embeddings = self.compute(agents=agents)
+        store_embeddings(filepath=filepath, agent_ids=[agent.id for agent in agents], embeddings=embeddings)
 
 
 class BaselineEmbedding(Embedding):
@@ -51,6 +82,33 @@ class BaselineEmbedding(Embedding):
             user_ratings = df.set_index("statement")["choice_numeric"].to_dict()
             embeddings.append([user_ratings[statement] for statement in statements])
         return np.array(embeddings)
+    
+
+class PrecomputedEmbedding(Embedding):
+    """Class to read precomputed embeddings from a file"""
+
+    def __init__(self, filepath: Path):
+        with open(filepath, "r") as file:
+          data = json.load(file)
+
+        self.agent_ids = data["agent_ids"]
+        self.embeddings = np.array(data["embeddings"])
+        assert self.embeddings.shape[0]==len(self.agent_ids)
+
+    @override
+    def compute(self, agents: List[SimplePersonalizationAgent]) -> np.ndarray:
+        requested_ids = [agent.id for agent in agents]
+        for i in requested_ids:
+            assert i in self.agent_ids
+
+        # Map requested IDs to indices
+        id_to_index = {agent_id: idx for idx, agent_id in enumerate(self.agent_ids)}
+
+        # Filter embeddings for requested IDs
+        filtered_ids = [agent_id for agent_id in requested_ids if agent_id in id_to_index]
+        filtered_embeddings = np.array([self.embeddings[id_to_index[agent_id]] for agent_id in filtered_ids])
+
+        return filtered_embeddings
 
 
 class Partition(abc.ABC):

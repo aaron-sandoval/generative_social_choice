@@ -8,8 +8,11 @@ from generative_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )
-from generative_social_choice.statements.partitioning import BaselineEmbedding
-from generative_social_choice.statements.partitioning import KMeansClustering
+from generative_social_choice.statements.partitioning import (
+    BaselineEmbedding,
+    KMeansClustering,
+    PrecomputedEmbedding,
+)
 from generative_social_choice.statements.statement_generation import (
     get_simple_agents,
     DummyGenerator,
@@ -44,7 +47,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     #TODO Our generators don't use seeds yet
     generators = [
-        DummyGenerator(),
+        DummyGenerator(num_statements=3),
         #NamedChatbotPersonalizationGenerator(
         #    seed=0, gpt_temperature=0, **gen_query_model_arg
         #),
@@ -99,7 +102,16 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 if __name__=="__main__":
     # NOTE For running this, you need to have the package installed
     # (`pip install -e .` from the folder where README.md is located)
-    generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
+    #generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
 
     #TODO
     # - Add option to save embeddings and load from file
+    # - Save and load partitioning from a file
+    embedding_file = get_base_dir_path() / "data/demo_data/TEST_embeddings.json"
+    agents = get_simple_agents()
+    print("Computing embeddings and saving them to disk ...")
+    BaselineEmbedding().precompute(agents=agents, filepath=embedding_file)
+
+    print("Using precomputed embeddings for clustering")
+    partitioning = KMeansClustering(num_partitions=3, embedding_method=PrecomputedEmbedding(filepath=embedding_file))
+    print(partitioning.assign(agents=agents[10:20]))
