@@ -103,25 +103,20 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 if __name__=="__main__":
     # NOTE For running this, you need to have the package installed
     # (`pip install -e .` from the folder where README.md is located)
-    #generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
+    generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
 
     # How to use precomputed embeddings
     #embedding_file = get_base_dir_path() / "data/demo_data/TEST_embeddings.json"
-    #agents = get_simple_agents()
+    #BaselineEmbedding().precompute(agents=get_simple_agents(), filepath=embedding_file)
     #print("Computing embeddings and saving them to disk ...")
-    #BaselineEmbedding().precompute(agents=agents, filepath=embedding_file)
+
+    # How to precompute assignments
+    #partition_file = get_base_dir_path() / "data/demo_data/TEST_partitioning.json"
+    #partitioning = KMeansClustering(num_partitions=5, embedding_method=BaselineEmbedding())
+    #partitioning.precompute(agents=get_simple_agents(), filepath=partition_file)
 
     #print("Using precomputed embeddings for clustering")
-    #partitioning = KMeansClustering(num_partitions=3, embedding_method=PrecomputedEmbedding(filepath=embedding_file))
-    #print(partitioning.assign(agents=agents[10:20]))
+    #partitioning = PrecomputedPartition(filepath=partition_file)
+    #print(partitioning.assign(agents=agents))
 
-    # Using precomputed assignments
-    partition_file = get_base_dir_path() / "data/demo_data/TEST_partitioning.json"
-    agents = get_simple_agents()
-    #print("Computing embeddings and saving them to disk ...")
-    #partitioning = KMeansClustering(num_partitions=5, embedding_method=BaselineEmbedding())
-    #partitioning.precompute(agents=agents, filepath=partition_file)
-
-    print("Using precomputed embeddings for clustering")
-    partitioning = PrecomputedPartition(filepath=partition_file)
-    print(partitioning.assign(agents=agents))
+    #TODO Run everything with the methods we would want to include to have some real statements for further tests
