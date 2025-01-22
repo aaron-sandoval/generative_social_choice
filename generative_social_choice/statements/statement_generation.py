@@ -1,56 +1,42 @@
-import abc
 import random
 import string
 from dataclasses import dataclass
-from typing import override
+from typing import override, Tuple, List
 
 import pandas as pd
 
+from generative_social_choice.queries.query_interface import Generator, Agent
+from generative_social_choice.utils.gpt_wrapper import LLMLog
 
-@dataclass(frozen=True)
-class StatementGenerationMethod(abc.ABC):
-    """
-    Abstract base class for methods to generate additional statements.
-    """
-    @abc.abstractmethod
-    def generate(
-        self,
-        survey_responses: pd.DataFrame,
-        summaries: pd.DataFrame,
-        num_statements: int,
-    ) -> list[str]:
-        """
-        Generate new statements for the voters described in the given data.
 
-        # Arguments
-        - `survey_responses`: Data of the whole survey in raw format
-        - `summaries`: Generated summaries for each user
-        - `num_statements: int`: The number of new statements to be generated
+class NamedGenerator(Generator):
+    """Interface class for generation methods
+    
+    Almost the same as Generator, but we want to ensure that the arguments passed to init
+    can be obtained later for logging purposes."""
+    _init_args: dict={}  # Remember init arguments for logging purposes
 
-        # Returns
-        `statements: list[str]`: A list of additional statements
-        """
-        pass
+    @property
+    def name(self):
+        return self.__class__.__name__ + "(" + ", ".join(f"{key}={value}" for key, value in self._init_args.items()) + ")"
 
-@dataclass(frozen=True)
-class DummyStatementGeneration(StatementGenerationMethod):
+
+class DummyGenerator(NamedGenerator):
     """Dummy method that returns random strings as new statements.
     
     Use for test purposes only!"""
-    statement_length: int = 20
 
-    @override
-    def generate(
-        self,
-        survey_responses: pd.DataFrame,
-        summaries: pd.DataFrame,
-        num_statements: int,
-    ) -> list[str]:
+    def __init__(self, num_statements: int=5, statement_length: int=20):
+        self.num_statements = num_statements
+        self.statement_length = statement_length
+        self._init_args = {"num_statements": num_statements, "statement_length": statement_length}
+
+    def generate(self, agents: List[Agent]) -> Tuple[List[str], List[LLMLog]]:
         """
         Returns random strings of fixed length with letters and whitespace.
         """
         statements = []
-        for _ in range(num_statements):
+        for _ in range(self.num_statements):
             new_statement = ''.join(random.choices(string.ascii_letters + " ", k=self.statement_length))
             statements.append(new_statement)
-        return statements
+        return statements, []

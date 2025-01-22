@@ -56,41 +56,9 @@ def check_survey_data():
     user_ratings = np.array([user_ratings[statement] for statement in statements])
     print(user_ratings)
 
-def dummy():
-    survey_df = pd.read_csv(SURVEY_DATA_PATH)
-    df = pd.read_csv(SUMMARY_DATA_PATH)
-
-    summaries = df.set_index("user_id")["summary"].to_dict()  # {user_id: summary}
-    
-    # So how to generate new statements? (Debug that stuff with a small subset of responses and mini version)
-    # Toy method: Return random strings
-    # Baseline method: Just put all into into an LLM call
-    # Other baseline: Randomly sample some subset and call the baseline method for that subset
-    # Based on clustering:
-    # 1. Compute embeddings (e.g. based on ratings, summaries or whole response) - check what they did in v3
-    #    - Fish et al. v3 did this by randomly selecting 50 statements from the generated summaries and ask the LLM
-    #      to rate on 7 point scale how much an agent is aligned, giving a 50d vector for each agent
-    # 2. Cluster based on number of statements to generate
-    # 3. For each cluster, generate one or several statements (can use the baseline method or similar one)
-    from generative_social_choice.statements.statement_generation import DummyStatementGeneration
-
-    generator = DummyStatementGeneration()
-    statements = generator.generate(survey_responses=survey_df, summaries=summaries, num_statements=5)
-    print(statements)
-
-    # Output into data/demo_data with timestring prepended
-    timestring = get_time_string()
-    dirname = (
-        get_base_dir_path()
-        / "data/demo_data"
-        / f"{timestring}_statement_generation"
-    )
-    #os.makedirs(dirname)
-
-    #TODO Add extra info like generation method name and IDs of people that were considered?
-    #df.to_csv(dirname / "statement_generation_raw_output.csv", mode="append")
 
 from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator
+from generative_social_choice.statements.statement_generation import DummyGenerator
 
 def generate_statements(num_agents: Optional[int] = None, model: str = "default"):
     #NOTE: This uses stuff from paper_replication.generate_slate
@@ -127,6 +95,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     generators = [
         DummyGenerator(),
+        #TODO Make it possible to generate several statements at once with the LLM!
         #ChatbotPersonalizationGenerator(
         #    seed=0, gpt_temperature=0, **gen_query_model_arg
         #),
@@ -138,10 +107,12 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     # Now for all the generators, generate statements, then write the results to some file
     results = []
+    logs = []
     for generator in generators:
-        statements, logs = generator.generate(agents=agents)
-        #TODO Better to store arguments passed to init of the generator as well? And perhaps some info on which agents were used
-        results.extend([{"statement": statement, "generator": generator.__class__.__name__} for statement in statements])
+        statements, lgs = generator.generate(agents=agents)
+        results.extend([{"statement": statement, "generator": generator.name, "agents": sorted([agent.id for agent in agents])}
+                        for statement in statements])
+        logs.extend(lgs)
     
     # Output into data/demo_data with timestring prepended
     print("Writing results to file ...")
@@ -149,38 +120,28 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     dirname = (
         get_base_dir_path()
         / "data/demo_data"
-        / f"{timestring}_statement_generation"
+        #/ f"{timestring}_statement_generation"
+        / "TEST_statement_generation"  #TODO use other version after debugging
     )
-    os.makedirs(dirname)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
 
-    pd.DataFrame.from_records(results).to_csv(dirname / "statement_generation_raw_output.csv", mode="a", index=False)
-    #TODO Store the logs somewhere as well!
+    result_file = dirname / "statement_generation_raw_output.csv"
+    # NOTE: Pandas can write csvs in append mode, but that is error prone as previous header entries
+    # aren't checked.
+    result_df = pd.DataFrame.from_records(results)
+    if os.path.exists(result_file):
+        result_df = pd.concat([pd.read_csv(result_file), result_df])
+    result_df.to_csv(result_file, index=False)
+
+    log_file = dirname / "statement_generation_logs.csv"
+    log_df = pd.DataFrame.from_records(logs)
+    if os.path.exists(log_file):
+        log_df = pd.concat([pd.read_csv(log_file), log_df])
+    log_df.to_csv(log_file, index=False)
     print("Done.")
 
-import random
-import string
-from typing import Tuple, List
-from generative_social_choice.queries.query_interface import Generator, Agent
-from generative_social_choice.utils.gpt_wrapper import LLMLog
 
-class DummyGenerator(Generator):
-    """Dummy method that returns random strings as new statements.
-    
-    Use for test purposes only!"""
-
-    def __init__(self, num_statements: int=5, statement_length: int=20):
-        self.num_statements = num_statements
-        self.statement_length = statement_length
-
-    def generate(self, agents: List[Agent]) -> Tuple[List[str], List[LLMLog]]:
-        """
-        Returns random strings of fixed length with letters and whitespace.
-        """
-        statements = []
-        for _ in range(self.num_statements):
-            new_statement = ''.join(random.choices(string.ascii_letters + " ", k=self.statement_length))
-            statements.append(new_statement)
-        return statements, []
 
 from generative_social_choice.queries.query_interface import Agent
 from generative_social_choice.utils.gpt_wrapper import LLMLog
