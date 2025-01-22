@@ -8,10 +8,10 @@ from generative_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )
-from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
 from generative_social_choice.statements.partitioning import BaselineEmbedding
 from generative_social_choice.statements.partitioning import KMeansClustering
 from generative_social_choice.statements.statement_generation import (
+    get_simple_agents,
     DummyGenerator,
     NamedChatbotPersonalizationGenerator,
     LLMGenerator,
@@ -102,5 +102,4 @@ if __name__=="__main__":
     generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
 
     #TODO
-    # - Add some tests for partitioning as well
     # - Add option to save embeddings and load from file

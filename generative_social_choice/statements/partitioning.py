@@ -20,7 +20,7 @@ class Embedding(abc.ABC):
     """Abstract base class for computing embeddings"""
 
     @abc.abstractmethod
-    def compute(self, agents: List[SimplePersonalizationAgent]) -> np.array:
+    def compute(self, agents: List[SimplePersonalizationAgent]) -> np.ndarray:
         """
         Compute embeddings for the given list of agents
 
@@ -39,7 +39,7 @@ class BaselineEmbedding(Embedding):
     """Method to use ratings of the six survey statements as embeddings"""
 
     @override
-    def compute(self, agents: List[SimplePersonalizationAgent]) -> np.array:
+    def compute(self, agents: List[SimplePersonalizationAgent]) -> np.ndarray:
         # First get all statements so that we can fix ordering
         statements = agents[0].survey_responses["statement"].dropna().to_list()
 
@@ -82,7 +82,7 @@ class KMeansClustering(Partition):
         self.embedding_method = embedding_method
     
     @override
-    def assign(self, agents: List[SimplePersonalizationAgent]) -> List[int]:
+    def assign(self, agents: List[SimplePersonalizationAgent]) -> List[int] | np.ndarray:
         embeddings = self.embedding_method.compute(agents=agents)
 
         kmeans = KMeans(n_clusters=self.num_partitions)
