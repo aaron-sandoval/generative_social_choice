@@ -57,8 +57,11 @@ def check_survey_data():
     print(user_ratings)
 
 
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator
-from generative_social_choice.statements.statement_generation import DummyGenerator
+from generative_social_choice.statements.statement_generation import (
+    DummyGenerator,
+    SimplePersonalizationAgent,
+    NamedChatbotPersonalizationGenerator,
+)
 
 def generate_statements(num_agents: Optional[int] = None, model: str = "default"):
     #NOTE: This uses stuff from paper_replication.generate_slate
@@ -94,12 +97,12 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     # local random seed. So, their behavior was determined by this global seed
 
     generators = [
-        DummyGenerator(),
+        #DummyGenerator(),
         #TODO Make it possible to generate several statements at once with the LLM!
-        #ChatbotPersonalizationGenerator(
-        #    seed=0, gpt_temperature=0, **gen_query_model_arg
-        #),
-        #ChatbotPersonalizationGenerator(
+        NamedChatbotPersonalizationGenerator(
+            seed=0, gpt_temperature=0, **gen_query_model_arg
+        ),
+        #NamedChatbotPersonalizationGenerator(
         #    seed=0, gpt_temperature=1, **gen_query_model_arg
         #),
     ]
@@ -130,47 +133,18 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     # NOTE: Pandas can write csvs in append mode, but that is error prone as previous header entries
     # aren't checked.
     result_df = pd.DataFrame.from_records(results)
-    if os.path.exists(result_file):
+    # Existing but empty files also create issues, so we check for that
+    if os.path.exists(result_file) and len(''.join([line for line in open(result_file, "r")]).strip()):
         result_df = pd.concat([pd.read_csv(result_file), result_df])
     result_df.to_csv(result_file, index=False)
 
     log_file = dirname / "statement_generation_logs.csv"
     log_df = pd.DataFrame.from_records(logs)
-    if os.path.exists(log_file):
+    if os.path.exists(log_file) and len(''.join([line for line in open(log_file, "r")]).strip()):
         log_df = pd.concat([pd.read_csv(log_file), log_df])
     log_df.to_csv(log_file, index=False)
     print("Done.")
 
-
-
-from generative_social_choice.queries.query_interface import Agent
-from generative_social_choice.utils.gpt_wrapper import LLMLog
-
-class SimplePersonalizationAgent(Agent):
-    """Simple agent representation which doesn't require connecting to any LLM
-    but can't be used to get approvals."""
-
-    def __init__(
-        self,
-        *,
-        id: str,
-        survey_responses: pd.DataFrame,
-        summary: str,
-    ):
-        self.id = id
-        self.survey_responses = survey_responses
-        self.summary = summary
-
-    def get_id(self):
-        return self.id
-
-    def get_description(self):
-        return self.summary
-
-    def get_approval(
-        self, statement: str, use_logprobs: bool = True
-    ) -> tuple[float, list[LLMLog]]:
-        raise NotImplementedError()
 
 if __name__=="__main__":
     # Should we use their Generator interface to generate statements? -> Check the output format and how it's used in the pipeline
