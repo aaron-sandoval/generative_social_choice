@@ -25,11 +25,11 @@ def run(debug_mode: bool=False):
     if debug_mode:
         # Subsampling for testing purposes
         #agents = random.sample(agents, 5)
-        agents = agents[:4]
+        agents = agents[:5]
         
         # Subsampling for testing purposes
         #statements = random.sample(statements, 2)
-        statements = statements[:2]
+        statements = statements[:3]
 
     create_utility_matrix(
         agents=agents,
@@ -44,4 +44,3 @@ def run(debug_mode: bool=False):
 
 if __name__=="__main__":
     run(debug_mode=True)
-#TODO Add basic testing
