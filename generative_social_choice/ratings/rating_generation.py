@@ -53,11 +53,6 @@ def get_agents(model: Optional[str] = None) -> List[ChatbotPersonalizationAgent]
         agents.append(agent)
     return agents
 
-def rate_statement(agent: ChatbotPersonalizationAgent, statement: str) -> tuple[float, list[LLMLog]]:
-    """Predict the rating the given agent would assign to the statement"""
-    # NOTE This is just the agent method, so might drop this function
-    return agent.get_approval(statement=statement)
-
 def generate_ratings(
         agents: List[ChatbotPersonalizationAgent],
         statement: str,
