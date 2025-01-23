@@ -3,17 +3,20 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Optional, List
+from pathlib import Path
 
 import pandas as pd
 
 from generative_social_choice.utils.helper_functions import get_base_dir_path
 from generative_social_choice.queries.query_interface import Agent, LLMLog
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
+from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent, SimplePersonalizationAgent
 
 
 RATINGS_FILE = get_base_dir_path() / "data/demo_data/TEST_ratings.jsonl"
 STATEMENTS_FILE = get_base_dir_path() / "data/demo_data/2025-01-22-193423_statement_generation/statement_generation_raw_output.csv"
 LOG_FILE = get_base_dir_path() / "data/demo_data/TEST_ratings_logs.csv"
+UTILITY_MATRIX_FILE = get_base_dir_path() / "data/demo_data/TEST_utility_matrix.csv"
+STATEMENT_ID_FILE = get_base_dir_path() / "data/demo_data/TEST_utility_matrix_statements.csv"
 
 @dataclass
 class Rating:
@@ -102,18 +105,22 @@ def generate_ratings(
     return new_ratings, logs
 
 
-def complete_ratings(agents: List[ChatbotPersonalizationAgent], statements: List[str], verbose: bool = False):
+def complete_ratings(
+        agents: List[ChatbotPersonalizationAgent],
+        statements: List[str],
+        verbose: bool = False,
+    ) -> tuple[List[Rating], list[LLMLog]]:
     # If we already have some completions, consider them
     if RATINGS_FILE.exists():
-        existing_ratings = [Rating(**json.loads(line)) for line in open(RATINGS_FILE, "r")]
+        ratings = [Rating(**json.loads(line)) for line in open(RATINGS_FILE, "r")]
     else:
-        existing_ratings = []
+        ratings = []
     
     logs = []
     for statement in statements:
-        new_ratings, log = generate_ratings(agents=agents, statement=statement, ratings=existing_ratings, verbose=verbose)
+        new_ratings, log = generate_ratings(agents=agents, statement=statement, ratings=ratings, verbose=verbose)
 
-        existing_ratings.extend(new_ratings)
+        ratings.extend(new_ratings)
         logs.extend(log)
 
         # Write new ratings to disk
@@ -126,6 +133,92 @@ def complete_ratings(agents: List[ChatbotPersonalizationAgent], statements: List
             log_df = pd.concat([pd.read_csv(LOG_FILE), log_df])
         log_df.to_csv(LOG_FILE, index=False)
 
+    return ratings, logs
+
+def get_initial_statements(agents: List[ChatbotPersonalizationAgent | SimplePersonalizationAgent]) -> List[str]:
+    """Get the initial statements for which approval ratings were collected in the study
+    
+    Note that this could be done more efficiently based on the dataframe, but since we usually have
+    agents initialized anyway, we are using this path."""
+    statements = set()
+
+    for agent in agents:
+        for statement in agent.survey_responses["statement"].to_list():
+            if statement==statement and statement not in statements:
+                statements.add(statement)
+    return sorted(list(statements))
+
+
+def create_utility_matrix(
+        agents: List[ChatbotPersonalizationAgent],
+        statements: List[str],
+        prepend_survey_statements: bool = True,
+        utility_matrix_file: Optional[Path] = None,
+        statement_id_file: Optional[Path] = None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Create the utility matrix for the given agents and statements
+    
+    # Arguments
+    - `agents: List[ChatbotPersonalizationAgent]`: Agents to consider in the utility matrix
+    - `statements: List[str]`: Statements to include in the utility matrix
+    - `prepend_survey_statements: bool = True`: If True, the initial 6 statements from the survey
+      are included at the beginning
+    - `utility_matrix_file: Optional[Path] = None`: If a path is given, write the dataframe with the utility matrix
+      to this path (in CSV format).
+    - `statement_id_file: Optional[Path] = None`: If a path is given, write the dataframe with the statement IDs
+      to this path (in CSV format).
+
+    # Returns
+    - `utility_matrix: pd.DataFrame`: The utility matrix, with agent IDs as index and statement IDs as column names
+    - `statement_ids: pd.DataFrame`: Dataframe with statement IDs as index and statements in column "statement"
+    """
+    # NOTE That this only predicts missing entries
+    ratings, logs = complete_ratings(agents=agents, statements=statements, verbose=True)
+
+    # Verify with initial statement that it's not recomputed (make a test case for this perhaps)
+    #statement = "The most important rule for chatbot personalization is complete avoidance; it's a ticking time bomb for privacy invasion. For example, a chatbot revealing someone's sexual orientation could be life-threatening in certain countries."
+    #complete_ratings(agents=agents, statements=[statement], verbose=True)
+
+    # Add initial statements
+    # Get corresponding approvals as Ratings
+    if prepend_survey_statements:
+        for statement in get_initial_statements(agents=agents)[::-1]:
+            for agent in agents:
+                approval = agent.survey_responses[agent.survey_responses["statement"]==statement]["choice_numeric"].to_list()[0]
+                ratings.append(Rating(agent_id=agent.id, statement=statement, approval=approval))
+
+            # Add initial statements to the beginning of the list
+            statements = [statement] + statements
+
+    statement_ids = [f"s{i+1}" for i in range(len(statements))]
+    id_lookup = {statement: statement_id for statement, statement_id in zip(statements, statement_ids)}
+
+    # Organize ratings as lookup dict
+    lookup_ratings = {}
+    for rating in ratings:
+        if rating.statement not in statements:
+            continue
+        if rating.agent_id not in lookup_ratings:
+            lookup_ratings[rating.agent_id] = {}
+        lookup_ratings[rating.agent_id][id_lookup[rating.statement]] = rating.approval
+
+    # Now create a dataframe with the utility matrix
+    utilities = {}
+    for agent in agents:
+        utilities[agent.id] = lookup_ratings[agent.id]
+    # We transpose to get statements in columns, and index to get same ordering as in statement_ids
+    utilities_df = pd.DataFrame(utilities).T[statement_ids]
+
+    # Now write the utility matrix to a file, and also the statements,
+    # so that we can convert back from ID to statement after assigning agents
+    if utility_matrix_file is not None:
+        utilities_df.to_csv(utility_matrix_file)
+    statement_df = pd.DataFrame([{"statement": statement, "id": statement_id} for statement, statement_id in zip(statements, statement_ids)]).set_index("id")
+    if statement_id_file is not None:
+        statement_df.to_csv(statement_id_file)
+
+    return utilities_df, statement_df
 
 if __name__=="__main__":
     agents = get_agents(model="gpt-4o-mini")
@@ -141,14 +234,12 @@ if __name__=="__main__":
     #statements = random.sample(statements, 2)
     statements = statements[:2]
 
-    # NOTE That this only predicts missing entries
-    complete_ratings(agents=agents, statements=statements, verbose=True)
-
-    # Verify with initial statement that it's not recomputed (make a test case for this perhaps)
-    #statement = "The most important rule for chatbot personalization is complete avoidance; it's a ticking time bomb for privacy invasion. For example, a chatbot revealing someone's sexual orientation could be life-threatening in certain countries."
-    #complete_ratings(agents=agents, statements=[statement], verbose=True)
-
-    #TODO! Now let's actually create the approval matrix!
+    create_utility_matrix(
+        agents=agents,
+        statements=statements,
+        utility_matrix_file=UTILITY_MATRIX_FILE,
+        statement_id_file=STATEMENT_ID_FILE,
+    )
 
 #TODO Move functions to other files
 #TODO Add basic testing
