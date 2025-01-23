@@ -3,6 +3,7 @@ import random
 import pandas as pd
 
 from typing import Optional
+from pathlib import Path
 
 from generative_social_choice.utils.helper_functions import (
     get_base_dir_path,
@@ -13,6 +14,7 @@ from generative_social_choice.statements.partitioning import (
     KMeansClustering,
     PrecomputedEmbedding,
     PrecomputedPartition,
+    Partition,
 )
 from generative_social_choice.statements.statement_generation import (
     get_simple_agents,
@@ -34,11 +36,22 @@ SUMMARY_DATA_PATH = get_base_dir_path() / "data/user_summaries_generation.csv"
 # - Rows with question_type "reading" can be skipped
 
 
-def generate_statements(num_agents: Optional[int] = None, model: str = "default", debug_mode: bool=False):
+def generate_statements(num_agents: Optional[int] = None, model: str = "default", folder_name: Optional[str] = None,
+                        partioning_file: Optional[Path] = None, partitioning: Optional[Partition] = None):
     gen_query_model_arg = {"model": model} if model != "default" else {}
 
     # Set up agents
     agents = get_simple_agents()
+
+    if partioning_file is not None:
+        if partioning_file.exists():
+            print("Reading partitioning from existing file ...")
+            partitioning = PrecomputedPartition(filepath=partioning_file)
+        else:
+            assert partitioning is not None, "If partitioning_file is given and the file doesn't exist, a partitioning method has to be given!"
+            print("Precomputing partitioning and storing to file ...")
+            partitioning.precompute(filepath=partioning_file, agents=agents)
+            partitioning = PrecomputedPartition(filepath=partioning_file)
 
     # Subsample agents
     if num_agents is not None:
@@ -46,28 +59,52 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     # Set up generators
 
-    #TODO Our generators don't use seeds yet
+    #TODO Our kmeans partitioning and DummyGenerator don't use seeds yet
     generators = [
-        DummyGenerator(num_statements=3),
-        #NamedChatbotPersonalizationGenerator(
-        #    seed=0, gpt_temperature=0, **gen_query_model_arg
-        #),
-        #LLMGenerator(
-        #    seed=0, gpt_temperature=0, **gen_query_model_arg
-        #),
-        #NamedChatbotPersonalizationGenerator(
-        #    seed=0, gpt_temperature=1, **gen_query_model_arg
+        #DummyGenerator(num_statements=3),
+        NamedChatbotPersonalizationGenerator(
+            seed=0, gpt_temperature=0, **gen_query_model_arg
+        ),
+        NamedChatbotPersonalizationGenerator(
+            seed=0, gpt_temperature=1, **gen_query_model_arg
+        ),
+        LLMGenerator(
+            seed=0, gpt_temperature=0, num_statements=5, **gen_query_model_arg
+        ),
+        LLMGenerator(
+            seed=0, gpt_temperature=1, num_statements=5, **gen_query_model_arg
+        ),
+        #PartitionGenerator(
+        #    partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
+        #    base_generator=DummyGenerator(num_statements=2),
         #),
         PartitionGenerator(
-            partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
-            base_generator=DummyGenerator(num_statements=2),
+            partitioning=partitioning,
+            base_generator=NamedChatbotPersonalizationGenerator(seed=0, gpt_temperature=0, **gen_query_model_arg),
         ),
+        PartitionGenerator(
+            partitioning=partitioning,
+            base_generator=NamedChatbotPersonalizationGenerator(seed=0, gpt_temperature=1, **gen_query_model_arg),
+        ),
+        PartitionGenerator(
+            partitioning=partitioning,
+            base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
+        ),
+        PartitionGenerator(
+            partitioning=partitioning,
+            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=3, **gen_query_model_arg),
+        ),
+        #PartitionGenerator(
+        #    partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
+        #    base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
+        #),
     ]
 
     # Now for all the generators, generate statements, then write the results to some file
     results = []
     logs = []
     for generator in generators:
+        print(f"Generating statements with generator {generator.name} ...")
         r, lgs = generator.generate_with_context(agents=agents)
         results.extend([result.to_dict() for result in r])
         logs.extend(lgs)
@@ -78,7 +115,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     dirname = (
         get_base_dir_path()
         / "data/demo_data"
-        / (f"{timestring}_statement_generation" if not debug_mode else "TEST_statement_generation")
+        / (folder_name if folder_name is not None else f"{timestring}_statement_generation")
     )
     if not os.path.exists(dirname):
         os.makedirs(dirname)
@@ -103,7 +140,17 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 if __name__=="__main__":
     # NOTE For running this, you need to have the package installed
     # (`pip install -e .` from the folder where README.md is located)
-    generate_statements(num_agents=5, model="gpt-4o-mini", debug_mode=True)
+    #generate_statements(num_agents=5, model="gpt-4o-mini", folder_name="TEST_statement_generation")
+    #generate_statements(model="gpt-4o-mini")
+
+    # We want to precompute partitioning to use the same clustering for
+    # different LLM generation methods
+    # (This allows for comparing different LLM methods, but we can also try doing this differently)
+    generate_statements(
+        model="gpt-4o-mini",
+        partioning_file=get_base_dir_path() / "data/demo_data/kmeans_partitioning_5.json",
+        partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=5),
+    )
 
     # How to use precomputed embeddings
     #embedding_file = get_base_dir_path() / "data/demo_data/TEST_embeddings.json"
@@ -118,5 +165,3 @@ if __name__=="__main__":
     #print("Using precomputed embeddings for clustering")
     #partitioning = PrecomputedPartition(filepath=partition_file)
     #print(partitioning.assign(agents=agents))
-
-    #TODO Run everything with the methods we would want to include to have some real statements for further tests
