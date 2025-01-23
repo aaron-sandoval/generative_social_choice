@@ -66,15 +66,21 @@ def generate_ratings(
         agents: List[ChatbotPersonalizationAgent],
         statement: str,
         ratings: Optional[List[Rating]] = None,
+        verbose: bool = False,
     ) -> tuple[List[Rating], list[LLMLog]]:
-    print(f"Generating approval ratings for the statement '{statement}' ...")
+    if verbose:
+        print(f"Generating approval ratings for the statement '{statement}' ...")
 
     # First check for which agents we already have approval ratings
-    covered_agents = []
+    covered_agents = set()
     if ratings is not None:
         for rating in ratings:
             if rating.statement.strip()==statement.strip():
-                covered_agents.append(rating.agent_id)
+                covered_agents.add(rating.agent_id)
+    # Check if the statement is part of the original 6 statements
+    for agent in agents:
+        if statement in agent.survey_responses["statement"].to_list():
+            covered_agents.add(agent.id)
 
     logs = []
     new_ratings = []
@@ -83,28 +89,20 @@ def generate_ratings(
         if agent.id in covered_agents:
             continue
 
+        if verbose:
+            print(f"- Computing approval ratings for user '{agent.id}' ...")
+
         # Otherwise compute the approval rating
         approval, log = agent.get_approval(statement=statement)
         rating = Rating(agent_id=agent.id, statement=statement, approval=approval)
         new_ratings.append(rating)
         logs.extend(log)
-        covered_agents.append(agent.id)
+        covered_agents.add(agent.id)
 
     return new_ratings, logs
 
 
-if __name__=="__main__":
-    agents = get_agents(model="gpt-4o-mini")
-
-    # For testing purposes
-    agents = random.sample(agents, 5)
-
-    # Read generated statements
-    statements = pd.read_csv(STATEMENTS_FILE)["statement"].to_list()
-
-    # Subsampling for testing purposes
-    statements = random.sample(statements, 2)
-
+def complete_ratings(agents: List[ChatbotPersonalizationAgent], statements: List[str], verbose: bool = False):
     # If we already have some completions, consider them
     if RATINGS_FILE.exists():
         existing_ratings = [Rating(**json.loads(line)) for line in open(RATINGS_FILE, "r")]
@@ -113,7 +111,7 @@ if __name__=="__main__":
     
     logs = []
     for statement in statements:
-        new_ratings, log = generate_ratings(agents=agents, statement=statement, ratings=existing_ratings)
+        new_ratings, log = generate_ratings(agents=agents, statement=statement, ratings=existing_ratings, verbose=verbose)
 
         existing_ratings.extend(new_ratings)
         logs.extend(log)
@@ -127,3 +125,30 @@ if __name__=="__main__":
         if os.path.exists(LOG_FILE) and len(''.join([line for line in open(LOG_FILE, "r")]).strip()):
             log_df = pd.concat([pd.read_csv(LOG_FILE), log_df])
         log_df.to_csv(LOG_FILE, index=False)
+
+
+if __name__=="__main__":
+    agents = get_agents(model="gpt-4o-mini")
+
+    # Subsampling for testing purposes
+    #agents = random.sample(agents, 5)
+    agents = agents[:4]
+
+    # Read generated statements
+    statements = pd.read_csv(STATEMENTS_FILE)["statement"].to_list()
+
+    # Subsampling for testing purposes
+    #statements = random.sample(statements, 2)
+    statements = statements[:2]
+
+    # NOTE That this only predicts missing entries
+    complete_ratings(agents=agents, statements=statements, verbose=True)
+
+    # Verify with initial statement that it's not recomputed (make a test case for this perhaps)
+    #statement = "The most important rule for chatbot personalization is complete avoidance; it's a ticking time bomb for privacy invasion. For example, a chatbot revealing someone's sexual orientation could be life-threatening in certain countries."
+    #complete_ratings(agents=agents, statements=[statement], verbose=True)
+
+    #TODO! Now let's actually create the approval matrix!
+
+#TODO Move functions to other files
+#TODO Add basic testing
