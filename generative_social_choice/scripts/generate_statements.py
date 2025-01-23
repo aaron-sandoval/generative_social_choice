@@ -98,7 +98,6 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
         #    base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
         #),
     ]
-    generators = [generators[-1]]
 
     # Now for all the generators, generate statements, then write the results to some file
     results = []
