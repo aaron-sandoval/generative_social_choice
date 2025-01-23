@@ -1,6 +1,6 @@
 import abc
 import json
-from typing import List, override
+from typing import List, override, Optional
 from pathlib import Path
 
 import numpy as np
@@ -171,15 +171,16 @@ class Partition(abc.ABC):
 
 class KMeansClustering(Partition):
     
-    def __init__(self, num_partitions: int, embedding_method: Embedding):
+    def __init__(self, num_partitions: int, embedding_method: Embedding, seed: Optional[int]=None):
         self.num_partitions = num_partitions
         self.embedding_method = embedding_method
+        self.seed = seed
     
     @override
     def assign(self, agents: List[SimplePersonalizationAgent]) -> List[int] | np.ndarray:
         embeddings = self.embedding_method.compute(agents=agents)
 
-        kmeans = KMeans(n_clusters=self.num_partitions)
+        kmeans = KMeans(n_clusters=self.num_partitions, random_state=self.seed)
         kmeans.fit(embeddings)
 
         return kmeans.labels_

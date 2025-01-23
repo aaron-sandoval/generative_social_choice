@@ -59,7 +59,6 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
     # Set up generators
 
-    #TODO Our kmeans partitioning and DummyGenerator don't use seeds yet
     generators = [
         #DummyGenerator(num_statements=3),
         NamedChatbotPersonalizationGenerator(
@@ -99,6 +98,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
         #    base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
         #),
     ]
+    generators = [generators[-1]]
 
     # Now for all the generators, generate statements, then write the results to some file
     results = []
@@ -149,7 +149,7 @@ if __name__=="__main__":
     generate_statements(
         model="gpt-4o-mini",
         partioning_file=get_base_dir_path() / "data/demo_data/kmeans_partitioning_5.json",
-        partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=5),
+        partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=5, seed=0),
     )
 
     # How to use precomputed embeddings
