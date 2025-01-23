@@ -13,24 +13,20 @@ UTILITY_MATRIX_FILE = get_base_dir_path() / "data/demo_data/TEST_utility_matrix.
 STATEMENT_ID_FILE = get_base_dir_path() / "data/demo_data/TEST_utility_matrix_statements.csv"
 
 # Output
-ASSIGNMENT_FILE = get_base_dir_path() / "data/demo_data/TEST_assignments.csv"
+ASSIGNMENT_FILE = get_base_dir_path() / "data/demo_data/TEST_assignments.json"
 
 
 def run():
-    if ASSIGNMENT_FILE is not None and ASSIGNMENT_FILE.exists():
-        print("Reading results from file ...")
-        result = AssignmentResult.load(ASSIGNMENT_FILE)
-    else:
-        result = compute_assignments(
-            voting_algorithm=SequentialPhragmenMinimax(),
-            #voting_algorithm=GreedyTotalUtilityMaximization(),
-            utility_matrix_file=UTILITY_MATRIX_FILE,
-            statement_id_file=STATEMENT_ID_FILE,
-            slate_size=2,
-        )
-        if ASSIGNMENT_FILE is not None:
-            print("Storing results ...")
-            result.save(ASSIGNMENT_FILE)
+    result = compute_assignments(
+        #voting_algorithm=SequentialPhragmenMinimax(),
+        voting_algorithm=GreedyTotalUtilityMaximization(),
+        utility_matrix_file=UTILITY_MATRIX_FILE,
+        statement_id_file=STATEMENT_ID_FILE,
+        slate_size=3,
+    )
+    if ASSIGNMENT_FILE is not None:
+        print("Storing results ...")
+        result.save(ASSIGNMENT_FILE)
 
     print("\nRESULT\n")
 
