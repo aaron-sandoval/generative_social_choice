@@ -1,10 +1,10 @@
 import pandas as pd
 import random
 
-from generative_social_choice.queries.query_chatbot_personalization import (
+from gen_social_choice.queries.query_chatbot_personalization import (
     ChatbotPersonalizationAgent,
 )
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )

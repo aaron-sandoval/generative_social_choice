@@ -4,7 +4,7 @@ from typing import Optional
 import re
 import pandas as pd
 
-from generative_social_choice.slates.voting_algorithms import RatedVoteCase
+from gen_social_choice.slates.voting_algorithms import RatedVoteCase
 
 
 # The voting cases to test, please add more as needed

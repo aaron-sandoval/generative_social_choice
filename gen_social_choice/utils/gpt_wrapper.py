@@ -6,7 +6,7 @@ from tenacity import (
     retry_if_not_exception_type,
 )
 import os
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )

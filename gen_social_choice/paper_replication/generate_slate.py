@@ -1,15 +1,15 @@
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )
 import pandas as pd
-from generative_social_choice.queries.query_chatbot_personalization import (
+from gen_social_choice.queries.query_chatbot_personalization import (
     ChatbotPersonalizationAgent,
     ChatbotPersonalizationGenerator,
     SubsamplingChatbotPersonalizationGenerator,
     NearestNeighborChatbotPersonalizationGenerator,
 )
-from generative_social_choice.slates.slate_generation import (
+from gen_social_choice.slates.slate_generation import (
     generate_slate_ensemble_greedy,
 )
 import random

@@ -1,7 +1,7 @@
 import unittest
 from warnings import warn
 
-from generative_social_choice.utils.gpt_wrapper import GPT
+from gen_social_choice.utils.gpt_wrapper import GPT
 
 
 class TestGPT(unittest.TestCase):

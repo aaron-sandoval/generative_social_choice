@@ -7,13 +7,13 @@ from tqdm import tqdm
 import random
 import pandas as pd
 
-from generative_social_choice.queries.query_chatbot_personalization import (
+from gen_social_choice.queries.query_chatbot_personalization import (
     ChatbotPersonalizationAgent,
     ChatbotPersonalizationGenerator,
     find_nearest_neighbors,
 )
-from generative_social_choice.utils.gpt_wrapper import GPT
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.gpt_wrapper import GPT
+from gen_social_choice.utils.helper_functions import (
     get_time_string,
     get_base_dir_path,
 )

@@ -1,5 +1,5 @@
 import unittest
-from generative_social_choice.paper_replication.compute_matching import (
+from gen_social_choice.paper_replication.compute_matching import (
     optimize_monroe_matching,
 )
 from gurobipy import setParam

@@ -3,10 +3,10 @@ from typing import List, Tuple
 import pandas as pd
 import random
 
-from generative_social_choice.utils.gpt_wrapper import GPT
-from generative_social_choice.utils.dataframe_completion import DataFrameCompleter
-from generative_social_choice.queries.query_interface import Agent, Generator, LLMLog
-from generative_social_choice.utils.gpt_wrapper import get_probabilities_from_completion
+from gen_social_choice.utils.gpt_wrapper import GPT
+from gen_social_choice.utils.dataframe_completion import DataFrameCompleter
+from gen_social_choice.queries.query_interface import Agent, Generator, LLMLog
+from gen_social_choice.utils.gpt_wrapper import get_probabilities_from_completion
 
 
 ##################################################

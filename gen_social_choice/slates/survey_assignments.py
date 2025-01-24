@@ -5,7 +5,7 @@ from typing import List
 
 import pandas as pd
 
-from generative_social_choice.slates.voting_algorithms import (
+from gen_social_choice.slates.voting_algorithms import (
     VotingAlgorithm,
     RatedVoteCase,
 )

@@ -13,7 +13,7 @@ from parameterized import parameterized
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from generative_social_choice.slates.voting_algorithm_axioms import (
+from gen_social_choice.slates.voting_algorithm_axioms import (
     IndividualParetoAxiom,
     HappiestParetoAxiom,
     CoverageAxiom,
@@ -21,7 +21,7 @@ from generative_social_choice.slates.voting_algorithm_axioms import (
     NonRadicalTotalUtilityAxiom,
     VotingAlgorithmAxiom,
 )
-from generative_social_choice.test.utilities_for_testing import rated_vote_cases
+from gen_social_choice.test.utilities_for_testing import rated_vote_cases
 
 class TestNonRadicalTotalUtilityAxiom(unittest.TestCase):
     @parameterized.expand([

@@ -1,8 +1,8 @@
 import numpy as np
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path
-from generative_social_choice.slates.survey_assignments import AssignmentResult, compute_assignments
-from generative_social_choice.slates.voting_algorithms import (
+from gen_social_choice.utils.helper_functions import get_base_dir_path
+from gen_social_choice.slates.survey_assignments import AssignmentResult, compute_assignments
+from gen_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
     GreedyTotalUtilityMaximization,
 )

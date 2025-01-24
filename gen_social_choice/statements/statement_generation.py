@@ -7,11 +7,11 @@ from typing import override, Tuple, List
 import pandas as pd
 import numpy as np
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path
-from generative_social_choice.queries.query_interface import Generator,Agent
-from generative_social_choice.utils.gpt_wrapper import LLMLog, GPT
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator, SimplePersonalizationAgent
-from generative_social_choice.statements.partitioning import Partition
+from gen_social_choice.utils.helper_functions import get_base_dir_path
+from gen_social_choice.queries.query_interface import Generator,Agent
+from gen_social_choice.utils.gpt_wrapper import LLMLog, GPT
+from gen_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationGenerator, SimplePersonalizationAgent
+from gen_social_choice.statements.partitioning import Partition
 
 
 def get_simple_agents():

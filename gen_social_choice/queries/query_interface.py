@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
-from generative_social_choice.utils.gpt_wrapper import LLMLog
+from gen_social_choice.utils.gpt_wrapper import LLMLog
 
 
 class Agent(ABC):

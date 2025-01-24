@@ -1,8 +1,8 @@
 import os
 import pandas as pd
-from generative_social_choice.utils.dataframe_completion import DataFrameCompleter
-from generative_social_choice.utils.gpt_wrapper import GPT
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.dataframe_completion import DataFrameCompleter
+from gen_social_choice.utils.gpt_wrapper import GPT
+from gen_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )

@@ -5,18 +5,18 @@ import pandas as pd
 from typing import Optional
 from pathlib import Path
 
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.helper_functions import (
     get_base_dir_path,
     get_time_string,
 )
-from generative_social_choice.statements.partitioning import (
+from gen_social_choice.statements.partitioning import (
     BaselineEmbedding,
     KMeansClustering,
     PrecomputedEmbedding,
     PrecomputedPartition,
     Partition,
 )
-from generative_social_choice.statements.statement_generation import (
+from gen_social_choice.statements.statement_generation import (
     get_simple_agents,
     DummyGenerator,
     NamedChatbotPersonalizationGenerator,

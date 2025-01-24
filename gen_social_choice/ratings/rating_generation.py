@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path
-from generative_social_choice.queries.query_interface import LLMLog
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
+from gen_social_choice.utils.helper_functions import get_base_dir_path
+from gen_social_choice.queries.query_interface import LLMLog
+from gen_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
 
 
 @dataclass

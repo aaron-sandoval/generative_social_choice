@@ -2,9 +2,9 @@ import random
 
 import pandas as pd
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path
-from generative_social_choice.ratings.rating_generation import get_agents
-from generative_social_choice.ratings.utility_matrix import create_utility_matrix
+from gen_social_choice.utils.helper_functions import get_base_dir_path
+from gen_social_choice.ratings.rating_generation import get_agents
+from gen_social_choice.ratings.utility_matrix import create_utility_matrix
 
 
 STATEMENTS_FILE = get_base_dir_path() / "data/demo_data/2025-01-22-193423_statement_generation/statement_generation_raw_output.csv"

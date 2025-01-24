@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent, SimplePersonalizationAgent
-from generative_social_choice.ratings.rating_generation import complete_ratings, Rating
+from gen_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent, SimplePersonalizationAgent
+from gen_social_choice.ratings.rating_generation import complete_ratings, Rating
 
 
 def get_initial_statements(agents: List[ChatbotPersonalizationAgent | SimplePersonalizationAgent]) -> List[str]:

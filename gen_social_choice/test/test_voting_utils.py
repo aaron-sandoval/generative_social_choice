@@ -14,7 +14,7 @@ from parameterized import parameterized
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from generative_social_choice.slates.voting_utils import (
+from gen_social_choice.slates.voting_utils import (
     voter_utilities,
     mth_highest_utility,
     is_pareto_efficient,

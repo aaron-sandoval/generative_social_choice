@@ -9,10 +9,10 @@ from parameterized import parameterized
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path
-from generative_social_choice.queries.query_interface import Agent
-from generative_social_choice.statements.statement_generation import get_simple_agents
-from generative_social_choice.statements.partitioning import (
+from gen_social_choice.utils.helper_functions import get_base_dir_path
+from gen_social_choice.queries.query_interface import Agent
+from gen_social_choice.statements.statement_generation import get_simple_agents
+from gen_social_choice.statements.partitioning import (
     BaselineEmbedding,
     KMeansClustering,
     PrecomputedEmbedding,

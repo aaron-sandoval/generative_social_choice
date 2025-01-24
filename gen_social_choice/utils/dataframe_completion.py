@@ -3,7 +3,7 @@ from io import StringIO
 import textwrap
 import pandas as pd
 
-import generative_social_choice.utils.gpt_wrapper as gpt_wrapper
+import gen_social_choice.utils.gpt_wrapper as gpt_wrapper
 
 
 def wprint(text, width=80):

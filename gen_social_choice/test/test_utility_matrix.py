@@ -8,9 +8,9 @@ from parameterized import parameterized
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
-from generative_social_choice.ratings.rating_generation import get_agents
-from generative_social_choice.ratings.utility_matrix import (
+from gen_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
+from gen_social_choice.ratings.rating_generation import get_agents
+from gen_social_choice.ratings.utility_matrix import (
     get_initial_statements,
     create_utility_matrix,
 )

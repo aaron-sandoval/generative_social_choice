@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from jaxtyping import Float
 
-from generative_social_choice.slates.voting_utils import (
+from gen_social_choice.slates.voting_utils import (
     voter_utilities,
     voter_max_utilities_from_slate,
     pareto_dominates,

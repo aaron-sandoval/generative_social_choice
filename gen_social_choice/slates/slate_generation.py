@@ -5,11 +5,11 @@ from typing import Optional, List, Tuple
 from tqdm import tqdm
 import concurrent.futures
 
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.helper_functions import (
     get_time_string,
     get_base_dir_path,
 )
-from generative_social_choice.queries.query_interface import Agent, Generator
+from gen_social_choice.queries.query_interface import Agent, Generator
 import math
 
 LOGS_COLUMNS = [

@@ -16,7 +16,7 @@ from kiwiutils.kiwilib import leafClasses
 # Add the project root directory to the system path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from generative_social_choice.slates.voting_algorithms import (
+from gen_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
     GreedyTotalUtilityMaximization,
     ExactTotalUtilityMaximization,
@@ -24,19 +24,19 @@ from generative_social_choice.slates.voting_algorithms import (
     VotingAlgorithm,
     GeometricTransformation,
 )
-from generative_social_choice.slates.voting_algorithm_axioms import (
+from gen_social_choice.slates.voting_algorithm_axioms import (
     IndividualParetoAxiom,
     HappiestParetoAxiom,
     CoverageAxiom,
     MinimumAndTotalUtilityParetoAxiom,
     VotingAlgorithmAxiom,
 )
-from generative_social_choice.utils.helper_functions import (
+from gen_social_choice.utils.helper_functions import (
     get_time_string,
     get_base_dir_path,
     sanitize_name,
 )
-from generative_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
+from gen_social_choice.test.utilities_for_testing import rated_vote_cases, RatedVoteCase
 
 _NAME_DELIMITER = "$&$"
 

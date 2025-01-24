@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.cluster import KMeans
 
-from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
+from gen_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
 
 
 # TODO Implement further embedding methods

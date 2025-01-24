@@ -4,14 +4,14 @@ import unittest
 import pandas as pd
 import random
 
-from generative_social_choice.queries.query_chatbot_personalization import (
+from gen_social_choice.queries.query_chatbot_personalization import (
     ChatbotPersonalizationAgent,
     ChatbotPersonalizationGenerator,
 )
-from generative_social_choice.slates.slate_generation import (
+from gen_social_choice.slates.slate_generation import (
     generate_slate_ensemble_greedy,
 )
-from generative_social_choice.utils.helper_functions import get_base_dir_path
+from gen_social_choice.utils.helper_functions import get_base_dir_path
 
 
 class TestGenerateSlate(unittest.TestCase):

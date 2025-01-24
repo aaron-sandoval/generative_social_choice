@@ -9,8 +9,8 @@ import pulp
 import pandas as pd
 import numpy as np
 
-from generative_social_choice.slates.voting_utils import voter_utilities, voter_max_utilities_from_slate
-from generative_social_choice.utils.helper_functions import geq_lib
+from gen_social_choice.slates.voting_utils import voter_utilities, voter_max_utilities_from_slate
+from gen_social_choice.utils.helper_functions import geq_lib
 
 @dataclass
 class RatedVoteCase:
