@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from gurobipy import Model, GRB, quicksum
 import pandas as pd
-from gen_social_choice.utils.helper_functions import get_base_dir_path
+from generative_social_choice.utils.helper_functions import get_base_dir_path
 import random
 
 

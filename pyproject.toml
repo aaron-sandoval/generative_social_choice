@@ -1,8 +1,9 @@
 [tool.poetry]
-name = "generative-social-choice"
+name = "generative_social_choice"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
+packages = [{include = "gen_social_choice"}]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -20,6 +21,9 @@ pulp = "^2.9.0"
 jaxtyping = "^0.2.36"
 ipykernel = "^6.29.5"
 scikit-learn = "^1.6.1"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
