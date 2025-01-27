@@ -11,6 +11,8 @@ Authors of *Generative Social Choice*: [Sara Fish](https://sara-fish.github.io/)
 2. Install dependencies: `pipenv install`
 3. Create a file `OPENAI_API_KEY` in `utils/`, and write in it your (personal) API key. 
 
+TODO Adjust instructions to use poetry instead of pipenv
+
 # Overview of repo 
 
 - `data/` has all cleaned and anonymized data associated with the experiments in the paper:
@@ -35,6 +37,21 @@ Authors of *Generative Social Choice*: [Sara Fish](https://sara-fish.github.io/)
     - `gpt_wrapper.py` contains code for making LLM calls 
     - `helper_functions.py` has `get_base_dir_path()` and `get_time_string()`
     - `dataframe_completion.py` contains code for df-completion style LLM calls, used for our summary generation and generative query.
+
+# Paper Extension by Sandoval & Blandfort
+
+## Running the pipeline
+
+The pipeline uses the survey dataset from Fish et al. We assume that the summaries have been generated already (as included in the repo or explained below).
+
+From the directory where the readme is located:
+
+1. Statement generation: Generate statements by calling `python generative_social_choice/scripts/generate_statements.py --model gpt-4o`. This creates a folder `generative_social_choice/data/demo_data/{timestamp}_statement_generation` with the generated statements and corresponding logs.
+2. Create utility matrix: Compute approval ratings for the generated statements and create the complete utility matrix by calling `python generative_social_choice/scripts/rate_statements.py`. This creates a file with the utility matrix and another file which maps the statement IDs used in the utility matrix back to the statements.
+3. Assignment: Find a good slate and assign agents to statements of that slate by calling `python generative_social_choice/scripts/compute_assignments.py`. This creates a final file with all assignments in JSON format. This JSON file can be read using the AssignmentResult class from `generative_social_choice/slates/survey_assignments.py`.
+
+Note: Make sure that this repo is installed as package (`pip install -e .`) before running the scripts.
+
 
 # Generating plots from paper 
 

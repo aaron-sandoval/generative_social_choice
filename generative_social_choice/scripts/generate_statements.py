@@ -1,6 +1,7 @@
 import os
 import random
 import pandas as pd
+import argparse
 
 from typing import Optional
 from pathlib import Path
@@ -87,11 +88,11 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
         ),
         PartitionGenerator(
             partitioning=partitioning,
-            base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
+            base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=5, **gen_query_model_arg),
         ),
         PartitionGenerator(
             partitioning=partitioning,
-            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=3, **gen_query_model_arg),
+            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=5, **gen_query_model_arg),
         ),
         #PartitionGenerator(
         #    partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
@@ -137,18 +138,39 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
 
 
 if __name__=="__main__":
-    # NOTE For running this, you need to have the package installed
-    # (`pip install -e .` from the folder where README.md is located)
-    #generate_statements(num_agents=5, model="gpt-4o-mini", folder_name="TEST_statement_generation")
-    #generate_statements(model="gpt-4o-mini")
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--num_agents",
+        type=int,
+        default=None,
+        help="Number of agents to generate statements for. If not provided, all agents will be used.",
+    )
+
+    parser.add_argument(
+        "--num_clusters",
+        type=int,
+        default=10,
+        help="Number of clusters to use in partitioning methods.",
+    )
+
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Default is gpt-4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
+    )
+
+    args = parser.parse_args()
 
     # We want to precompute partitioning to use the same clustering for
     # different LLM generation methods
     # (This allows for comparing different LLM methods, but we can also try doing this differently)
     generate_statements(
-        model="gpt-4o-mini",
-        partioning_file=get_base_dir_path() / "data/demo_data/kmeans_partitioning_5.json",
-        partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=5, seed=0),
+        model=args.model,
+        num_agents=args.num_agents,
+        partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_{args.num_clusters}.json",
+        partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=args.num_clusters, seed=0),
     )
 
     # How to use precomputed embeddings
