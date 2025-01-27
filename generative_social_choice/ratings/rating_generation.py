@@ -107,6 +107,11 @@ def complete_ratings(
         ratings = []
     
     logs = []
+    if log_file is not None:
+        if os.path.exists(log_file) and len(''.join([line for line in open(log_file, "r")]).strip()):
+                previous_log_df = pd.read_csv(log_file)
+        else:
+            previous_log_df = None
     for statement in statements:
         new_ratings, log = generate_ratings(agents=agents, statement=statement, ratings=ratings, verbose=verbose)
 
@@ -121,8 +126,8 @@ def complete_ratings(
         if log_file is not None:
             # Write log to file
             log_df = pd.DataFrame.from_records(logs)
-            if os.path.exists(log_file) and len(''.join([line for line in open(log_file, "r")]).strip()):
-                log_df = pd.concat([pd.read_csv(log_file), log_df])
+            if previous_log_df is not None:
+                log_df = pd.concat([previous_log_df, log_df])
             log_df.to_csv(log_file, index=False)
 
     return ratings, logs
