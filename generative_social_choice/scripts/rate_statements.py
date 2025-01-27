@@ -9,7 +9,8 @@ from generative_social_choice.ratings.rating_generation import get_agents
 from generative_social_choice.ratings.utility_matrix import create_utility_matrix
 
 
-STATEMENTS_FILE = get_base_dir_path() / "data/demo_data/2025-01-27-112106_statement_generation/statement_generation_raw_output.csv"
+#STATEMENTS_FILE = get_base_dir_path() / "data/demo_data/2025-01-27-112106_statement_generation/statement_generation_raw_output.csv"
+STATEMENTS_FILE = get_base_dir_path() / "data/demo_data/statement_generation_selection.csv"
 
 RATINGS_FILE = get_base_dir_path() / "data/demo_data/ratings.jsonl"
 LOG_FILE = get_base_dir_path() / "data/demo_data/ratings_logs.csv"

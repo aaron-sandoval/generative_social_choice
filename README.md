@@ -49,7 +49,8 @@ From the directory where the readme is located:
 1. Statement generation: Generate statements by calling `python generative_social_choice/scripts/generate_statements.py --model=gpt-4o`. This creates a folder `generative_social_choice/data/demo_data/{timestamp}_statement_generation` with the generated statements and corresponding logs.
   - It should cost around 50c to run this for all agents.
 2. Create utility matrix: Compute approval ratings for the generated statements and create the complete utility matrix by calling `python generative_social_choice/scripts/rate_statements.py --model=gpt-4o`. This creates a file with the utility matrix and another file which maps the statement IDs used in the utility matrix back to the statements.
-  - Running this step with all agents and statements is the most expensive step and should be around 30 USD.
+  - Running this step with all agents and statements is the most expensive step and should be around 20-30 USD.
+  - In our first pass, we ran this step with a subset of the generated statements which you find in `generative_social_choice/data/demo_data/statement_generation_selection.csv`.
 3. Assignment: Find a good slate and assign agents to statements of that slate by calling `python generative_social_choice/scripts/compute_assignments.py --slate_size=5`. This creates a final file with all assignments in JSON format. This JSON file can be read using the AssignmentResult class from `generative_social_choice/slates/survey_assignments.py`.
 
 Notes:
