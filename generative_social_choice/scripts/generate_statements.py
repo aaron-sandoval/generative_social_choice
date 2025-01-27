@@ -88,11 +88,11 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
         ),
         PartitionGenerator(
             partitioning=partitioning,
-            base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=5, **gen_query_model_arg),
+            base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
         ),
         PartitionGenerator(
             partitioning=partitioning,
-            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=5, **gen_query_model_arg),
+            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=3, **gen_query_model_arg),
         ),
         #PartitionGenerator(
         #    partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
@@ -150,7 +150,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--num_clusters",
         type=int,
-        default=10,
+        default=5,
         help="Number of clusters to use in partitioning methods.",
     )
 
