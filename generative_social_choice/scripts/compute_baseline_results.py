@@ -82,6 +82,7 @@ def compute_baseline_assignments(
         agent_ids=agent_ids,
         assignments=assignments,
         utilities=utilities,
+        info={"type": "baseline"},
     )
 
     return result
