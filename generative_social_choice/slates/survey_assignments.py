@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 
@@ -48,6 +48,7 @@ def compute_assignments(
         utility_matrix_file: Path,
         statement_id_file: Path,
         slate_size: int,
+        ignore_initial_statements: Optional[int] = None,
     ) -> AssignmentResult:
     """
     Select a slate of candidates and assign them to the voters.
@@ -58,12 +59,16 @@ def compute_assignments(
         are used as column names from the second column onwards, the agent IDs are in the first column.
     - `statement_id_file: Path`: CSV file with statement strings for all statement IDs used in the utility matrix
     - `slate_size: int`: The number of candidates to be selected
+    - `ignore_initial_statements: Optional[int]`: If an integer is given, ignore this many statements to the left.
+        You can use this argument to skip the initial 6 statements if they were written to the utility matrix.
 
     # Returns
     `result: AssignmentResult`: The assignments computed by the algorithm, using the format described
         by AssignmentResult
     """
     utilities_df = pd.read_csv(utility_matrix_file, index_col=0)
+    if ignore_initial_statements is not None and ignore_initial_statements>0:
+        utilities_df = utilities_df.drop(labels=utilities_df.columns.to_list()[:ignore_initial_statements], axis=1)
     statement_df = pd.read_csv(statement_id_file, index_col=0)
 
     # Utility function to get statements based on IDs (column names in utility df)

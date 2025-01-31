@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 
 from generative_social_choice.utils.helper_functions import get_base_dir_path
-from generative_social_choice.slates.survey_assignments import AssignmentResult, compute_assignments
+from generative_social_choice.slates.survey_assignments import compute_assignments
 from generative_social_choice.slates.voting_algorithms import (
     VotingAlgorithm,
     SequentialPhragmenMinimax,
@@ -29,12 +29,14 @@ def run(
         utility_matrix_file: Path,
         statement_id_file: Path,
         assignment_file: Optional[Path]=None,
+        ignore_initial_statements: bool=False,
     ):
     result = compute_assignments(
         voting_algorithm=voting_algotirhm,
         utility_matrix_file=utility_matrix_file,
         statement_id_file=statement_id_file,
         slate_size=slate_size,
+        ignore_initial_statements=6 if ignore_initial_statements else None,
     )
     if assignment_file is not None:
         print("Storing results ...")
@@ -72,6 +74,13 @@ if __name__=="__main__":
         type=Path,
         default=UTILITY_MATRIX_FILE,
         help="Path to the file containing the utility matrix.",
+    )
+
+    parser.add_argument(
+        "--ignore_initial",
+        type=bool,
+        default=False,
+        help="If True, the first 6 statements in the utility matrix will be ignored.",
     )
 
     parser.add_argument(
@@ -116,4 +125,5 @@ if __name__=="__main__":
         utility_matrix_file=args.utility_matrix_file,
         statement_id_file=args.statement_id_file,
         assignment_file=args.assignment_file,
+        ignore_initial_statements=args.ignore_initial,
     )
