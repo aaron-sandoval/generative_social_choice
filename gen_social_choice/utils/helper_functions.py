@@ -8,19 +8,10 @@ import re
 
 def get_base_dir_path() -> Path:
     """
-    Returns local system path to the directory where the generative social choice package is.
-    So, this is the directory where utils/, test/, etc are.
+    Returns local system path to the package directory.
+    I.e., the directory where utils/, test/, etc are.
     """
-    base_dir_name = "generative_social_choice"
-
-    path = Path(os.path.abspath(os.path.dirname(__file__)))
-    current_path_parts = list(path.parts)
-    base_dir_idx = (
-        len(current_path_parts) - current_path_parts[::-1].index(base_dir_name) - 1
-    )
-
-    base_dir_path = Path(*current_path_parts[: 1 + base_dir_idx])
-    return base_dir_path
+    return Path(os.path.abspath(__file__)).parent.parent
 
 
 def get_time_string() -> str:
