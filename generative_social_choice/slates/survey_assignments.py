@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional, Dict
 
 import pandas as pd
 
@@ -24,16 +24,22 @@ class AssignmentResult:
         the statement ID of the statement the agent with ID `agent_ids[i]` was assigned to
     - `utilities: List[float]`: Utilities of all agents, where `utilities[i]` contains the
         utility which agent with ID `agent_ids[i]` receives from the assigned statement
+    - `info: Optional[Dict[str, str]]`: Pass additional information to remember, such as details on the voting
+        algorithm that was used to calculate the assignment
     """
     slate: List[str]
     slate_statements: List[str]
     agent_ids: List[str]
     assignments: List[str]
     utilities: List[float]
+    info: Optional[Dict[str, str]] = None
 
     def to_dict(self):
-        return {"slate": self.slate, "slate_statements": self.slate_statements,
+        d = {"slate": self.slate, "slate_statements": self.slate_statements,
                 "agent_ids": self.agent_ids, "assignments": self.assignments, "utilities": self.utilities}
+        if self.info is not None:
+            d["info"] = self.info
+        return d
     
     def save(self, filepath: Path):
         json.dump(self.to_dict(), open(filepath, "w"))
@@ -48,6 +54,8 @@ def compute_assignments(
         utility_matrix_file: Path,
         statement_id_file: Path,
         slate_size: int,
+        ignore_initial_statements: Optional[int] = None,
+        info: Optional[Dict[str, str]] = None,
     ) -> AssignmentResult:
     """
     Select a slate of candidates and assign them to the voters.
@@ -58,12 +66,18 @@ def compute_assignments(
         are used as column names from the second column onwards, the agent IDs are in the first column.
     - `statement_id_file: Path`: CSV file with statement strings for all statement IDs used in the utility matrix
     - `slate_size: int`: The number of candidates to be selected
+    - `ignore_initial_statements: Optional[int]`: If an integer is given, ignore this many statements to the left.
+        You can use this argument to skip the initial 6 statements if they were written to the utility matrix.
+    - `info: Optional[Dict[str, str]]`: Pass additional information to remember. Note that the name of the voting
+        algorithm is already logged by default.
 
     # Returns
     `result: AssignmentResult`: The assignments computed by the algorithm, using the format described
         by AssignmentResult
     """
     utilities_df = pd.read_csv(utility_matrix_file, index_col=0)
+    if ignore_initial_statements is not None and ignore_initial_statements>0:
+        utilities_df = utilities_df.drop(labels=utilities_df.columns.to_list()[:ignore_initial_statements], axis=1)
     statement_df = pd.read_csv(statement_id_file, index_col=0)
 
     # Utility function to get statements based on IDs (column names in utility df)
@@ -79,12 +93,16 @@ def compute_assignments(
     # Convert to AssignmentResult format
     agent_ids = assignments["candidate_id"].index.to_list()
     utilities = [float(utilities_df.loc[agent_ids[ix], assignment]) for ix, assignment in enumerate(assignments["candidate_id"].to_list())]
+    info_dict = {"voting_algorithm": voting_algorithm.name, "ignored_initial_statements": str(ignore_initial_statements)}
+    if info is not None:
+        info_dict.update(info)
     result = AssignmentResult(
         slate=slate,
         slate_statements=[id_to_statement(statement_id) for statement_id in slate],
         agent_ids=agent_ids,
         assignments=assignments["candidate_id"].to_list(),
         utilities=utilities,
+        info=info_dict,
     )
 
     return result

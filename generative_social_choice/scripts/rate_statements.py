@@ -59,7 +59,7 @@ if __name__=="__main__":
         "--num_statements",
         type=int,
         default=None,
-        help="Number of statements to consider in the utility matrix. If not provided, all agents will be used.",
+        help="Number of statements to consider in the utility matrix. If not provided, all statements will be used.",
     )
 
     parser.add_argument(
