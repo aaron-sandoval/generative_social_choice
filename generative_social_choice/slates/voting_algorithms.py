@@ -46,15 +46,17 @@ class RatedVoteCase:
             self.name = f"k_{self.slate_size}_{cols_str}"
 
 
-Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous", "total"]
+Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous"]
 """
 The magnitude of the load added for a new candidate.
 - "marginal_slate": The load added is 1/the marginal utility created by the new candidate compared to the best alternative in the slate for each voter.
   - When reassigning, the total load of the candidate is set by the sum of marginal utilities created by that candidate compared to the best alternative in the slate for each voter.
 - "marginal_previous": The load added is 1/the marginal utility created by the new candidate only among reassigned voters.
   - When reassigning, the total load of the candidate is set by the sum of marginal utilities created by that candidate compared to the candidate to which each voter was previously assigned.
-- "total": The load added is 1/the total utility created by the new candidate among reassigned voters.
+- "total": REMOVED FOR POOR PERFORMANCE
+  - The load added is 1/the total utility created by the new candidate among reassigned voters.
 """
+
 
 
 BASELINE_UTILITY = 0.0  # Assumed utility of a voter unassigned/unrepresented
