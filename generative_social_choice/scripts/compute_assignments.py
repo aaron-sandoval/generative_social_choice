@@ -111,11 +111,11 @@ if __name__=="__main__":
 
     # Keys will be used as filenames
     voting_algorithms = {
-        alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)
-        # "phragmen": SequentialPhragmenMinimax(),
-        # "exact": ExactTotalUtilityMaximization(),
-        # "greedy": GreedyTotalUtilityMaximization(),
-        # "lp": LPTotalUtilityMaximization(),
+        **{alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)},
+        "exact": ExactTotalUtilityMaximization(),
+        "greedy": GreedyTotalUtilityMaximization(),
+        "lp": LPTotalUtilityMaximization(),
+
     }
     for name, algo in voting_algorithms.items():
         print(f"\n\nRunning algorithm '{algo.name}' ...")
