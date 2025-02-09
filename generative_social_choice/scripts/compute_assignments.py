@@ -71,7 +71,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--slate_size",
         type=int,
-        default=5,  # TODO: Make this required
+        required=True,
         help="Number of statements to include in the slate.",
     )
 
@@ -85,7 +85,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--ignore_initial",
         type=bool,
-        default=True,
+        default=False,
         help="If True, the first 6 statements in the utility matrix will be ignored.",
     )
 
