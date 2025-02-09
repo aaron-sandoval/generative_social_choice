@@ -85,7 +85,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--ignore_initial",
         type=bool,
-        default=False,
+        default=True,
         help="If True, the first 6 statements in the utility matrix will be ignored.",
     )
 
