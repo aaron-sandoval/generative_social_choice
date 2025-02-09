@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import abc
 import re
 from typing import Optional, Literal, override
+import warnings
 
 import pulp
 import pandas as pd
@@ -240,18 +241,28 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                     candidate,
                 )
                 reassigned_voters = assignments_with_candidate["candidate_id"] != assignments["candidate_id"]
+                if not reassigned_voters.any():
+                    continue
+                assert (assignments_with_candidate.loc[reassigned_voters].candidate_id == candidate).all()
                 all_voters_max_load = assignments_with_candidate["load"].max()
                 reassigned_max_load = assignments_with_candidate.loc[reassigned_voters, "load"].max()
+
+
                 if not geq_lib((all_voters_max_load, reassigned_max_load), (min_load, min_load_among_reassigned_voters), abs_tol=1e-9):
+                    assert reassigned_voters.any()
                     min_load = all_voters_max_load
                     min_load_among_reassigned_voters = reassigned_max_load
                     min_load_candidate_id = candidate
                     min_load_assignments = assignments_with_candidate.copy()
 
+            if min_load_candidate_id == NULL_CANDIDATE_ID:
+                warnings.warn(f"No improvements possible beyond the partial length-{len(slate)}/{slate_size} slate: {slate}. Returning the partial slate.")
+                break
             slate.append(min_load_candidate_id)
             assignments = min_load_assignments
+            # assert (assignments.loc[reassigned_voters].candidate_id == min_load_candidate_id).all()
             valid_candidates.pop(min_load_candidate_id)
-        
+                
         # Remove the null candidate column in case the modification would persist outside the function
         rated_votes = rated_votes.drop(columns=[NULL_CANDIDATE_ID])
 
