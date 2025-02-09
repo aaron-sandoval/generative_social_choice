@@ -70,7 +70,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--slate_size",
         type=int,
-        required=True,
+        default=5,  # TODO: Make this required
         help="Number of statements to include in the slate.",
     )
 
@@ -111,9 +111,9 @@ if __name__=="__main__":
     # Keys will be used as filenames
     voting_algorithms = {
         "phragmen": SequentialPhragmenMinimax(),
-        "exact": ExactTotalUtilityMaximization(),
-        "greedy": GreedyTotalUtilityMaximization(),
-        "lp": LPTotalUtilityMaximization(),
+        # "exact": ExactTotalUtilityMaximization(),
+        # "greedy": GreedyTotalUtilityMaximization(),
+        # "lp": LPTotalUtilityMaximization(),
     }
     for name, algo in voting_algorithms.items():
         print(f"\n\nRunning algorithm '{algo.name}' ...")
