@@ -131,3 +131,35 @@ def pareto_efficient_slates(
     
     return set(frozenset(cand_tuple) for cand_tuple in metric_values.index[is_pareto_efficient(metric_values.values)])
 
+
+def gini(utilities: Float[np.ndarray, "person"], weights: Optional[Float[np.ndarray, "person"]] = None) -> float:
+    """
+    Calculate the Gini coefficient of a given array of utilities.
+
+
+    Source: https://stackoverflow.com/questions/48999542/more-efficient-weighted-gini-coefficient-in-python
+
+    # Arguments
+    - `utilities: Float[np.ndarray, "person"]`: The utilities of the voters
+    - `weights: Optional[Float[np.ndarray, "person"]]`: The weights of the voters
+    
+
+    """
+    utilities = np.asarray(utilities)
+    if weights is not None:
+
+        weights = np.asarray(weights)
+        sorted_indices = np.argsort(utilities)
+        sorted_x = utilities[sorted_indices]
+        sorted_w = weights[sorted_indices]
+        # Force float dtype to avoid overflows
+        cumw = np.cumsum(sorted_w, dtype=float)
+        cumxw = np.cumsum(sorted_x * sorted_w, dtype=float)
+        return (np.sum(cumxw[1:] * cumw[:-1] - cumxw[:-1] * cumw[1:]) / 
+                (cumxw[-1] * cumw[-1]))
+    else:
+        sorted_x = np.sort(utilities)
+        n = len(utilities)
+        cumx = np.cumsum(sorted_x, dtype=float)
+        # The above formula, with all weights equal to 1 simplifies to:
+        return (n + 1 - 2 * np.sum(cumx) / cumx[-1]) / n

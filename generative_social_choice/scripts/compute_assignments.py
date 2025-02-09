@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+from kiwiutils.finite_valued import all_instances
 
 from generative_social_choice.utils.helper_functions import get_base_dir_path
 from generative_social_choice.slates.survey_assignments import compute_assignments
@@ -110,10 +111,11 @@ if __name__=="__main__":
 
     # Keys will be used as filenames
     voting_algorithms = {
-        "phragmen": SequentialPhragmenMinimax(),
+        **{alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)},
         "exact": ExactTotalUtilityMaximization(),
         "greedy": GreedyTotalUtilityMaximization(),
         "lp": LPTotalUtilityMaximization(),
+
     }
     for name, algo in voting_algorithms.items():
         print(f"\n\nRunning algorithm '{algo.name}' ...")

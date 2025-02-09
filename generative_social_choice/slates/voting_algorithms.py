@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import abc
 import re
 from typing import Optional, Literal, override
+import warnings
 
 import pulp
 import pandas as pd
@@ -45,15 +46,17 @@ class RatedVoteCase:
             self.name = f"k_{self.slate_size}_{cols_str}"
 
 
-Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous", "total"]
+Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous"]
 """
 The magnitude of the load added for a new candidate.
 - "marginal_slate": The load added is 1/the marginal utility created by the new candidate compared to the best alternative in the slate for each voter.
   - When reassigning, the total load of the candidate is set by the sum of marginal utilities created by that candidate compared to the best alternative in the slate for each voter.
 - "marginal_previous": The load added is 1/the marginal utility created by the new candidate only among reassigned voters.
   - When reassigning, the total load of the candidate is set by the sum of marginal utilities created by that candidate compared to the candidate to which each voter was previously assigned.
-- "total": The load added is 1/the total utility created by the new candidate among reassigned voters.
+- "total": REMOVED FOR POOR PERFORMANCE
+  - The load added is 1/the total utility created by the new candidate among reassigned voters.
 """
+
 
 
 BASELINE_UTILITY = 0.0  # Assumed utility of a voter unassigned/unrepresented
@@ -240,18 +243,28 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
                     candidate,
                 )
                 reassigned_voters = assignments_with_candidate["candidate_id"] != assignments["candidate_id"]
+                if not reassigned_voters.any():
+                    continue
+                assert (assignments_with_candidate.loc[reassigned_voters].candidate_id == candidate).all()
                 all_voters_max_load = assignments_with_candidate["load"].max()
                 reassigned_max_load = assignments_with_candidate.loc[reassigned_voters, "load"].max()
+
+
                 if not geq_lib((all_voters_max_load, reassigned_max_load), (min_load, min_load_among_reassigned_voters), abs_tol=1e-9):
+                    assert reassigned_voters.any()
                     min_load = all_voters_max_load
                     min_load_among_reassigned_voters = reassigned_max_load
                     min_load_candidate_id = candidate
                     min_load_assignments = assignments_with_candidate.copy()
 
+            if min_load_candidate_id == NULL_CANDIDATE_ID:
+                warnings.warn(f"No improvements possible beyond the partial length-{len(slate)}/{slate_size} slate: {slate}. Returning the partial slate.")
+                break
             slate.append(min_load_candidate_id)
             assignments = min_load_assignments
+            # assert (assignments.loc[reassigned_voters].candidate_id == min_load_candidate_id).all()
             valid_candidates.pop(min_load_candidate_id)
-        
+                
         # Remove the null candidate column in case the modification would persist outside the function
         rated_votes = rated_votes.drop(columns=[NULL_CANDIDATE_ID])
 
