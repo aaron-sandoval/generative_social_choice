@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import abc
 import re
 from typing import Optional, Literal, override
@@ -10,7 +10,9 @@ import pulp
 import pandas as pd
 import numpy as np
 
-from generative_social_choice.slates.voting_utils import voter_utilities, voter_max_utilities_from_slate
+from generative_social_choice.slates.voting_utils import (
+    voter_utilities, voter_max_utilities_from_slate, NoiseAugmentationMethod,
+    CellWiseAugmentation, CandidateWiseAugmentation, VoterWiseAugmentation)
 from generative_social_choice.utils.helper_functions import geq_lib
 
 @dataclass
@@ -22,19 +24,15 @@ class RatedVoteCase:
     - `rated_votes: pd.DataFrame | list[list[int | float]]`: Utility of each voter (rows) for each candidate (columns)
       - If passed as a nested list, it's converted to a DataFrame with columns named `s1`, `s2`, etc.
     - `slate_size: int`: The number of candidates to be selected
-    - `pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are Pareto efficient on the egalitarian-utilitarian trade-off parameter.
-      - Egalitarian objective: Maximize the minimum utility among all individual voters
-      - Utilitarian objective: Maximize the total utility among all individual voters
-    - `non_extremal_pareto_efficient_slates: Optional[Sequence[list[int]]] = None`: Slates that are non-extremal Pareto efficient on the egalitarian-utilitarian trade-off parameter.
-        - Subset of `pareto_efficient_slates` which don't make arbitrarily large egalitarian-utilitarian sacrifices in either direction.
-        - Ex: For Example Alg2.1, s1 is Pareto efficient, but not non-extremal Pareto efficient because it makes an arbitrarily large egalitarian sacrifice for an incremental utilitarian gain.
-    - `expected_assignments: Optional[pd.DataFrame] = None`: An expected assignment of voters to candidates with the following columns:
-        - `candidate_id`: The candidate to which the voter is assigned
-        - Other columns not guaranteed to always be present, used for functional testing only. They should always be checked in the unit tests
+    - `name: Optional[str] = None`: The name of the case
+    - `noise_augmentation: bool = True`: Whether to augment the case with noise
+    - `noise_augmentation_methods: dict[NoiseAugmentationMethod, int]`: The methods to use to augment the case and the number of augmentations to use for each method
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
     name: Optional[str] = None
+    noise_augmentation: bool = True
+    noise_augmentation_methods: dict[NoiseAugmentationMethod, int] = field(default_factory=lambda: {CellWiseAugmentation(): 4, CandidateWiseAugmentation(): 10, VoterWiseAugmentation(): 10})
 
     def __post_init__(self):
         if isinstance(self.rated_votes, list):
@@ -44,6 +42,17 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
+
+    def augmented_cases(self) -> list[pd.DataFrame]:
+        """
+        Return a list of rated vote matrices with noise added according to `self.noise_augmentation_methods`.
+        """
+        if not self.noise_augmentation:
+            return [self.rated_votes]
+        augmented_cases = []
+        for noise_method, num_augmentations in self.noise_augmentation_methods.items():
+            augmented_cases.extend(noise_method.augment(self.rated_votes, num_augmentations))
+        return augmented_cases
 
 
 Phragmen_Load_Magnitude = Literal["marginal_slate", "marginal_previous"]
