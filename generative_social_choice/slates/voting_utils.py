@@ -31,7 +31,6 @@ class NoiseAugmentationMethod(abc.ABC):
         """
         pass
 
-    @property
     def sample_signs(self, num_augmentations: int) -> list[int]:
         """
         Sample a list of signs for the noise.

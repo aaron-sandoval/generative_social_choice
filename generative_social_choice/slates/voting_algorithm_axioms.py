@@ -1,6 +1,7 @@
 import abc
 import itertools
 from dataclasses import dataclass, field
+from functools import cache
 from typing import override
 
 import pandas as pd
@@ -60,6 +61,7 @@ class IndividualParetoAxiom(VotingAlgorithmAxiom):
 
     name: str = "Individual Pareto Efficiency"
 
+    @cache
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -108,6 +110,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
 
     name: str = "m-th Happiest Person Pareto Efficiency"
 
+    @cache
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -161,6 +164,7 @@ class CoverageAxiom(VotingAlgorithmAxiom):
 
     name: str = "Maximum Coverage"
 
+    @cache
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -225,6 +229,7 @@ class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
 
     name: str = "Minimum Utility and Total Utility Pareto Efficiency"
 
+    @cache
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -257,6 +262,7 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     name: str = "Non-radical Total Utility Pareto Efficiency"
     abs_tol: float = 1e-8
 
+    @cache
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:

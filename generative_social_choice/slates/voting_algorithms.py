@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import cached_property
 from pathlib import Path
 from dataclasses import dataclass, field
 import abc
@@ -43,6 +44,7 @@ class RatedVoteCase:
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
 
+    @cached_property
     def augmented_cases(self) -> list[pd.DataFrame]:
         """
         Return a list of rated vote matrices with noise added according to `self.noise_augmentation_methods`.

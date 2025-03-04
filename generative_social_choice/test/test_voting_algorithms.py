@@ -151,7 +151,7 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
 
         for axiom in axioms_to_evaluate:
             with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
-                for rated_votes in rated_vote_case.augmented_cases():
+                for rated_votes in rated_vote_case.augmented_cases:
                     assert axiom.evaluate_assignment(
                         rated_votes=rated_votes, 
                         slate_size=rated_vote_case.slate_size, 
