@@ -1,4 +1,5 @@
 import abc
+from functools import cache, wraps
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Optional, Sequence, Callable, Hashable, Literal
@@ -296,3 +297,43 @@ def gini(utilities: Float[np.ndarray, "person"], weights: Optional[Float[np.ndar
         cumx = np.cumsum(sorted_x, dtype=float)
         # The above formula, with all weights equal to 1 simplifies to:
         return (n + 1 - 2 * np.sum(cumx) / cumx[-1]) / n
+    
+
+
+## Option 3: Use a custom key function with lru_cache
+
+
+def df_cache(func):
+    """Cache decorator that handles DataFrames by using their content hash."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Create hashable versions of args and kwargs
+        hashable_args = []
+        for arg in args:
+            if isinstance(arg, pd.DataFrame):
+                # Use pandas' built-in hash function for the dataframe content
+                hashable_args.append(hash(pd.util.hash_pandas_object(arg).sum()))
+            else:
+                hashable_args.append(arg)
+        
+        hashable_kwargs = {}
+        for key, value in kwargs.items():
+            if isinstance(value, pd.DataFrame):
+                hashable_kwargs[key] = hash(pd.util.hash_pandas_object(value).sum())
+            else:
+                hashable_kwargs[key] = value
+        
+        # Use the cached function with hashable arguments
+        return _cached_func(tuple(hashable_args), frozenset(hashable_kwargs.items()))
+    
+    # The actual cached function that takes hashable arguments
+    @cache
+    def _cached_func(hashable_args, hashable_kwargs):
+        # Convert back to the original args and kwargs
+        args_list = list(hashable_args)
+        kwargs_dict = dict(hashable_kwargs)
+        
+        # Call the original function
+        return func(*args_list, **kwargs_dict)
+    
+    return wrapper
