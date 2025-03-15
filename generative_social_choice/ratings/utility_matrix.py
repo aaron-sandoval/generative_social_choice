@@ -54,6 +54,9 @@ def create_utility_matrix(
     - `utility_matrix: pd.DataFrame`: The utility matrix, with agent IDs as index and statement IDs as column names
     - `statement_ids: pd.DataFrame`: Dataframe with statement IDs as index and statements in column "statement"
     """
+    # Normalize statements
+    statements = list(set([statement.strip() for statement in statements]))
+
     # NOTE This only predicts missing entries if ratings_file is given
     ratings, logs = complete_ratings(
         agents=agents,
