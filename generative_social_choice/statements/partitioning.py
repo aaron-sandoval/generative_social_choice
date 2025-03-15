@@ -7,12 +7,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
-
-
-# TODO Implement further embedding methods
-# User embeddings can now be done based on
-# - Embedding everything with an LLM (ideally using embedding endpoint)
-# - Embedding the summary of their responses with an LLM or other NLP methods
+from generative_social_choice.utils.gpt_wrapper import Embeddings
 
 
 ##################################################
@@ -66,6 +61,95 @@ class Embedding(abc.ABC):
         """
         embeddings = self.compute(agents=agents)
         store_embeddings(filepath=filepath, agent_ids=[agent.id for agent in agents], embeddings=embeddings)
+
+
+class OpenAIEmbedding(Embedding):
+    """
+    Class to compute embeddings using OpenAI's embedding models based on summaries of user responses.
+    
+    This class uses the Embeddings class from gpt_wrapper.py to compute embeddings for user response summaries.
+    """
+    
+    def __init__(self, model: str = "text-embedding-3-small", use_summary: bool = False):
+        """
+        Initialize the OpenAIEmbedding class.
+        
+        Args:
+            model (str): The OpenAI embedding model to use. Default is "text-embedding-3-small".
+                         Other options include "text-embedding-3-large" and "text-embedding-ada-002".
+        """
+        self.embedder = Embeddings(model=model)
+        self.use_summary = use_summary
+    
+    def _get_user_string(self, agent: SimplePersonalizationAgent) -> str:
+        """
+        Create a string with user responses that captures their preferences and opinions.
+        
+        Args:
+            agent (SimplePersonalizationAgent): The agent whose responses will be summarized.
+            
+        Returns:
+            str: A text summary of the user's responses.
+        """
+        # Get all rating statements and their responses
+        df = agent.survey_responses
+        rating_df = df[df["detailed_question_type"] == "rating statement"]
+        
+        # Get free-form responses if available
+        free_form_df = df[df["detailed_question_type"] == "free form"]
+        
+        # Create a summary text that includes all the user's responses
+        summary_parts = []
+        
+        # Add rating statements
+        if not rating_df.empty:
+            for _, row in rating_df.iterrows():
+                statement = row["statement"]
+                rating = row["choice_numeric"]
+                agreement = "strongly disagrees with" if rating == 1 else \
+                           "disagrees with" if rating == 2 else \
+                           "is neutral about" if rating == 3 else \
+                           "agrees with" if rating == 4 else \
+                           "strongly agrees with"
+                summary_parts.append(f"User {agreement} the statement: '{statement}'.")
+        
+        # Add free-form responses
+        if not free_form_df.empty:
+            for _, row in free_form_df.iterrows():
+                question = row["statement"]
+                response = row["choice"]
+                if isinstance(response, str) and response.strip():  # Check if response is not empty
+                    summary_parts.append(f"When asked '{question}', user responded: '{response}'.")
+        
+        # Combine all parts into a single summary
+        summary = " ".join(summary_parts)
+        
+        return summary
+    
+    @override
+    def compute(self, agents: List[SimplePersonalizationAgent]) -> np.ndarray:
+        """
+        Compute embeddings for the given list of agents using OpenAI's embedding model.
+        
+        Args:
+            agents (List[SimplePersonalizationAgent]): Agents to compute embeddings for.
+            
+        Returns:
+            np.ndarray: Embedding matrix with embeddings of agents[i] in row i.
+        """
+        # Generate summaries for each agent
+        if self.use_summary:
+            user_texts = [agent.summary for agent in agents]
+        else:
+            user_texts = [self._get_user_string(agent) for agent in agents]
+        
+        # Compute embeddings for all summaries at once
+        embeddings_list, _ = self.embedder.embed(user_texts)
+        
+        # Convert to numpy array
+        embeddings_array = np.array(embeddings_list)
+        
+        return embeddings_array
 
 
 class BaselineEmbedding(Embedding):
