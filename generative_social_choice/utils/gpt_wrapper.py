@@ -12,7 +12,7 @@ from generative_social_choice.utils.helper_functions import (
 )
 import pandas as pd
 import numpy as np
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, List, Union
 from pydantic import BaseModel
 
 
@@ -36,6 +36,14 @@ class LLMLog(BaseModel):
     completion: Any
     timestamp: str
     system_fingerprint: str
+
+
+class EmbeddingLog(BaseModel):
+    """Log for embedding API calls"""
+    model: str
+    input: Union[str, List[str]]
+    embedding: List[List[float]]
+    timestamp: str
 
 
 def get_probabilities_from_completion(completion, token_idx):
@@ -239,3 +247,106 @@ class GPT:
         }
 
         return response, completion, log
+
+
+class Embeddings:
+    """
+    Class for computing embeddings using OpenAI's embeddings API.
+    """
+    def __init__(self, *, model="text-embedding-3-small"):
+        """
+        Initialize the Embeddings class.
+        
+        Args:
+            model (str): The embedding model to use. Default is "text-embedding-3-small".
+                         Other options include "text-embedding-3-large" and "text-embedding-ada-002".
+        """
+        # Get OpenAI API key and organization
+        if OPENAI_API_KEY_PATH.exists():
+            with open(OPENAI_API_KEY_PATH, "r") as f:
+                api_key = f.readline().strip()
+        else:
+            api_key = os.getenv("OPENAI_API_KEY")
+
+        if OPENAI_ORGANIZATION_PATH.exists():
+            with open(OPENAI_ORGANIZATION_PATH, "r") as f:
+                organization = f.readline().strip()
+        else:
+            organization = None
+
+        self.client = openai.OpenAI(
+            api_key=api_key,
+            organization=organization,
+        )
+        self.model = model
+
+    @retry(
+        stop=stop_after_attempt(MAX_QUERY_RETRIES),
+        wait=wait_random_exponential(),
+        retry=retry_if_not_exception_type(openai.BadRequestError),
+    )
+    def embed(self, text: Union[str, List[str]]) -> Tuple[List[List[float]], EmbeddingLog]:
+        """
+        Compute embeddings for the given text.
+        
+        Args:
+            text (Union[str, List[str]]): The text to embed. Can be a single string or a list of strings.
+                                         If a list is provided, embeddings will be computed for each string.
+        
+        Returns:
+            Tuple[List[List[float]], EmbeddingLog]: A tuple containing:
+                - The embeddings as a list of float lists. If input is a single string, the output will be a list with one embedding.
+                - A log object containing information about the embedding call.
+        """
+        response = self.client.embeddings.create(
+            model=self.model,
+            input=text,
+        )
+        
+        # Extract embeddings from response
+        embeddings = [data.embedding for data in response.data]
+        
+        # Create log
+        log = EmbeddingLog(
+            model=self.model,
+            input=text,
+            embedding=embeddings,
+            timestamp=get_time_string(),
+        )
+        
+        return embeddings, log
+
+    def embed_single(self, text: str) -> List[float]:
+        """
+        Compute embedding for a single text string and return just the embedding vector.
+        
+        Args:
+            text (str): The text to embed.
+        
+        Returns:
+            List[float]: The embedding vector.
+        """
+        embeddings, _ = self.embed(text)
+        return embeddings[0]
+
+
+if __name__ == "__main__":
+    # Simple example of computing embeddings
+    embedder = Embeddings()
+    example_text = "This is a sample text for embedding demonstration."
+    
+    # Get embedding for a single text
+    embedding = embedder.embed_single(example_text)
+    
+    # Print the first 5 dimensions of the embedding vector
+    print(f"Example text: '{example_text}'")
+    print(f"Embedding dimensions: {len(embedding)}")
+    print(f"First 5 dimensions: {embedding[:5]}")
+    
+    # Example with multiple texts
+    texts = ["First example text", "Second example text", "Third example text"]
+    embeddings, log = embedder.embed(texts)
+    
+    print(f"\nEmbedded {len(texts)} texts using model: {log.model}")
+    print(f"Timestamp: {log.timestamp}")
+    print(f"Each embedding has {len(embeddings[0])} dimensions")
