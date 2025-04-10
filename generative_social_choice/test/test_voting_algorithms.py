@@ -138,20 +138,23 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         voting_algorithm: VotingAlgorithm,
     ):
         """
-        Test whether the algorithm satisfies various forms of Pareto efficiency.
-
+        Test whether the algorithm satisfies axioms.
+        
         # Arguments
         
         """
-        # Compute the solution using the voting algorithm
-        slate, assignments = voting_algorithm.vote(
-            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
-            rated_vote_case.slate_size,
-        )
 
         for axiom in axioms_to_evaluate:
             with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
+                if rated_vote_case.name == "Ex 3.1":
+                    a = 1 # DEBUG
                 for rated_votes in rated_vote_case.augmented_cases:
+                    # Compute the solution using the voting algorithm
+                    slate, assignments = voting_algorithm.vote(
+                        rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
+                        rated_vote_case.slate_size,
+                    )
+
                     assert axiom.evaluate_assignment(
                         rated_votes=rated_votes, 
                         slate_size=rated_vote_case.slate_size, 
