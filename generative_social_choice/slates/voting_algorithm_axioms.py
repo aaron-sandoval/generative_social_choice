@@ -309,6 +309,10 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
                 epsilon = alternate_min - primary_min
                 delta = primary_avg - alternate_avg
 
+                # If alternate is Pareto-dominated, we discard it
+                if epsilon <=0:
+                    valid_slates.discard(alternate_slate)
+
                 # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
                 if epsilon > 0 and delta > 0 and (epsilon / delta) >= self.max_tradeoff:
                     valid_slates.discard(primary_slate)
@@ -361,8 +365,8 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
             min_utility = utilities.min()
             slate_utilities.append((frozenset(slate), avg_utility, min_utility))
 
-        # Sort slates by minimum utility in ascending order
-        slate_utilities.sort(key=lambda x: x[2])
+        # Sort slates by minimum utility in descending order
+        slate_utilities.sort(key=lambda x: x[2], reverse=True)
 
         # Start with all slates assumed valid
         valid_slates = {slate for slate, _, _ in slate_utilities}
@@ -375,6 +379,10 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
             for alternate_slate, alternate_avg, alternate_min in slate_utilities[i+1:]:
                 epsilon = primary_min - alternate_min
                 delta = alternate_avg - primary_avg
+
+                # If alternate is Pareto-dominated, we discard it
+                if delta <=0:
+                    valid_slates.discard(alternate_slate)
 
                 # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
                 if epsilon > 0 and delta > 0 and (delta / epsilon) >= self.max_tradeoff:
