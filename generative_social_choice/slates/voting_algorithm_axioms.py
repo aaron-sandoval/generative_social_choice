@@ -1,7 +1,7 @@
 import abc
 import itertools
 from dataclasses import dataclass, field
-from functools import cache
+from functools import cache, partial
 from typing import override
 
 import pandas as pd
@@ -263,20 +263,22 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     name: str = "Non-radical Total Utility Pareto Efficiency"
     abs_tol: float = 1e-8
 
+    def utility_tradeoff(self, utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+        if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
+            return -1.0
+        return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
     
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
-        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
-            if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
-                return -1.0
-            return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
+        
 
         utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
-        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
+        utility_tradeoff_partial = partial(self.utility_tradeoff, utilities)
+        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff_partial])
 
         for alt_slate in worst_alt_slates:
             alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
-            this_tradeoff = utility_tradeoff(alt_utilities)
+            this_tradeoff = self.utility_tradeoff(utilities, alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False
         return True
