@@ -142,23 +142,24 @@ def run_single_axiom_test(test_case):
     """
     voting_algorithm, rated_vote_case, axiom = test_case
     
-    try:
-        for rated_votes in rated_vote_case.augmented_cases:
-            # Compute the solution using the voting algorithm
-            slate, assignments = voting_algorithm.vote(
-                rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
-                rated_vote_case.slate_size,
-            )
-            
-            assert axiom.evaluate_assignment(
-                rated_votes=rated_votes, 
-                slate_size=rated_vote_case.slate_size, 
-                assignments=assignments
-            ), f"Slate {slate} does not satisfy {axiom.name}"
+    # Check if the axiom is satisfied for all augmented cases
+    for rated_votes in rated_vote_case.augmented_cases:
+        # Compute the solution using the voting algorithm
+        slate, assignments = voting_algorithm.vote(
+            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
+            rated_vote_case.slate_size,
+        )
         
-        return (voting_algorithm.name, rated_vote_case.name, axiom.name, True)
-    except Exception as e:
-        return (voting_algorithm.name, rated_vote_case.name, axiom.name, False)
+        # Use the return value of evaluate_assignment directly
+        if not axiom.evaluate_assignment(
+            rated_votes=rated_votes, 
+            slate_size=rated_vote_case.slate_size, 
+            assignments=assignments
+        ):
+            return (voting_algorithm.name, rated_vote_case.name, axiom.name, False)
+    
+    # If we get here, all augmented cases passed the axiom test
+    return (voting_algorithm.name, rated_vote_case.name, axiom.name, True)
 
 
 class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
