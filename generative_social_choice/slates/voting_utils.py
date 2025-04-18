@@ -149,7 +149,7 @@ def voter_utilities(rated_votes: pd.DataFrame, assignments_series: pd.Series, ou
     return pd.Series(utilities, index=assignments_series.index, name=output_column_name)
 
 
-def voter_max_utilities_from_slate(rated_votes: pd.DataFrame, slate: set[str]) -> pd.Series:
+def voter_max_utilities_from_slate(rated_votes: pd.DataFrame, slate: list[str]) -> pd.Series:
     """
     Get the maximum possible utility of each voter within a given slate.
     """

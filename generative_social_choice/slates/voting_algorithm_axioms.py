@@ -261,10 +261,11 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     
     max_tradeoff: float = 20.0
     name: str = "Non-radical Total Utility Pareto Efficiency"
-    abs_tol: float = 1e-8
+    # abs_tol: float = 1e-8
 
-    def utility_tradeoff(self, utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
-        if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
+    @staticmethod
+    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+        if alternate_utilities.min() <= utilities.min() or alternate_utilities.mean() >= utilities.mean():
             return -1.0
         return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
     
@@ -273,11 +274,14 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
         
 
         utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
-        utility_tradeoff_partial = partial(self.utility_tradeoff, utilities)
-        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff_partial])
+        # utility_tradeoff_partial = partial(self.utility_tradeoff, utilities)
+        pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
 
-        for alt_slate in worst_alt_slates:
+
+        for alt_slate in pareto_slates:
             alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
+            if pareto_dominates([alt_utilities.min(), alt_utilities.sum()], [utilities.min(), utilities.sum()]):
+                return False
             this_tradeoff = self.utility_tradeoff(utilities, alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False
@@ -288,9 +292,14 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
         """
         Identify slates that satisfy the non-radical total utility axiom.
         """
+        pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
+        
+        if len(pareto_slates) == 1:
+            return pareto_slates
+
         # Compute utility tuples for each slate
         slate_utilities = []
-        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+        for slate in pareto_slates:
             utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
             avg_utility = utilities.mean()
             min_utility = utilities.min()
