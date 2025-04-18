@@ -146,7 +146,7 @@ def run_single_axiom_test(test_case):
     for rated_votes in rated_vote_case.augmented_cases:
         # Compute the solution using the voting algorithm
         slate, assignments = voting_algorithm.vote(
-            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
+            rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
         
