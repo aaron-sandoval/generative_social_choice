@@ -1,10 +1,11 @@
 import abc
 import json
-from typing import List, override, Optional
+from typing import List, Optional, override
 from pathlib import Path
 
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
 
 from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
 from generative_social_choice.utils.gpt_wrapper import Embeddings
@@ -196,6 +197,27 @@ class PrecomputedEmbedding(Embedding):
 
         return filtered_embeddings
 
+    def compute_similarities(self, agent: SimplePersonalizationAgent, other_agents: List[SimplePersonalizationAgent]) -> np.ndarray:
+        """
+        Compute cosine similarities between one agent and all other agents.
+        
+        Args:
+            agent (SimplePersonalizationAgent): The agent to compute similarities for
+            other_agents (List[SimplePersonalizationAgent]): List of agents to compare against
+            
+        Returns:
+            np.ndarray: Array of cosine similarities between the agent and each other agent
+        """
+        # Get embeddings for the target agent and other agents
+        target_embedding = self.compute([agent])
+        other_embeddings = self.compute(other_agents)
+        
+        # Compute cosine similarities
+        similarities = cosine_similarity(target_embedding, other_embeddings)
+        
+        # Return as 1D array
+        return similarities.flatten()
+
 
 ##################################################
 # Partitioning
@@ -295,3 +317,35 @@ class PrecomputedPartition(Partition):
         filtered_assignments = np.array([self.assignments[id_to_index[agent_id]] for agent_id in filtered_ids])
 
         return filtered_assignments
+
+if __name__ == "__main__":
+    from generative_social_choice.utils.helper_functions import get_base_dir_path
+    from generative_social_choice.statements.statement_generation import get_simple_agents
+    
+    # Get all agents
+    agents = get_simple_agents()
+    
+    # Compute and store embeddings using BaselineEmbedding
+    embeddings_file = get_base_dir_path() / "data/demo_data/baseline_embeddings.json"
+    baseline_embedding = BaselineEmbedding()
+    baseline_embedding.precompute(agents=agents, filepath=embeddings_file)
+    
+    # Load precomputed embeddings
+    embedding = PrecomputedEmbedding(filepath=embeddings_file)
+    
+    # Pick a target agent and compute similarities to all other agents
+    target_agent = agents[0]
+    other_agents = agents[1:]
+    
+    similarities = embedding.compute_similarities(target_agent, other_agents)
+    
+    # Print results
+    print(f"Similarities between agent {target_agent.id} and other agents:")
+    for agent, similarity in zip(other_agents, similarities):
+        print(f"Agent {agent.id}: {similarity:.4f}")
+    
+    # Print most similar agents
+    most_similar_indices = np.argsort(similarities)[-5:]  # Get indices of 5 most similar agents
+    print("\nMost similar agents:")
+    for idx in reversed(most_similar_indices):  # Print from most to least similar
+        print(f"Agent {other_agents[idx].id}: {similarities[idx]:.4f}")
