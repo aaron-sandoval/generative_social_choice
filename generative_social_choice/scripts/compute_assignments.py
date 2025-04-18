@@ -14,6 +14,7 @@ from generative_social_choice.slates.voting_algorithms import (
     GreedyTotalUtilityMaximization,
     ExactTotalUtilityMaximization,
     LPTotalUtilityMaximization,
+    GeometricTransformation,
 )
 
 
@@ -115,7 +116,9 @@ if __name__=="__main__":
         "exact": ExactTotalUtilityMaximization(),
         "greedy": GreedyTotalUtilityMaximization(),
         "lp": LPTotalUtilityMaximization(),
-
+        "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+        "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+        "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     }
     for name, algo in voting_algorithms.items():
         print(f"\n\nRunning algorithm '{algo.name}' ...")
