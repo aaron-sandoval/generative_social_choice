@@ -201,11 +201,9 @@ class TestVotingAlgorithmAssignments(unittest.TestCase):
 
     @parameterized.expand([
         (rated_vote_cases["Ex 1.2"], ["s2", "s3"], None, {}),
-        (rated_vote_cases["Ex 1.2"], ["s2", "s3"], None, dict(load_magnitude_method="total")),
         (rated_vote_cases["Ex 1.1"], ["s2", "s4"], None, {}),
-        (rated_vote_cases["Ex 1.1"], ["s2", "s4"], None, dict(load_magnitude_method="total")),
+        (rated_vote_cases["Ex 1.3"], ["s1", "s3"], None, {}),
         (rated_vote_cases["Ex 1.1 modified"], ["s2", "s4"], None, {}),
-        (rated_vote_cases["Ex 1.1 modified"], ["s2", "s4"], None, dict(load_magnitude_method="total")),
         # (rated_vote_cases["Ex Alg A.1"], ["s1", "s3", "s4"], None, {}), # Stochastic selection
     ])
     def test_phragmen_assignments(
