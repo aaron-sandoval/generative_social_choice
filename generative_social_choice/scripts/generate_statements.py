@@ -13,6 +13,7 @@ from generative_social_choice.utils.helper_functions import (
 from generative_social_choice.statements.partitioning import (
     BaselineEmbedding,
     KMeansClustering,
+    OpenAIEmbedding,
     PrecomputedEmbedding,
     PrecomputedPartition,
     Partition,
@@ -169,8 +170,10 @@ if __name__=="__main__":
     generate_statements(
         model=args.model,
         num_agents=args.num_agents,
-        partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_{args.num_clusters}.json",
-        partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=args.num_clusters, seed=0),
+        #partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_{args.num_clusters}.json",
+        #partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=args.num_clusters, seed=0),
+        partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_openai_small_nosummary_{args.num_clusters}.json",
+        partitioning=KMeansClustering(embedding_method=OpenAIEmbedding(model="text-embedding-3-small", use_summary=False), num_partitions=args.num_clusters, seed=0),
     )
 
     # How to use precomputed embeddings
