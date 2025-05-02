@@ -5,7 +5,7 @@ import pandas as pd
 import random
 import numpy as np
 
-from generative_social_choice.statements.partitioning import BaselineEmbedding, BASELINE_EMBEDDINGS_FILE
+from generative_social_choice.statements.partitioning import OpenAIEmbedding, PrecomputedEmbedding, BASELINE_EMBEDDINGS_FILE
 from generative_social_choice.utils.gpt_wrapper import GPT
 from generative_social_choice.utils.dataframe_completion import DataFrameCompleter
 from generative_social_choice.queries.query_interface import Agent, Generator, LLMLog
@@ -287,8 +287,10 @@ def find_nearest_neighbors_by_embeddings(
     assert center_agent not in agents
 
     logs = []
-    embedding = BaselineEmbedding()
-    embedding.precompute(agents=[center_agent] + agents, filepath=embeddings_file)
+    # embedding = OpenAIEmbedding()
+    # embedding.precompute(agents=[center_agent] + agents, filepath=embeddings_file)
+    embedding = PrecomputedEmbedding(filepath=embeddings_file)
+    embedding.compute(agents=[center_agent] + agents, filepath=embeddings_file)
     similarities = embedding.compute_similarities(center_agent, agents)
 
     # Sort agents by similarity (highest first)
