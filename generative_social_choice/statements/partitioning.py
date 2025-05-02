@@ -64,6 +64,27 @@ class Embedding(abc.ABC):
         embeddings = self.compute(agents=agents)
         store_embeddings(filepath=filepath, agent_ids=[agent.id for agent in agents], embeddings=embeddings)
 
+    def compute_similarities(self, agent: SimplePersonalizationAgent, other_agents: List[SimplePersonalizationAgent]) -> np.ndarray:
+        """
+        Compute cosine similarities between one agent and all other agents.
+        
+        Args:
+            agent (SimplePersonalizationAgent): The agent to compute similarities for
+            other_agents (List[SimplePersonalizationAgent]): List of agents to compare against
+            
+        Returns:
+            np.ndarray: Array of cosine similarities between the agent and each other agent
+        """
+        # Get embeddings for the target agent and other agents
+        target_embedding = self.compute([agent])
+        other_embeddings = self.compute(other_agents)
+        
+        # Compute cosine similarities
+        similarities = cosine_similarity(target_embedding, other_embeddings)
+        
+        # Return as 1D array
+        return similarities.flatten()
+
 
 class OpenAIEmbedding(Embedding):
     """
@@ -197,27 +218,6 @@ class PrecomputedEmbedding(Embedding):
         filtered_embeddings = np.array([self.embeddings[id_to_index[agent_id]] for agent_id in filtered_ids])
 
         return filtered_embeddings
-
-    def compute_similarities(self, agent: SimplePersonalizationAgent, other_agents: List[SimplePersonalizationAgent]) -> np.ndarray:
-        """
-        Compute cosine similarities between one agent and all other agents.
-        
-        Args:
-            agent (SimplePersonalizationAgent): The agent to compute similarities for
-            other_agents (List[SimplePersonalizationAgent]): List of agents to compare against
-            
-        Returns:
-            np.ndarray: Array of cosine similarities between the agent and each other agent
-        """
-        # Get embeddings for the target agent and other agents
-        target_embedding = self.compute([agent])
-        other_embeddings = self.compute(other_agents)
-        
-        # Compute cosine similarities
-        similarities = cosine_similarity(target_embedding, other_embeddings)
-        
-        # Return as 1D array
-        return similarities.flatten()
 
 
 ##################################################
