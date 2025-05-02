@@ -207,8 +207,8 @@ class PrecomputedEmbedding(Embedding):
     @override
     def compute(self, agents: List[SimplePersonalizationAgent]) -> np.ndarray:
         requested_ids = [agent.id for agent in agents]
-        for i in requested_ids:
-            assert i in self.agent_ids
+        assert len(requested_ids) == len(set(requested_ids).intersection(set(self.agent_ids)))
+
 
         # Map requested IDs to indices
         id_to_index = {agent_id: idx for idx, agent_id in enumerate(self.agent_ids)}

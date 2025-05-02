@@ -134,7 +134,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    args.num_agents = 10
+    # args.num_agents = 10
     args.dir_suffix = "via_openai_embeddings"
 
     generate_slate_from_paper(num_agents=args.num_agents, model=args.model, dir_suffix=args.dir_suffix)

@@ -287,10 +287,7 @@ def find_nearest_neighbors_by_embeddings(
     assert center_agent not in agents
 
     logs = []
-    # embedding = OpenAIEmbedding()
-    # embedding.precompute(agents=[center_agent] + agents, filepath=embeddings_file)
     embedding = PrecomputedEmbedding(filepath=embeddings_file)
-    embedding.compute(agents=[center_agent] + agents, filepath=embeddings_file)
     similarities = embedding.compute_similarities(center_agent, agents)
 
     # Sort agents by similarity (highest first)
