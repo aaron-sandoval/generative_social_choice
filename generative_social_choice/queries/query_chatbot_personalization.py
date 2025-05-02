@@ -5,48 +5,11 @@ import pandas as pd
 import random
 import numpy as np
 
-from generative_social_choice.statements.partitioning import BaselineEmbedding
+from generative_social_choice.statements.partitioning import BaselineEmbedding, BASELINE_EMBEDDINGS_FILE
 from generative_social_choice.utils.gpt_wrapper import GPT
 from generative_social_choice.utils.dataframe_completion import DataFrameCompleter
 from generative_social_choice.queries.query_interface import Agent, Generator, LLMLog
 from generative_social_choice.utils.gpt_wrapper import get_probabilities_from_completion
-from generative_social_choice.utils.helper_functions import get_base_dir_path
-
-
-BASELINE_EMBEDDINGS_FILE = get_base_dir_path() / "data/demo_data/baseline_embeddings.json"
-
-##################################################
-# Classes for statement generation
-##################################################
-
-class SimplePersonalizationAgent(Agent):
-    """Simple agent representation which doesn't require connecting to any LLM
-    but can't be used to get approvals.
-    
-    We use this class in statement generation as computing new approvals
-    is unnecessary."""
-
-    def __init__(
-        self,
-        *,
-        id: str,
-        survey_responses: pd.DataFrame,
-        summary: str,
-    ):
-        self.id = id
-        self.survey_responses = survey_responses
-        self.summary = summary
-
-    def get_id(self):
-        return self.id
-
-    def get_description(self):
-        return self.summary
-
-    def get_approval(
-        self, statement: str, use_logprobs: bool = True
-    ) -> tuple[float, list[LLMLog]]:
-        raise NotImplementedError()
 
 
 ##################################################

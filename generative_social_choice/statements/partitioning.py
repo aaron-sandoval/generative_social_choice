@@ -7,9 +7,9 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
 
-from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
-from generative_social_choice.queries.query_chatbot_personalization import BASELINE_EMBEDDINGS_FILE
+from generative_social_choice.queries.simple_personalization_agent import SimplePersonalizationAgent
 from generative_social_choice.utils.gpt_wrapper import Embeddings
+from generative_social_choice.utils.helper_functions import get_base_dir_path
 
 
 ##################################################
@@ -318,6 +318,9 @@ class PrecomputedPartition(Partition):
         filtered_assignments = np.array([self.assignments[id_to_index[agent_id]] for agent_id in filtered_ids])
 
         return filtered_assignments
+
+
+BASELINE_EMBEDDINGS_FILE = get_base_dir_path() / "data/demo_data/baseline_embeddings.json"
 
 if __name__ == "__main__":
     from generative_social_choice.statements.statement_generation import get_simple_agents

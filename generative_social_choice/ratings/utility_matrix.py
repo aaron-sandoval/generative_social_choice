@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent, SimplePersonalizationAgent
+from generative_social_choice.queries.simple_personalization_agent import SimplePersonalizationAgent
+from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
 from generative_social_choice.ratings.rating_generation import complete_ratings, Rating
 
 
