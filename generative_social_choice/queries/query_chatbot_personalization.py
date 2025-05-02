@@ -122,7 +122,7 @@ class ChatbotPersonalizationAgent(Agent):
         id: str,
         survey_responses: pd.DataFrame,
         summary: str,
-        model: str = "gpt-4-base",
+        model: str = "gpt-4o-mini-2024-07-18",
     ):
         self.id = id
         self.survey_responses = survey_responses
