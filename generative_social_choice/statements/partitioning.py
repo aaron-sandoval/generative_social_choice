@@ -8,6 +8,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
 
 from generative_social_choice.queries.query_chatbot_personalization import SimplePersonalizationAgent
+from generative_social_choice.queries.query_chatbot_personalization import BASELINE_EMBEDDINGS_FILE
 from generative_social_choice.utils.gpt_wrapper import Embeddings
 
 
@@ -319,19 +320,17 @@ class PrecomputedPartition(Partition):
         return filtered_assignments
 
 if __name__ == "__main__":
-    from generative_social_choice.utils.helper_functions import get_base_dir_path
     from generative_social_choice.statements.statement_generation import get_simple_agents
     
     # Get all agents
     agents = get_simple_agents()
     
     # Compute and store embeddings using BaselineEmbedding
-    embeddings_file = get_base_dir_path() / "data/demo_data/baseline_embeddings.json"
     baseline_embedding = BaselineEmbedding()
-    baseline_embedding.precompute(agents=agents, filepath=embeddings_file)
+    baseline_embedding.precompute(agents=agents, filepath=BASELINE_EMBEDDINGS_FILE)
     
     # Load precomputed embeddings
-    embedding = PrecomputedEmbedding(filepath=embeddings_file)
+    embedding = PrecomputedEmbedding(filepath=BASELINE_EMBEDDINGS_FILE)
     
     # Pick a target agent and compute similarities to all other agents
     target_agent = agents[0]

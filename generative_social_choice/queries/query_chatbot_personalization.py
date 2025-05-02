@@ -1,13 +1,19 @@
 from string import Template
-from typing import List, Tuple
+from typing import List, Tuple, Callable
+from pathlib import Path
 import pandas as pd
 import random
+import numpy as np
 
+from generative_social_choice.statements.partitioning import BaselineEmbedding
 from generative_social_choice.utils.gpt_wrapper import GPT
 from generative_social_choice.utils.dataframe_completion import DataFrameCompleter
 from generative_social_choice.queries.query_interface import Agent, Generator, LLMLog
 from generative_social_choice.utils.gpt_wrapper import get_probabilities_from_completion
+from generative_social_choice.utils.helper_functions import get_base_dir_path
 
+
+BASELINE_EMBEDDINGS_FILE = get_base_dir_path() / "data/demo_data/baseline_embeddings.json"
 
 ##################################################
 # Classes for statement generation
@@ -304,6 +310,31 @@ def find_nearest_neighbors(
     return cluster, logs
 
 
+def find_nearest_neighbors_by_embeddings(
+    center_agent: Agent, 
+    agents: List[Agent], 
+    nbhd_size: int, 
+    embeddings_file: Path = BASELINE_EMBEDDINGS_FILE
+) -> Tuple[List[Agent], List[LLMLog]]:
+    """
+    Using embeddings, returns the nbhd_size nearest neighbors to the center_agent, among the list agents.
+
+    Closeness of agents is defined by the cosine similarity of the embeddings of their descriptions. Embeddings are precomputed and loaded from a file.
+    """
+    assert center_agent not in agents
+
+    logs = []
+    embedding = BaselineEmbedding()
+    embedding.precompute(agents=[center_agent] + agents, filepath=embeddings_file)
+    similarities = embedding.compute_similarities(center_agent, agents)
+
+    # Sort agents by similarity (highest first)
+    sorted_indices = np.argsort(similarities)[::-1]
+    nearest_neighbors = [agents[i] for i in sorted_indices[:nbhd_size]]
+
+    return nearest_neighbors, logs
+
+
 class NearestNeighborChatbotPersonalizationGenerator(ChatbotPersonalizationGenerator):
     """
     Subsample k agents. From this population, sample an agent (the "center agent"). Find the m 'nearest neighbors' to the center agent among the k agents, using the discriminative query, and then run the simple ChatbotPersonalizationGenerator on this set of m+1 agents. This will produce a statement.
@@ -319,9 +350,11 @@ class NearestNeighborChatbotPersonalizationGenerator(ChatbotPersonalizationGener
         seed=0,
         gpt_temperature=0,
         model: str = "gpt-4o-mini-2024-07-18",
+        nn_function: Callable[[Agent, List[Agent], int], Tuple[List[Agent], List[LLMLog]]] = find_nearest_neighbors,
     ):
         self.sample_size = sample_size
         self.nbhd_size = nbhd_size
+        self.nn_function = nn_function
         super().__init__(seed=seed, gpt_temperature=gpt_temperature, model=model)
 
     def generate(self, agents: List[Agent]) -> Tuple[str, List[LLMLog]]:
@@ -335,7 +368,7 @@ class NearestNeighborChatbotPersonalizationGenerator(ChatbotPersonalizationGener
         # Find nbhd_size nearest neighbors of randomly sampled center_agent
         center_agent = self.random.choice(sampled_agents)
         sampled_agents.remove(center_agent)
-        nn_agents, nn_logs = find_nearest_neighbors(
+        nn_agents, nn_logs = self.nn_function(
             center_agent, agents=sampled_agents, nbhd_size=self.nbhd_size
         )
         logs.extend(nn_logs)
