@@ -380,6 +380,13 @@ if __name__ == "__main__":
 
     test_case = rated_vote_cases["Ex 1.1 modified"]
     
+    # Print test case data
+    print("Test Case Data:")
+    print("Rated Votes:")
+    print(test_case.rated_votes)
+    print("\nNumber of voters:", len(test_case.rated_votes))
+    print("Number of candidates:", len(test_case.rated_votes.columns))
+    
     coverage_axiom = CoverageAxiom()
     
     assignments1 = pd.DataFrame({
