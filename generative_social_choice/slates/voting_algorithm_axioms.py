@@ -376,8 +376,6 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
 
 
 if __name__ == "__main__":
-    import numpy as np
-    
     from generative_social_choice.test.utilities_for_testing import rated_vote_cases
 
     test_case = rated_vote_cases["Ex 1.1 modified"]
@@ -396,8 +394,19 @@ if __name__ == "__main__":
     assert not coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments2), \
         "Test Case 2 failed: Should not satisfy coverage axiom"
     
-    print("All tests passed!")
-    #TODO Also print m-th happiest curves to sanity check further
+    # Print m-th happiest person curves for both assignments
+    print("\nM-th happiest person curves:")
+    print("\nAssignment 1 (s2, s4):")
+    utilities1 = voter_utilities(test_case.rated_votes, assignments1["candidate_id"]).values
+    mth_happiest1 = np.sort(utilities1)[::-1]
+    print(f"Sorted utilities: {mth_happiest1}")
+    
+    print("\nAssignment 2 (s1, s3):")
+    utilities2 = voter_utilities(test_case.rated_votes, assignments2["candidate_id"]).values
+    mth_happiest2 = np.sort(utilities2)[::-1]
+    print(f"Sorted utilities: {mth_happiest2}")
+    
+    print("\nAll tests passed!")
 
 
 
