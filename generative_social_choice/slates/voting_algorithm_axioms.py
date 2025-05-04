@@ -375,4 +375,29 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
         return valid_slates
 
 
+if __name__ == "__main__":
+    import numpy as np
+    
+    from generative_social_choice.test.utilities_for_testing import rated_vote_cases
+
+    test_case = rated_vote_cases["Ex 1.1 modified"]
+    
+    coverage_axiom = CoverageAxiom()
+    
+    assignments1 = pd.DataFrame({
+        'candidate_id': ['s2', "s2", "s2", 's4', "s4", "s4"]  # Using the dominated slate
+    })
+    assert coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments1), \
+        "Test Case failed: Should satisfy coverage axiom"
+    
+    assignments2 = pd.DataFrame({
+        'candidate_id': ['s1', "s1", "s1", 's3', "s3", "s3"]  # Using the dominated slate
+    })
+    assert not coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments2), \
+        "Test Case 2 failed: Should not satisfy coverage axiom"
+    
+    print("All tests passed!")
+    #TODO Also print m-th happiest curves to sanity check further
+
+
 
