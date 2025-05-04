@@ -153,10 +153,16 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
 
 @dataclass(frozen=True)
 class CoverageAxiom(VotingAlgorithmAxiom):
-    """Representing as many people as possible:
-    There is no other slate with assignment wprime with at least the same total utility and a threshold m, such that
-    - h(w,mprime)>=h(wprime,mprime) for all mprime>=m [h(w,mprime) is mprime-th happiest person under assignment w]
-    - h(w,m*)>h(wprime,m*) for some m*>=m
+    """Representing as many people as possible.
+
+    There is no other slate with assignment wprime, and a threshold m', such that:
+    - The total utility of wprime is at least as high as that of w
+    - The m'-th happiest person has strictly higher utility in wprime than in w, i.e. h(wprime,m')>h(w,m')
+    - For all m>m', the m-th happiest person has at least the same utility in wprime as in w, i.e. h(wprime,m)>=h(w,m)
+
+    In other words, the violating slate with assignment wprime covers more people than w because
+    - m' people receive min utility h(wprime,m') in wprime, while no m' people receive the same min utility in w.
+    - There exists no m*>m' for which this is the other way around, i.e. for which m* people receive a strictly greater min utility in w than in wprime.
     """
 
     name: str = "Maximum Coverage"
@@ -216,6 +222,46 @@ class CoverageAxiom(VotingAlgorithmAxiom):
                 efficient_slates.append( (slate, total_utility, mth_happiest) )
 
         return [slate[0] for slate in efficient_slates]
+
+    def sanity_check(self):
+        from generative_social_choice.test.utilities_for_testing import rated_vote_cases
+
+        test_case = rated_vote_cases["Ex 1.1 modified"]
+        
+        # Print test case data
+        print("Test Case Data:")
+        print("Rated Votes:")
+        print(test_case.rated_votes)
+        print("\nNumber of voters:", len(test_case.rated_votes))
+        print("Number of candidates:", len(test_case.rated_votes.columns))
+        
+        coverage_axiom = CoverageAxiom()
+        
+        assignments1 = pd.DataFrame({
+            'candidate_id': ['s2', "s2", "s2", 's4', "s4", "s4"]  # Using the dominated slate
+        })
+        assert coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments1), \
+            "Test Case failed: Should satisfy coverage axiom"
+        
+        assignments2 = pd.DataFrame({
+            'candidate_id': ['s1', "s1", "s1", 's3', "s3", "s3"]  # Using the dominated slate
+        })
+        assert not coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments2), \
+            "Test Case 2 failed: Should not satisfy coverage axiom"
+        
+        # Print m-th happiest person curves for both assignments
+        print("\nM-th happiest person curves:")
+        print("\nAssignment 1 (s2, s4):")
+        utilities1 = voter_utilities(test_case.rated_votes, assignments1["candidate_id"]).values
+        mth_happiest1 = np.sort(utilities1)[::-1]
+        print(f"Sorted utilities: {mth_happiest1}")
+        
+        print("\nAssignment 2 (s1, s3):")
+        utilities2 = voter_utilities(test_case.rated_votes, assignments2["candidate_id"]).values
+        mth_happiest2 = np.sort(utilities2)[::-1]
+        print(f"Sorted utilities: {mth_happiest2}")
+        
+        print("\nAll tests passed!")
     
 
 @dataclass(frozen=True)
@@ -376,44 +422,5 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
 
 
 if __name__ == "__main__":
-    from generative_social_choice.test.utilities_for_testing import rated_vote_cases
-
-    test_case = rated_vote_cases["Ex 1.1 modified"]
-    
-    # Print test case data
-    print("Test Case Data:")
-    print("Rated Votes:")
-    print(test_case.rated_votes)
-    print("\nNumber of voters:", len(test_case.rated_votes))
-    print("Number of candidates:", len(test_case.rated_votes.columns))
-    
     coverage_axiom = CoverageAxiom()
-    
-    assignments1 = pd.DataFrame({
-        'candidate_id': ['s2', "s2", "s2", 's4', "s4", "s4"]  # Using the dominated slate
-    })
-    assert coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments1), \
-        "Test Case failed: Should satisfy coverage axiom"
-    
-    assignments2 = pd.DataFrame({
-        'candidate_id': ['s1', "s1", "s1", 's3', "s3", "s3"]  # Using the dominated slate
-    })
-    assert not coverage_axiom.evaluate_assignment(test_case.rated_votes, 2, assignments2), \
-        "Test Case 2 failed: Should not satisfy coverage axiom"
-    
-    # Print m-th happiest person curves for both assignments
-    print("\nM-th happiest person curves:")
-    print("\nAssignment 1 (s2, s4):")
-    utilities1 = voter_utilities(test_case.rated_votes, assignments1["candidate_id"]).values
-    mth_happiest1 = np.sort(utilities1)[::-1]
-    print(f"Sorted utilities: {mth_happiest1}")
-    
-    print("\nAssignment 2 (s1, s3):")
-    utilities2 = voter_utilities(test_case.rated_votes, assignments2["candidate_id"]).values
-    mth_happiest2 = np.sort(utilities2)[::-1]
-    print(f"Sorted utilities: {mth_happiest2}")
-    
-    print("\nAll tests passed!")
-
-
-
+    coverage_axiom.sanity_check()
