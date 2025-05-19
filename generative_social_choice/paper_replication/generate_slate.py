@@ -8,6 +8,7 @@ from generative_social_choice.queries.query_chatbot_personalization import (
     ChatbotPersonalizationGenerator,
     SubsamplingChatbotPersonalizationGenerator,
     NearestNeighborChatbotPersonalizationGenerator,
+    find_nearest_neighbors_by_embeddings,
 )
 from generative_social_choice.slates.slate_generation import (
     generate_slate_ensemble_greedy,
@@ -18,7 +19,7 @@ import argparse
 from typing import Optional
 
 
-def generate_slate_from_paper(num_agents: Optional[int], model: str = "default"):
+def generate_slate_from_paper(num_agents: Optional[int], model: str = "default", dir_suffix: Optional[str] = "from_paper"):
     disc_query_model_arg = {"model": model} if model != "default" else {}
     gen_query_model_arg = {"model": model} if model != "default" else {}
 
@@ -69,6 +70,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default")
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
+            nn_function=find_nearest_neighbors_by_embeddings,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -76,6 +78,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default")
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
+            nn_function=find_nearest_neighbors_by_embeddings,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -83,6 +86,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default")
             nbhd_size=10,
             seed=None,
             gpt_temperature=0,
+            nn_function=find_nearest_neighbors_by_embeddings,
             **gen_query_model_arg,
         ),
     ]
@@ -93,7 +97,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default")
         get_base_dir_path()
         / "data"
         / "demo_data"
-        / f"{get_time_string()}__generate_slate_from_paper"
+        / f"{get_time_string()}__generate_slate_{dir_suffix}"
     )
     os.mkdir(full_log_dir)
 
@@ -130,5 +134,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    # args.num_agents = 10
+    args.dir_suffix = "via_openai_embeddings"
 
-    generate_slate_from_paper(num_agents=args.num_agents, model=args.model)
+    generate_slate_from_paper(num_agents=args.num_agents, model=args.model, dir_suffix=args.dir_suffix)
