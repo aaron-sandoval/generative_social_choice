@@ -19,18 +19,17 @@ from generative_social_choice.slates.voting_algorithms import (
 
 
 # Configuration
-BASELINE = False
 LABELLING_MODEL = "4o-mini"  # "4o" or "4o-mini"
 EMBEDDING_TYPE = "seed_statement"  # "seed_statement" or "llm"
 
-result_dirs = get_results_paths(labelling_model=LABELLING_MODEL, embedding_type=EMBEDDING_TYPE, baseline=BASELINE)
+result_dirs = get_results_paths(labelling_model=LABELLING_MODEL, embedding_type=EMBEDDING_TYPE, baseline=False)
 
 # Input
 UTILITY_MATRIX_FILE = result_dirs["utility_matrix_file"]
 STATEMENT_ID_FILE = result_dirs["statement_id_file"]
 
 # Output
-ASSIGNMENT_DIR = result_dirs["assignment_dir"]
+ASSIGNMENT_DIR = result_dirs["assignments"]
 
 
 

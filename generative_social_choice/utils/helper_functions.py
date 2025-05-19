@@ -68,12 +68,15 @@ def get_results_paths(labelling_model: str, embedding_type: str, baseline: bool=
     statement_id_file = selected_dir / f"{'baseline_' if baseline else ''}utility_matrix_statements.csv"
 
     # Output
-    assignment_dir = selected_dir / "assignments/"
+    if baseline:
+        assignments = selected_dir / "baseline_assignments.json"
+    else:
+        assignments = selected_dir / "assignments/"
 
     return {
         "utility_matrix_file": utility_matrix_file,
         "statement_id_file": statement_id_file,
-        "assignment_dir": assignment_dir,
+        "assignments": assignments,
     }
 
 
