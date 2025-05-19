@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 from kiwiutils.finite_valued import all_instances
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path
+from generative_social_choice.utils.helper_functions import get_base_dir_path, get_results_paths
 from generative_social_choice.slates.survey_assignments import compute_assignments
 from generative_social_choice.slates.voting_algorithms import (
     VotingAlgorithm,
@@ -18,12 +18,19 @@ from generative_social_choice.slates.voting_algorithms import (
 )
 
 
+# Configuration
+LABELLING_MODEL = "4o-mini"  # "4o" or "4o-mini"
+EMBEDDING_TYPE = "seed_statement"  # "seed_statement" or "llm"
+
+result_dirs = get_results_paths(labelling_model=LABELLING_MODEL, embedding_type=EMBEDDING_TYPE, baseline=False)
+
 # Input
-UTILITY_MATRIX_FILE = get_base_dir_path() / "data/demo_data/utility_matrix.csv"
-STATEMENT_ID_FILE = get_base_dir_path() / "data/demo_data/utility_matrix_statements.csv"
+UTILITY_MATRIX_FILE = result_dirs["utility_matrix_file"]
+STATEMENT_ID_FILE = result_dirs["statement_id_file"]
 
 # Output
-ASSIGNMENT_DIR = get_base_dir_path() / "data/demo_data/assignments/"
+ASSIGNMENT_DIR = result_dirs["assignments"]
+
 
 
 def run(
