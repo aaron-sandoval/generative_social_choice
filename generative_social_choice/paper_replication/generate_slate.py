@@ -9,6 +9,7 @@ from generative_social_choice.queries.query_chatbot_personalization import (
     SubsamplingChatbotPersonalizationGenerator,
     NearestNeighborChatbotPersonalizationGenerator,
     find_nearest_neighbors_by_embeddings,
+    find_nearest_neighbors,
 )
 from generative_social_choice.slates.slate_generation import (
     generate_slate_ensemble_greedy,
@@ -70,7 +71,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default",
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors_by_embeddings,
+            nn_function=find_nearest_neighbors,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -78,7 +79,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default",
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors_by_embeddings,
+            nn_function=find_nearest_neighbors,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -86,7 +87,7 @@ def generate_slate_from_paper(num_agents: Optional[int], model: str = "default",
             nbhd_size=10,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors_by_embeddings,
+            nn_function=find_nearest_neighbors,
             **gen_query_model_arg,
         ),
     ]
@@ -135,6 +136,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     # args.num_agents = 10
-    args.dir_suffix = "via_openai_embeddings"
+    args.dir_suffix = "via_fish_nn"
 
     generate_slate_from_paper(num_agents=args.num_agents, model=args.model, dir_suffix=args.dir_suffix)
