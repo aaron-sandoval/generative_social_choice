@@ -20,9 +20,9 @@ import argparse
 from typing import Optional
 
 
-def generate_slate_from_paper(num_agents: Optional[int], model: str = "default", dir_suffix: Optional[str] = "from_paper"):
-    disc_query_model_arg = {"model": model} if model != "default" else {}
-    gen_query_model_arg = {"model": model} if model != "default" else {}
+def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = "default", discriminator_model: str = "default", dir_suffix: Optional[str] = "from_paper"):
+    disc_query_model_arg = {"model": "gpt-4o-mini-2024-07-18"} if discriminator_model == "default" else {"model": discriminator_model}
+    gen_query_model_arg = {"model": "gpt-4o"} if generator_model == "default" else {"model": generator_model}
 
     # Set up agents
 
@@ -128,14 +128,20 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--model",
+        "--generator_model",
         type=str,
         default="default",
-        help="Specify a model to use for all queries. Default is gpt-4o-mini-2024-07-18. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
+        help="Specify a model to use for statement generation. Default is gpt-4o. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
     )
 
+    parser.add_argument(
+        "--discriminator_model",
+        type=str,
+        default="default",
+        help="Specify a model to use for statement generation. Default is gpt-4o-mini-2024-07-18. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
+    )
     args = parser.parse_args()
     # args.num_agents = 10
     args.dir_suffix = "via_fish_nn"
 
-    generate_slate_from_paper(num_agents=args.num_agents, model=args.model, dir_suffix=args.dir_suffix)
+    generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix)
