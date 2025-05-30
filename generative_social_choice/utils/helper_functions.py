@@ -52,7 +52,7 @@ def get_results_paths(labelling_model: str, embedding_type: str, baseline: bool=
                     utility_matrix_statements.csv
     """
     if base_dir is None:
-        base_dir = get_base_dir_path() / "data/results/"
+        base_dir = get_base_dir_path() / "data/utility_matrix_results/"
 
     assert labelling_model in ["4o", "4o-mini"]
     assert embedding_type in ["seed_statement", "llm"]
