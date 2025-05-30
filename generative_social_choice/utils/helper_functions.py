@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 from datetime import datetime, timezone
 import re
-
+from typing import Literal
 
 def get_base_dir_path() -> Path:
     """
@@ -23,7 +23,7 @@ def get_base_dir_path() -> Path:
     return base_dir_path
 
 
-def get_results_paths(labelling_model: str, embedding_type: str, baseline: bool=False, base_dir: Path | None = None) -> dict[str, Path]:
+def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], baseline: bool=False, base_dir: Path | None = None) -> dict[str, Path]:
     """Get directories given a hierarchy of directories.
     
     The following structure is assumed:
