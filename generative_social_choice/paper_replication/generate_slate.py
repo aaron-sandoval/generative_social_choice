@@ -71,7 +71,7 @@ def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = 
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors,
+            nn_function=find_nearest_neighbors_by_embeddings,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -79,7 +79,7 @@ def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = 
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors,
+            nn_function=find_nearest_neighbors_by_embeddings,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -87,7 +87,7 @@ def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = 
             nbhd_size=10,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors,
+            nn_function=find_nearest_neighbors_by_embeddings,
             **gen_query_model_arg,
         ),
     ]
@@ -142,6 +142,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     # args.num_agents = 10
-    args.dir_suffix = "via_fish_nn"
+    args.dir_suffix = "via_openai_embeddings_nn"
 
     generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix)
