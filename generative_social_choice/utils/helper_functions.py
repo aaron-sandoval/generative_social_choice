@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 from datetime import datetime, timezone
 import re
-
+from typing import Literal
 
 def get_base_dir_path() -> Path:
     """
@@ -21,6 +21,63 @@ def get_base_dir_path() -> Path:
 
     base_dir_path = Path(*current_path_parts[: 1 + base_dir_idx])
     return base_dir_path
+
+
+def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], baseline: bool=False, base_dir: Path | None = None) -> dict[str, Path]:
+    """Get directories given a hierarchy of directories.
+    
+    The following structure is assumed:
+    base_dir/
+        baseline/
+            4o_for_labelling/
+                baseline_utility_matrix.csv
+                baseline_utility_matrix_statements.csv
+            4o-mini_for_labelling/
+                baseline_utility_matrix.csv
+                baseline_utility_matrix_statements.csv
+        statements/
+            generated_with_4o_using_llm_embeddings/
+                4o_for_labelling/
+                    utility_matrix.csv
+                    utility_matrix_statements.csv
+                4o-mini_for_labelling/
+                    utility_matrix.csv
+                    utility_matrix_statements.csv
+            generated_with_4o_using_seed_statement_embeddings/
+                4o_for_labelling/
+                    utility_matrix.csv
+                    utility_matrix_statements.csv
+                4o-mini_for_labelling/
+                    utility_matrix.csv
+                    utility_matrix_statements.csv
+    """
+    if base_dir is None:
+        base_dir = get_base_dir_path() / "data/utility_matrix_results/"
+
+    assert labelling_model in ["4o", "4o-mini"]
+    assert embedding_type in ["seed_statement", "llm"]
+
+    # Now figure out which directory to use
+    selected_dir = base_dir / ("baseline" if baseline else "statements")
+    if baseline:
+        selected_dir = selected_dir / f"{labelling_model}_for_labelling"
+    else:
+        selected_dir = selected_dir / f"generated_with_4o_using_{embedding_type}_embeddings" / f"{labelling_model}_for_labelling"
+
+    utility_matrix_file = selected_dir / f"{'baseline_' if baseline else ''}utility_matrix.csv"
+    statement_id_file = selected_dir / f"{'baseline_' if baseline else ''}utility_matrix_statements.csv"
+
+    # Output
+    if baseline:
+        assignments = selected_dir / "baseline_assignments.json"
+    else:
+        assignments = selected_dir / "assignments/"
+
+    return {
+        "utility_matrix_file": utility_matrix_file,
+        "statement_id_file": statement_id_file,
+        "assignments": assignments,
+    }
 
 
 def get_time_string() -> str:
