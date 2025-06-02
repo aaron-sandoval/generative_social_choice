@@ -264,7 +264,9 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
     
     Args:
         utilities: DataFrame where each column contains utilities for different
-            methods/conditions
+            methods/conditions. Can have either a simple column index or a 2-level
+            MultiIndex. If using a MultiIndex, columns with the same first-level
+            index will be plotted with similar colors.
     
     Returns:
         matplotlib Figure object containing the plot
@@ -272,17 +274,62 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
     # Create figure and axis
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    # Plot each column's sorted distribution
-    for column in utilities.columns:
-        sorted_values = utilities[column].sort_values(ascending=False).values
-        indices = np.arange(len(sorted_values))
-        ax.plot(indices, sorted_values, label=column, color=plt.cm.tab20(utilities.columns.get_loc(column)))
+    # Check if we have a MultiIndex
+    if isinstance(utilities.columns, pd.MultiIndex):
+        # Get unique first-level indices
+        first_level_indices = sorted(set(utilities.columns.get_level_values(0)))
+        
+        # Create a colormap for each first-level index
+        # Use different colormaps for better distinction between groups
+        colormaps = {
+            idx: plt.cm.get_cmap(f'Set{i+1}', 4) if i % 2 == 0 else plt.cm.get_cmap(f'Dark{i+1}', 4)
+            for i, idx in enumerate(first_level_indices)
+        }
+        
+        # Track which first-level indices we've added to the legend
+        legend_added = set()
+        
+        # Plot each column's sorted distribution
+        for column in utilities.columns:
+            first_level = column[0]
+            second_level = column[1]
+            sorted_values = utilities[column].sort_values(ascending=False).values
+            indices = np.arange(len(sorted_values))
+            
+            # Get color from appropriate colormap
+            cmap = colormaps[first_level]
+            # Use modulo to cycle through colors within the colormap
+            color_idx = list(utilities.columns.get_level_values(0)).index(first_level) % 4
+            color = cmap(color_idx)
+            
+            # Only add label for the first occurrence of each first-level index
+            label = first_level if first_level not in legend_added else None
+            if label:
+                legend_added.add(first_level)
+            
+            ax.plot(
+                indices, 
+                sorted_values, 
+                label=label,
+                color=color
+            )
+    else:
+        # Original behavior for simple column index
+        for column in utilities.columns:
+            sorted_values = utilities[column].sort_values(ascending=False).values
+            indices = np.arange(len(sorted_values))
+            ax.plot(
+                indices, 
+                sorted_values, 
+                label=column, 
+                color=plt.cm.tab20(utilities.columns.get_loc(column))
+            )
     
     # Customize plot
     ax.set_xlabel("Voter index (sorted by utility)")
     ax.set_ylabel("Utility")
     ax.grid(axis='both', linestyle='--', alpha=0.7)
-    ax.legend()
+    ax.legend(loc='lower left')
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
