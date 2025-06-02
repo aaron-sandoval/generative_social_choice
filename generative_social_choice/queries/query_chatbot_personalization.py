@@ -286,7 +286,6 @@ def find_nearest_neighbors_by_embeddings(
     """
     assert center_agent not in agents
 
-    logs = []
     embedding = PrecomputedEmbedding(filepath=embeddings_file)
     similarities = embedding.compute_similarities(center_agent, agents)
 
@@ -294,7 +293,7 @@ def find_nearest_neighbors_by_embeddings(
     sorted_indices = np.argsort(similarities)[::-1]
     nearest_neighbors = [agents[i] for i in sorted_indices[:nbhd_size]]
 
-    return nearest_neighbors, logs
+    return nearest_neighbors, []
 
 
 class NearestNeighborChatbotPersonalizationGenerator(ChatbotPersonalizationGenerator):
