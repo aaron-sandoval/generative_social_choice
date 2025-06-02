@@ -3,6 +3,7 @@ This module contains functions for postprocessing results, including plotting an
 """
 
 import matplotlib.pyplot as plt
+import matplotlib
 import json
 import pandas as pd
 import numpy as np
@@ -279,12 +280,35 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
         # Get unique first-level indices
         first_level_indices = sorted(set(utilities.columns.get_level_values(0)))
         
-        # Create a colormap for each first-level index
-        # Use different colormaps for better distinction between groups
-        colormaps = {
-            idx: plt.cm.get_cmap(f'Set{i+1}', 4) if i % 2 == 0 else plt.cm.get_cmap(f'Dark{i+1}', 4)
-            for i, idx in enumerate(first_level_indices)
+        # Define primary colors for each group - using darker, more muted colors
+        primary_colors = {
+            idx: color for idx, color in zip(
+                first_level_indices,
+                [
+                    '#1a365d',  # dark blue
+                    '#7c2d12',  # dark orange
+                    '#145214',  # dark green
+                    '#7f1d1d',  # dark red
+                    '#4c1d95',  # dark purple
+                    '#713f12',  # dark brown
+                    '#0f766e',  # dark teal
+                    '#831843',  # dark pink
+                ]
+            )
         }
+        
+        # Create custom colormaps that transition from primary color to some average of the primary color and white
+        colormaps = {}
+        for idx in first_level_indices:
+            primary = primary_colors[idx]
+            # Convert hex to RGB
+            primary_rgb = tuple(int(primary[i:i+2], 16)/255 for i in (1, 3, 5))
+            # Create colormap from primary color to some average of the primary color and white
+            colormaps[idx] = matplotlib.colors.LinearSegmentedColormap.from_list(
+                f'custom_{idx}',
+                [primary_rgb, tuple(0.7 + 0.3*x for x in primary_rgb)],
+                N=8
+            )
         
         # Track which first-level indices we've added to the legend
         legend_added = set()
@@ -298,9 +322,9 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
             
             # Get color from appropriate colormap
             cmap = colormaps[first_level]
-            # Use modulo to cycle through colors within the colormap
-            color_idx = list(utilities.columns.get_level_values(0)).index(first_level) % 4
-            color = cmap(color_idx)
+            # Use index to get color, ensuring we use the full range of the colormap
+            color_idx = list(utilities.columns.get_level_values(1)).index(second_level)
+            color = cmap(color_idx / (len(utilities.columns.get_level_values(1)) - 1))
             
             # Only add label for the first occurrence of each first-level index
             label = first_level if first_level not in legend_added else None
