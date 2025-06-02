@@ -32,6 +32,15 @@ STATEMENT_ID_FILE = result_dirs["statement_id_file"]
 ASSIGNMENT_DIR = result_dirs["assignments"]
 
 
+VOTING_ALGORITHMS = {
+    **{alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)},
+    "exact": ExactTotalUtilityMaximization(),
+    "greedy": GreedyTotalUtilityMaximization(),
+    "lp": LPTotalUtilityMaximization(),
+    "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+}
 
 def run(
         slate_size: int,
@@ -118,16 +127,7 @@ if __name__=="__main__":
         os.makedirs(args.assignment_dir)
 
     # Keys will be used as filenames
-    voting_algorithms = {
-        **{alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)},
-        "exact": ExactTotalUtilityMaximization(),
-        "greedy": GreedyTotalUtilityMaximization(),
-        "lp": LPTotalUtilityMaximization(),
-        "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-        "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-        "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    }
-    for name, algo in voting_algorithms.items():
+    for name, algo in VOTING_ALGORITHMS.items():
         print(f"\n\nRunning algorithm '{algo.name}' ...")
         result = run(
             slate_size=args.slate_size,
