@@ -17,10 +17,23 @@ from generative_social_choice.slates.slate_generation import (
 import random
 import os
 import argparse
-from typing import Optional
+from typing import Optional, Literal
 
 
-def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = "default", discriminator_model: str = "default", dir_suffix: Optional[str] = "from_paper"):
+def generate_slate_from_paper(
+    num_agents: Optional[int],
+    generator_model: str = "default",
+    discriminator_model: str = "default",
+    dir_suffix: Optional[str] = "from_paper",
+    nn_function: Literal["openai", "original"] = "original",
+):
+    if nn_function == "openai":
+        nn_function = find_nearest_neighbors_by_embeddings
+    elif nn_function == "original":
+        nn_function = find_nearest_neighbors
+    else:
+        raise ValueError(f"Invalid nn_function: {nn_function}")
+
     disc_query_model_arg = {"model": "gpt-4o-mini-2024-07-18"} if discriminator_model == "default" else {"model": discriminator_model}
     gen_query_model_arg = {"model": "gpt-4o"} if generator_model == "default" else {"model": generator_model}
 
@@ -71,7 +84,7 @@ def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = 
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors_by_embeddings,
+            nn_function=nn_function,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -79,7 +92,7 @@ def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = 
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors_by_embeddings,
+            nn_function=nn_function,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -87,7 +100,7 @@ def generate_slate_from_paper(num_agents: Optional[int], generator_model: str = 
             nbhd_size=10,
             seed=None,
             gpt_temperature=0,
-            nn_function=find_nearest_neighbors_by_embeddings,
+            nn_function=nn_function,
             **gen_query_model_arg,
         ),
     ]
@@ -142,6 +155,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     # args.num_agents = 10
-    args.dir_suffix = "via_openai_embeddings_nn"
+    # args.dir_suffix = "via_openai_embeddings_nn"
+    args.dir_suffix = "via_fish_nn"
+    args.nn_function = "original"
 
-    generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix)
+    generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, nn_function=args.nn_function)
