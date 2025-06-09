@@ -23,6 +23,7 @@ from generative_social_choice.slates.voting_algorithms import (
     LPTotalUtilityMaximization,
     VotingAlgorithm,
     GeometricTransformation,
+    MonroeMatching,
 )
 from generative_social_choice.slates.voting_algorithm_axioms import (
     IndividualParetoAxiom,
@@ -43,13 +44,14 @@ _NAME_DELIMITER = "$&$"
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
-    GreedyTotalUtilityMaximization(),
-    ExactTotalUtilityMaximization(),
-    LPTotalUtilityMaximization(),
-    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    *all_instances(SequentialPhragmenMinimax),
+    # GreedyTotalUtilityMaximization(),
+    # ExactTotalUtilityMaximization(),
+    # LPTotalUtilityMaximization(),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # *all_instances(SequentialPhragmenMinimax),
+    MonroeMatching(),
 )
 
 voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))

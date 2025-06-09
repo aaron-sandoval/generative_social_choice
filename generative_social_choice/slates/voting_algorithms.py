@@ -10,6 +10,7 @@ import pulp
 import pandas as pd
 import numpy as np
 
+from generative_social_choice.paper_replication.compute_matching import optimize_monroe_matching
 from generative_social_choice.slates.voting_utils import voter_utilities, voter_max_utilities_from_slate
 from generative_social_choice.utils.helper_functions import geq_lib
 
@@ -566,4 +567,27 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
             assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
 
         #TODO If a utility transformation was applied, assignments["utilities"] won't match the original utilities
+        return slate, assignments
+
+
+@dataclass(frozen=True)
+class MonroeMatching(VotingAlgorithm):
+    """
+    Monroe matching algorithm.
+    """
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        VotingAlgorithm wrapper for `optimize_monroe_matching`.
+        """
+        utilities = [list(row) for row in rated_votes.to_numpy()]
+        assignment_tuple = optimize_monroe_matching(utilities)
+        # slate = [rated_votes.columns[i] for i in set(assignment_tuple)]
+        assignments = pd.DataFrame([rated_votes.columns[i] for i in assignment_tuple], index=rated_votes.index, columns=["candidate_id"])
+        assignments["utility"] = rated_votes.loc[assignments.index, assignments["candidate_id"]]
+        slate = assignments["candidate_id"].unique().tolist()
         return slate, assignments
