@@ -14,13 +14,11 @@ from generative_social_choice.statements.partitioning import (
     BaselineEmbedding,
     KMeansClustering,
     OpenAIEmbedding,
-    PrecomputedEmbedding,
     PrecomputedPartition,
     Partition,
 )
 from generative_social_choice.statements.statement_generation import (
     get_simple_agents,
-    DummyGenerator,
     NamedChatbotPersonalizationGenerator,
     LLMGenerator,
     PartitionGenerator,
@@ -62,26 +60,15 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     # Set up generators
 
     generators = [
-        #DummyGenerator(num_statements=3),
+        # We generate two statements meant to represent all agents
         NamedChatbotPersonalizationGenerator(
-            seed=0, gpt_temperature=0, **gen_query_model_arg
+            seed=0, gpt_temperature=1, **gen_query_model_arg
         ),
         NamedChatbotPersonalizationGenerator(
             seed=0, gpt_temperature=1, **gen_query_model_arg
         ),
         LLMGenerator(
-            seed=0, gpt_temperature=0, num_statements=5, **gen_query_model_arg
-        ),
-        LLMGenerator(
             seed=0, gpt_temperature=1, num_statements=5, **gen_query_model_arg
-        ),
-        #PartitionGenerator(
-        #    partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
-        #    base_generator=DummyGenerator(num_statements=2),
-        #),
-        PartitionGenerator(
-            partitioning=partitioning,
-            base_generator=NamedChatbotPersonalizationGenerator(seed=0, gpt_temperature=0, **gen_query_model_arg),
         ),
         PartitionGenerator(
             partitioning=partitioning,
@@ -89,16 +76,12 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
         ),
         PartitionGenerator(
             partitioning=partitioning,
-            base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
+            base_generator=NamedChatbotPersonalizationGenerator(seed=0, gpt_temperature=1, **gen_query_model_arg),
         ),
         PartitionGenerator(
             partitioning=partitioning,
-            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=3, **gen_query_model_arg),
+            base_generator=LLMGenerator(seed=0, gpt_temperature=1, num_statements=5, **gen_query_model_arg),
         ),
-        #PartitionGenerator(
-        #    partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=3),
-        #    base_generator=LLMGenerator(seed=0, gpt_temperature=0, num_statements=3, **gen_query_model_arg),
-        #),
     ]
 
     # Now for all the generators, generate statements, then write the results to some file
@@ -162,7 +145,22 @@ if __name__=="__main__":
         help="Default is gpt-4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
     )
 
+    parser.add_argument(
+        "--embeddings",
+        type=str,
+        default="openai",
+        choices=["openai", "baseline"],
+        help="Embedding method to use for partitioning.",
+    )
+
     args = parser.parse_args()
+
+    if args.embeddings == "openai":
+        embedding_method = OpenAIEmbedding(model="text-embedding-3-small", use_summary=False)
+    elif args.embeddings == "baseline":
+        embedding_method = BaselineEmbedding()
+    else:
+        raise ValueError(f"Invalid embedding method: {args.embeddings}")
 
     # We want to precompute partitioning to use the same clustering for
     # different LLM generation methods
@@ -170,22 +168,6 @@ if __name__=="__main__":
     generate_statements(
         model=args.model,
         num_agents=args.num_agents,
-        #partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_{args.num_clusters}.json",
-        #partitioning=KMeansClustering(embedding_method=BaselineEmbedding(), num_partitions=args.num_clusters, seed=0),
-        partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_openai_small_nosummary_{args.num_clusters}.json",
-        partitioning=KMeansClustering(embedding_method=OpenAIEmbedding(model="text-embedding-3-small", use_summary=False), num_partitions=args.num_clusters, seed=0),
+        partioning_file=get_base_dir_path() / f"data/demo_data/kmeans_partitioning_{args.embeddings}_{args.num_clusters}.json",
+        partitioning=KMeansClustering(embedding_method=embedding_method, num_partitions=args.num_clusters, seed=0),
     )
-
-    # How to use precomputed embeddings
-    #embedding_file = get_base_dir_path() / "data/demo_data/TEST_embeddings.json"
-    #BaselineEmbedding().precompute(agents=get_simple_agents(), filepath=embedding_file)
-    #print("Computing embeddings and saving them to disk ...")
-
-    # How to precompute assignments
-    #partition_file = get_base_dir_path() / "data/demo_data/TEST_partitioning.json"
-    #partitioning = KMeansClustering(num_partitions=5, embedding_method=BaselineEmbedding())
-    #partitioning.precompute(agents=get_simple_agents(), filepath=partition_file)
-
-    #print("Using precomputed embeddings for clustering")
-    #partitioning = PrecomputedPartition(filepath=partition_file)
-    #print(partitioning.assign(agents=agents))
