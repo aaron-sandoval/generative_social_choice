@@ -23,19 +23,20 @@ def get_base_dir_path() -> Path:
     return base_dir_path
 
 
-def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], baseline: bool=False, base_dir: Path | None = None) -> dict[str, Path]:
+def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], baseline: bool=False,
+                      base_dir: Path | None = None, run_id: str | None = None) -> dict[str, Path]:
     """Get directories given a hierarchy of directories.
     
     The following structure is assumed:
     base_dir/
-        baseline/
+        baseline/[run_id]/
             4o_for_labelling/
                 baseline_utility_matrix.csv
                 baseline_utility_matrix_statements.csv
             4o-mini_for_labelling/
                 baseline_utility_matrix.csv
                 baseline_utility_matrix_statements.csv
-        statements/
+        statements/[run_id]/
             generated_with_4o_using_llm_embeddings/
                 4o_for_labelling/
                     utility_matrix.csv
@@ -59,6 +60,9 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
 
     # Now figure out which directory to use
     selected_dir = base_dir / ("baseline" if baseline else "statements")
+    if run_id is not None:
+        selected_dir = selected_dir / str(run_id)
+
     if baseline:
         selected_dir = selected_dir / f"{labelling_model}_for_labelling"
     else:
