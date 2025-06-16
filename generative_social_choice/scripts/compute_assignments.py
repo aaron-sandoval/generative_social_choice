@@ -37,6 +37,10 @@ def run(
         ignore_initial_statements: bool=False,
         verbose: bool=False,
     ):
+    if not assignment_file.parent.exists():
+        print(f"Creating directory {assignment_file.parent} ...")
+        assignment_file.parent.mkdir(parents=True, exist_ok=True)
+
     result = compute_assignments(
         voting_algorithm=voting_algotirhm,
         utility_matrix_file=utility_matrix_file,
@@ -116,10 +120,6 @@ if __name__=="__main__":
         baseline=False,
         run_id=args.run_id
     )
-
-    if not result_paths["assignments"].exists():
-        print(f"Creating directory {result_paths['assignments']} ...")
-        os.makedirs(result_paths["assignments"])
 
     # Keys will be used as filenames
     for name, algo in VOTING_ALGORITHMS.items():

@@ -5,6 +5,7 @@ from generative_social_choice.scripts.generate_statements import run as generate
 from generative_social_choice.scripts.rate_statements import run as rate_statements
 from generative_social_choice.scripts.compute_assignments import run as compute_assignments
 from generative_social_choice.scripts.compute_assignments import VOTING_ALGORITHMS
+from generative_social_choice.utils.helper_functions import get_results_paths
 
 
 def run_pipeline(
@@ -49,6 +50,7 @@ def run_pipeline(
 
     if "compute_assignments" in steps_to_run:
         print("\n=== Step 3: Computing Assignments ===")
+        results_paths = get_results_paths(run_id=run_id, embedding_type=embedding_type, generation_model=generation_model, labelling_model=rating_model)
         # Run each voting algorithm
         for name, algo in VOTING_ALGORITHMS.items():
             print(f"\nRunning algorithm '{algo.name}' ...")
@@ -57,9 +59,9 @@ def run_pipeline(
                 voting_algotirhm=algo,
                 ignore_initial_statements=ignore_initial,
                 verbose=verbose,
-                model=rating_model,
-                embedding_type=embedding_type,
-                run_id=run_id,
+                utility_matrix_file=results_paths["utility_matrix_file"],
+                statement_id_file=results_paths["statement_id_file"],
+                assignment_file=results_paths["assignments"] / f"{name}.json",
             )
 
 
@@ -148,5 +150,4 @@ if __name__ == "__main__":
         seed=args.seed,
         ignore_initial=args.ignore_initial,
         verbose=args.verbose,
-        steps_to_run=["rate_statements", "compute_assignments"],  #TODO remove again
     ) 
