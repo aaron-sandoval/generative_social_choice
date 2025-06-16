@@ -33,6 +33,11 @@ def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_stat
     if num_statements is not None:
         statements = random.sample(statements, num_statements)
 
+    # Generate directory for utility matrix if it doesn't exist
+    if not result_paths["utility_matrix_file"].parent.exists():
+        print(f"Creating directory {result_paths['utility_matrix_file'].parent} ...")
+        result_paths["utility_matrix_file"].parent.mkdir(parents=True, exist_ok=True)
+
     create_utility_matrix(
         agents=agents,
         statements=statements,
