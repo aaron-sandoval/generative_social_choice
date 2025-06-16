@@ -18,15 +18,17 @@ def run_pipeline(
     seed: int = 0,
     ignore_initial: bool = False,
     verbose: bool = True,
+    steps_to_run: list[str] = ["generate_statements", "rate_statements", "compute_assignments"],
 ):
     """Run the full pipeline:
     1. Generate statements
     2. Rate statements
     3. Compute assignments
     """
-    print("\n=== Step 1: Generating Statements ===")
-    generate_statements(
-        embedding_method=embedding_type,
+    if "generate_statements" in steps_to_run:
+        print("\n=== Step 1: Generating Statements ===")
+        generate_statements(
+            embedding_method=embedding_type,
         num_agents=num_agents,
         num_clusters=num_clusters,
         model=generation_model,
@@ -34,27 +36,31 @@ def run_pipeline(
         run_id=run_id,
     )
 
-    print("\n=== Step 2: Rating Statements ===")
-    rate_statements(
-        model=rating_model,
-        num_agents=num_agents,
-        run_id=run_id,
-        verbose=verbose,
-    )
-
-    print("\n=== Step 3: Computing Assignments ===")
-    # Run each voting algorithm
-    for name, algo in VOTING_ALGORITHMS.items():
-        print(f"\nRunning algorithm '{algo.name}' ...")
-        compute_assignments(
-            slate_size=slate_size,
-            voting_algotirhm=algo,
-            ignore_initial_statements=ignore_initial,
-            verbose=verbose,
+    if "rate_statements" in steps_to_run:
+        print("\n=== Step 2: Rating Statements ===")
+        rate_statements(
             model=rating_model,
-            embedding_type=embedding_type,
+            num_agents=num_agents,
             run_id=run_id,
+            generation_model=generation_model,
+            verbose=verbose,
         )
+
+
+    if "compute_assignments" in steps_to_run:
+        print("\n=== Step 3: Computing Assignments ===")
+        # Run each voting algorithm
+        for name, algo in VOTING_ALGORITHMS.items():
+            print(f"\nRunning algorithm '{algo.name}' ...")
+            compute_assignments(
+                slate_size=slate_size,
+                voting_algotirhm=algo,
+                ignore_initial_statements=ignore_initial,
+                verbose=verbose,
+                model=rating_model,
+                embedding_type=embedding_type,
+                run_id=run_id,
+            )
 
 
 if __name__ == "__main__":
@@ -142,4 +148,5 @@ if __name__ == "__main__":
         seed=args.seed,
         ignore_initial=args.ignore_initial,
         verbose=args.verbose,
+        steps_to_run=["rate_statements", "compute_assignments"],  #TODO remove again
     ) 

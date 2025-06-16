@@ -23,7 +23,7 @@ def get_base_dir_path() -> Path:
     return base_dir_path
 
 
-def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], baseline: bool=False,
+def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], generation_model: str = "4o", baseline: bool=False,
                       base_dir: Path | None = None, run_id: str | None = None) -> dict[str, Path]:
     """Get directories given a hierarchy of directories.
     
@@ -56,6 +56,7 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
         base_dir = get_base_dir_path() / "data/results/"
 
     assert labelling_model in ["4o", "4o-mini"]
+    assert generation_model in ["4o", "4o-mini"]
     assert embedding_type in ["seed_statement", "llm"]
 
     # Now figure out which directory to use
@@ -65,9 +66,11 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
     main_dir = selected_dir / ""
 
     if baseline:
-        selected_dir = selected_dir / f"{labelling_model}_for_labelling"
+        results_dir = main_dir
+        selected_dir = results_dir / f"{labelling_model}_for_labelling"
     else:
-        selected_dir = selected_dir / f"generated_with_4o_using_{embedding_type}_embeddings" / f"{labelling_model}_for_labelling"
+        results_dir = main_dir / f"generated_with_{generation_model}_using_{embedding_type}_embeddings"
+        selected_dir = results_dir / f"{labelling_model}_for_labelling"
 
     utility_matrix_file = selected_dir / f"{'baseline_' if baseline else ''}utility_matrix.csv"
     statement_id_file = selected_dir / f"{'baseline_' if baseline else ''}utility_matrix_statements.csv"
@@ -78,12 +81,19 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
     else:
         assignments = selected_dir / "assignments/"
 
-    return {
+    return_dict = {
         "utility_matrix_file": utility_matrix_file,
         "statement_id_file": statement_id_file,
         "assignments": assignments,
         "base_dir": main_dir,
+        "results_dir": results_dir,
     }
+    if not baseline:
+        return_dict["ratings_file"] = results_dir / "ratings.jsonl"
+        return_dict["ratings_logs_file"] = results_dir / "ratings_logs.csv"
+        return_dict["statement_generation_raw_output_file"] = results_dir / "statement_generation_raw_output.csv"
+        return_dict["statement_generation_logs_file"] = results_dir / "statement_generation_logs.csv"
+    return return_dict
 
 
 def get_time_string() -> str:

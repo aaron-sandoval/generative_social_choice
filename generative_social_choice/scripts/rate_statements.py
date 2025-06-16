@@ -9,7 +9,8 @@ from generative_social_choice.ratings.rating_generation import get_agents
 from generative_social_choice.ratings.utility_matrix import create_utility_matrix
 
 
-def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_statements: Optional[int]=None, run_id: Optional[str]=None):
+def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_statements: Optional[int]=None,
+        run_id: Optional[str]=None, generation_model: str = "4o"):
     agents = get_agents(model=model)
 
     # Subsample agents
@@ -19,13 +20,14 @@ def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_stat
     # Get paths based on run_id
     result_paths = get_results_paths(
         labelling_model="4o-mini" if "mini" in model else "4o",
+        generation_model=generation_model,
         embedding_type="llm",  # Default to llm embeddings
         baseline=False,
         run_id=run_id
     )
 
     # Read generated statements
-    statements = pd.read_csv(result_paths["base_dir"] / "statement_generation_raw_output.csv")["statement"].to_list()
+    statements = pd.read_csv(result_paths["results_dir"] / "statement_generation_raw_output.csv")["statement"].to_list()
 
     # Subsample statements
     if num_statements is not None:
@@ -36,9 +38,9 @@ def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_stat
         statements=statements,
         utility_matrix_file=result_paths["utility_matrix_file"],
         statement_id_file=result_paths["statement_id_file"],
-        ratings_file=result_paths["base_dir"] / "ratings.jsonl",
+        ratings_file=result_paths["ratings_file"],
         prepend_survey_statements=True,
-        log_file=result_paths["base_dir"] / "ratings_logs.csv",
+        log_file=result_paths["ratings_logs_file"],
         verbose=verbose,
     )
 
@@ -68,6 +70,13 @@ if __name__=="__main__":
     )
 
     parser.add_argument(
+        "--generation_model",
+        type=str,
+        default="4o-mini",
+        help="Default is 4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
+    )
+
+    parser.add_argument(
         "--run_id",
         type=str,
         default=None,
@@ -76,4 +85,4 @@ if __name__=="__main__":
 
     args = parser.parse_args()
 
-    run(model=args.model, num_statements=args.num_statements, num_agents=args.num_agents, run_id=args.run_id)
+    run(model=args.model, num_statements=args.num_statements, num_agents=args.num_agents, run_id=args.run_id, generation_model=args.generation_model)

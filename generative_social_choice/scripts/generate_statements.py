@@ -101,6 +101,7 @@ def generate_statements(num_agents: Optional[int] = None, model: str = "default"
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
+    #TODO Could get result_file and log_file paths from results_paths
     result_file = folder_path / "statement_generation_raw_output.csv"
     # NOTE: Pandas can write csvs in append mode, but that is error prone as previous header entries
     # aren't checked.
@@ -127,9 +128,11 @@ def run(embedding_method: str, num_agents: int, num_clusters: int, model: str, s
         raise ValueError(f"Invalid embedding method: {embedding_method} (should be 'llm' or 'seed_statement')")
 
     # Note that labelling model isn't relevant for base_dir
-    base_dir = get_results_paths(run_id=run_id, embedding_type=embedding_method, labelling_model="4o-mini")["base_dir"]
+    results_paths = get_results_paths(run_id=run_id, embedding_type=embedding_method, generation_model=model, labelling_model="4o-mini")
+    base_dir = results_paths["base_dir"]
     partitioning_file = base_dir / f"kmeans_partitioning_{embedding_method}_{num_clusters}_{seed}.json"
     folder_path = base_dir / f"generated_with_{model}_using_{embedding_method}_embeddings"
+    assert folder_path == results_paths["results_dir"], "Folder path and results path are not the same"
 
     if not os.path.exists(folder_path):
         print(f"Creating directory {folder_path} ...")
