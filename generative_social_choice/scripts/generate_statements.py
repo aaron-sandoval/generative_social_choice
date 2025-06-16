@@ -126,9 +126,14 @@ def run(embedding_method: str, num_agents: int, num_clusters: int, model: str, s
     else:
         raise ValueError(f"Invalid embedding method: {embedding_method} (should be 'llm' or 'seed_statement')")
 
-    base_dir = get_results_paths(run_id=run_id)["base_dir"]
+    # Note that labelling model isn't relevant for base_dir
+    base_dir = get_results_paths(run_id=run_id, embedding_type=embedding_method, labelling_model="4o-mini")["base_dir"]
     partitioning_file = base_dir / f"kmeans_partitioning_{embedding_method}_{num_clusters}_{seed}.json"
     folder_path = base_dir / f"generated_with_{model}_using_{embedding_method}_embeddings"
+
+    if not os.path.exists(folder_path):
+        print(f"Creating directory {folder_path} ...")
+        os.makedirs(folder_path)
 
     # We want to precompute partitioning to use the same clustering for
     # different LLM generation methods
@@ -164,15 +169,15 @@ if __name__=="__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4o-mini",
-        help="Default is gpt-4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
+        default="4o-mini",
+        help="Default is 4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
     )
 
     parser.add_argument(
         "--embeddings",
         type=str,
-        default="openai",
-        choices=["openai", "baseline"],
+        default="llm",
+        choices=["llm", "seed_statement"],
         help="Embedding method to use for partitioning.",
     )
 

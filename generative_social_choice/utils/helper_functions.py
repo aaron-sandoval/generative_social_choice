@@ -62,7 +62,7 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
     selected_dir = base_dir / ("baseline" if baseline else "statements")
     if run_id is not None:
         selected_dir = selected_dir / str(run_id)
-    main_dir = selected_dir[:]
+    main_dir = selected_dir / ""
 
     if baseline:
         selected_dir = selected_dir / f"{labelling_model}_for_labelling"

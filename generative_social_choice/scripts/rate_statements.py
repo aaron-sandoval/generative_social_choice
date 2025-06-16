@@ -63,8 +63,8 @@ if __name__=="__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4o-mini",
-        help="Default is gpt-4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
+        default="4o-mini",
+        help="Default is 4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
     )
 
     parser.add_argument(
