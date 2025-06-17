@@ -89,8 +89,8 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
         "results_dir": results_dir,
     }
     if not baseline:
-        return_dict["ratings_file"] = results_dir / "ratings.jsonl"
-        return_dict["ratings_logs_file"] = results_dir / "ratings_logs.csv"
+        return_dict["ratings_file"] = selected_dir / "ratings.jsonl"
+        return_dict["ratings_logs_file"] = selected_dir / "ratings_logs.csv"
         return_dict["statement_generation_raw_output_file"] = results_dir / "statement_generation_raw_output.csv"
         return_dict["statement_generation_logs_file"] = results_dir / "statement_generation_logs.csv"
     return return_dict
