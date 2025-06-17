@@ -44,14 +44,15 @@ TODO Adjust instructions to use poetry instead of pipenv
 
 The pipeline uses the survey dataset from Fish et al. We assume that the summaries have been generated already (as included in the repo or explained below).
 
-From the directory where the readme is located:
+From the directory where this README is located, you can run the whole pipeline by calling `python generative_social_choice/scripts/full_pipeline.py --generation_model=4o`. This script has additional arguments in case you want to use other embeddings, fix a seed etc.
 
-1. Statement generation: Generate statements by calling `python generative_social_choice/scripts/generate_statements.py --model=gpt-4o`. This creates a folder `generative_social_choice/data/demo_data/{timestamp}_statement_generation` with the generated statements and corresponding logs.
-  - It should cost around 50c to run this for all agents.
-2. Create utility matrix: Compute approval ratings for the generated statements and create the complete utility matrix by calling `python generative_social_choice/scripts/rate_statements.py --model=gpt-4o-mini`. This creates a file with the utility matrix and another file which maps the statement IDs used in the utility matrix back to the statements.
-  - Running this step with all agents and statements is the most expensive step and should be around 20-30 USD.
-  - In our first pass, we ran this step with a subset of the generated statements which you find in `generative_social_choice/data/demo_data/statement_generation_selection.csv`.
-3. Assignment: Find a good slate and assign agents to statements of that slate by calling `python generative_social_choice/scripts/compute_assignments.py --slate_size=5 --ignore_initial=True`. This creates a final file with all assignments in JSON format. This JSON file can be read using the AssignmentResult class from `generative_social_choice/slates/survey_assignments.py`.
+You can also run the different steps of the pipeline individually, using the scripts
+
+- `generative_social_choice/scripts/generate_statements.py`, which creates a file with statements
+- `generative_social_choice/scripts/rate_statements.py`, which creates a file with the utility matrix and another file which maps the statement IDs used in the utility matrix back to statements
+- `generative_social_choice/scripts/compute_assignments.py`, which creates final assignments for each method and writes these assignments to JSON files
+
+You can then use the jupyter notebooks in `generative_social_choice/plots/` to analyze the results.
 
 Notes:
 
