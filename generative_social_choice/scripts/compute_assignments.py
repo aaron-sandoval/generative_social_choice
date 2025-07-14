@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 from kiwiutils.finite_valued import all_instances
 
-from generative_social_choice.utils.helper_functions import get_base_dir_path, get_results_paths
+from generative_social_choice.utils.helper_functions import get_results_paths
 from generative_social_choice.slates.survey_assignments import compute_assignments
 from generative_social_choice.slates.voting_algorithms import (
     VotingAlgorithm,
@@ -18,20 +18,15 @@ from generative_social_choice.slates.voting_algorithms import (
 )
 
 
-# Configuration
-LABELLING_MODEL = "4o-mini"  # "4o" or "4o-mini"
-EMBEDDING_TYPE = "seed_statement"  # "seed_statement" or "llm"
-
-result_dirs = get_results_paths(labelling_model=LABELLING_MODEL, embedding_type=EMBEDDING_TYPE, baseline=False)
-
-# Input
-UTILITY_MATRIX_FILE = result_dirs["utility_matrix_file"]
-STATEMENT_ID_FILE = result_dirs["statement_id_file"]
-
-# Output
-ASSIGNMENT_DIR = result_dirs["assignments"]
-
-
+VOTING_ALGORITHMS = {
+    **{alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)},
+    "exact": ExactTotalUtilityMaximization(),
+    "greedy": GreedyTotalUtilityMaximization(),
+    "lp": LPTotalUtilityMaximization(),
+    "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+}
 
 def run(
         slate_size: int,
@@ -42,6 +37,10 @@ def run(
         ignore_initial_statements: bool=False,
         verbose: bool=False,
     ):
+    if not assignment_file.parent.exists():
+        print(f"Creating directory {assignment_file.parent} ...")
+        assignment_file.parent.mkdir(parents=True, exist_ok=True)
+
     result = compute_assignments(
         voting_algorithm=voting_algotirhm,
         utility_matrix_file=utility_matrix_file,
@@ -84,10 +83,25 @@ if __name__=="__main__":
     )
 
     parser.add_argument(
-        "--utility_matrix_file",
-        type=Path,
-        default=UTILITY_MATRIX_FILE,
-        help="Path to the file containing the utility matrix.",
+        "--model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Model used for labelling. Default is gpt-4o-mini.",
+    )
+
+    parser.add_argument(
+        "--embedding_type",
+        type=str,
+        choices=["llm", "seed_statement"],
+        default="llm",
+        help="Type of embeddings used. Default is llm.",
+    )
+
+    parser.add_argument(
+        "--run_id",
+        type=str,
+        default=None,
+        help="Optional run ID to use for organizing results in a specific directory.",
     )
 
     parser.add_argument(
@@ -97,44 +111,25 @@ if __name__=="__main__":
         help="If True, the first 6 statements in the utility matrix will be ignored.",
     )
 
-    parser.add_argument(
-        "--statement_id_file",
-        type=Path,
-        default=STATEMENT_ID_FILE,
-        help="Path to the file containing the mapping from statement ID to statement.",
-    )
-
-    parser.add_argument(
-        "--assignment_dir",
-        type=Path,
-        default=ASSIGNMENT_DIR,
-        help="The computed solutions will be written to this directory.",
-    )
-
     args = parser.parse_args()
 
-    if not args.assignment_dir.exists():
-        print(f"Creating directory {args.assignment_dir} ...")
-        os.makedirs(args.assignment_dir)
+    # Get paths based on run_id and model
+    result_paths = get_results_paths(
+        labelling_model="4o-mini" if "mini" in args.model else "4o",
+        embedding_type=args.embedding_type,
+        baseline=False,
+        run_id=args.run_id
+    )
 
     # Keys will be used as filenames
-    voting_algorithms = {
-        **{alg.name: alg for alg in all_instances(SequentialPhragmenMinimax)},
-        "exact": ExactTotalUtilityMaximization(),
-        "greedy": GreedyTotalUtilityMaximization(),
-        "lp": LPTotalUtilityMaximization(),
-        "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-        "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-        "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    }
-    for name, algo in voting_algorithms.items():
+    for name, algo in VOTING_ALGORITHMS.items():
         print(f"\n\nRunning algorithm '{algo.name}' ...")
         result = run(
             slate_size=args.slate_size,
             voting_algotirhm=algo,
-            utility_matrix_file=args.utility_matrix_file,
-            statement_id_file=args.statement_id_file,
-            assignment_file=args.assignment_dir / f"{name}.json",
+            utility_matrix_file=result_paths["utility_matrix_file"],
+            statement_id_file=result_paths["statement_id_file"],
+            assignment_file=result_paths["assignments"] / f"{name}.json",
             ignore_initial_statements=args.ignore_initial,
             verbose=True,
         )

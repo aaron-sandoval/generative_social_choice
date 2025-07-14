@@ -138,7 +138,7 @@ class GPT:
             api_key=api_key,
             organization=organization,
         )
-        self.model = model
+        self.model = model if model not in ["4o-mini", "4o"] else f"gpt-{model}"
         self.params = params
         self.openai_seed = openai_seed
 
