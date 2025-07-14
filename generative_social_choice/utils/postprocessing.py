@@ -259,7 +259,7 @@ def plot_likert_category_clustered_bar_chart(
     return fig
 
 
-def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
+def plot_sorted_utility_distributions(utilities: pd.DataFrame, figsize: tuple[float, float] = (10, 6)) -> plt.Figure:
     """
     Plot sorted utility distributions for each column in the DataFrame.
     
@@ -273,7 +273,7 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
         matplotlib Figure object containing the plot
     """
     # Create figure and axis
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=figsize)
     
     # Check if we have a MultiIndex
     if isinstance(utilities.columns, pd.MultiIndex):
@@ -348,6 +348,175 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame) -> plt.Figure:
                 label=column, 
                 color=plt.cm.tab20(utilities.columns.get_loc(column))
             )
+    
+    # Customize plot
+    ax.set_xlabel("Voter index (sorted by utility)")
+    ax.set_ylabel("Utility")
+    ax.grid(axis='both', linestyle='--', alpha=0.7)
+    ax.legend(loc='lower left')
+    
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+
+def plot_sorted_utility_CIs(
+    utilities: pd.DataFrame, 
+    confidence_level: float = 0.95,
+    n_bootstrap: int = 400,
+    figsize: tuple[float, float] = (10, 6)
+) -> plt.Figure:
+    """
+    Plot confidence intervals for sorted utility distributions using bootstrapping.
+    
+    Instead of plotting each line individually, this function treats the lines as a 
+    sample from a population and plots confidence intervals of the mean trajectory 
+    across the domain using bootstrapping. When there is a MultiIndex on the columns, 
+    it groups columns by the first level and plots separate confidence intervals for each group.
+    
+    Args:
+        utilities: DataFrame where each column contains utilities for different
+            methods/conditions. Can have either a simple column index or a 2-level
+            MultiIndex. If using a MultiIndex, columns with the same first-level
+            index will be grouped together.
+        confidence_level: Width of the confidence interval (default: 0.95).
+        n_bootstrap: Number of bootstrap samples to generate (default: 1000).
+    
+    Returns:
+        matplotlib Figure object containing the plot
+    """
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Calculate confidence interval bounds
+    alpha = 1 - confidence_level
+    lower_percentile = (alpha / 2) * 100
+    upper_percentile = (1 - alpha / 2) * 100
+    
+    def bootstrap_confidence_interval(data: np.ndarray, n_bootstrap: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Calculate bootstrap confidence intervals for the mean trajectory.
+        
+        Args:
+            data: Array of shape (n_samples, n_points) where each row is a sorted utility trajectory
+            n_bootstrap: Number of bootstrap samples
+            
+        Returns:
+            Tuple of (mean_trajectory, lower_bound, upper_bound)
+        """
+        n_samples, n_points = data.shape
+        bootstrap_means = []
+        
+        for _ in range(n_bootstrap):
+            # Sample with replacement from the rows (trajectories)
+            bootstrap_indices = np.random.choice(n_samples, size=n_samples, replace=True)
+            bootstrap_sample = data[bootstrap_indices]
+            bootstrap_mean = np.mean(bootstrap_sample, axis=0)
+            bootstrap_means.append(bootstrap_mean)
+        
+        bootstrap_means = np.array(bootstrap_means)
+        mean_trajectory = np.mean(data, axis=0)  # Sample mean
+        lower_bound = np.percentile(bootstrap_means, lower_percentile, axis=0)
+        upper_bound = np.percentile(bootstrap_means, upper_percentile, axis=0)
+        
+        return mean_trajectory, lower_bound, upper_bound
+    
+    # Check if we have a MultiIndex
+    if isinstance(utilities.columns, pd.MultiIndex):
+        # Get unique first-level indices
+        first_level_indices = sorted(set(utilities.columns.get_level_values(0)))
+        
+        # Define colors for each group
+        colors = [
+            '#1a365d',  # dark blue
+            '#7c2d12',  # dark orange
+            '#145214',  # dark green
+            '#7f1d1d',  # dark red
+            '#4c1d95',  # dark purple
+            '#713f12',  # dark brown
+            '#0f766e',  # dark teal
+            '#831843',  # dark pink
+        ]
+        
+        # Process each group
+        for i, group_name in enumerate(first_level_indices):
+            # Get columns for this group
+            group_columns = [col for col in utilities.columns if col[0] == group_name]
+            
+            # Calculate sorted utilities for each column in the group
+            sorted_utilities_group = []
+            for column in group_columns:
+                sorted_values = utilities[column].sort_values(ascending=False).values
+                sorted_utilities_group.append(sorted_values)
+            
+            # Convert to numpy array for easier calculation
+            sorted_utilities_array = np.array(sorted_utilities_group)
+            
+            # Calculate bootstrap confidence intervals
+            mean_trajectory, lower_bound, upper_bound = bootstrap_confidence_interval(
+                sorted_utilities_array, n_bootstrap
+            )
+            
+            # Create x-axis indices
+            indices = np.arange(len(mean_trajectory))
+            
+            # Plot confidence interval as shaded region
+            color = colors[i % len(colors)]
+            ax.fill_between(
+                indices, 
+                lower_bound, 
+                upper_bound, 
+                alpha=0.3, 
+                color=color,
+                label=f"{group_name} {confidence_level:.0%} CI (n={len(group_columns)})"
+            )
+            
+            # Plot sample mean trajectory
+            ax.plot(
+                indices, 
+                mean_trajectory, 
+                color=color, 
+                linewidth=2,
+                label=f"{group_name} (sample mean, n={len(group_columns)})"
+            )
+    else:
+        # For simple column index, treat all columns as one group
+        # Calculate sorted utilities for each column
+        sorted_utilities_list = []
+        for column in utilities.columns:
+            sorted_values = utilities[column].sort_values(ascending=False).values
+            sorted_utilities_list.append(sorted_values)
+        
+        # Convert to numpy array
+        sorted_utilities_array = np.array(sorted_utilities_list)
+        
+        # Calculate bootstrap confidence intervals
+        mean_trajectory, lower_bound, upper_bound = bootstrap_confidence_interval(
+            sorted_utilities_array, n_bootstrap
+        )
+        
+        # Create x-axis indices
+        indices = np.arange(len(mean_trajectory))
+        
+        # Plot confidence interval as shaded region
+        ax.fill_between(
+            indices, 
+            lower_bound, 
+            upper_bound, 
+            alpha=0.3, 
+            color='blue',
+            label=f"All methods ({confidence_level:.0%} CI)"
+        )
+        
+        # Plot sample mean trajectory
+        ax.plot(
+            indices, 
+            mean_trajectory, 
+            color='blue', 
+            linewidth=2,
+            label="All methods (sample mean)"
+        )
     
     # Customize plot
     ax.set_xlabel("Voter index (sorted by utility)")
