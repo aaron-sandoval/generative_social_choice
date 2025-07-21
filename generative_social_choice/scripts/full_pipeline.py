@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 from generative_social_choice.scripts.generate_statements import run as generate_statements
 from generative_social_choice.scripts.rate_statements import run as rate_statements
@@ -85,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--embedding_type",
         type=str,
-        choices=["llm", "seed_statement"],
+        choices=["llm", "seed_statement", "fish"],
         default="llm",
         help="Type of embeddings to use. Default is llm.",
     )

@@ -15,6 +15,7 @@ from generative_social_choice.statements.partitioning import (
     BaselineEmbedding,
     KMeansClustering,
     OpenAIEmbedding,
+    PrecomputedEmbedding,
     PrecomputedPartition,
     Partition,
 )
@@ -124,6 +125,13 @@ def run(embedding_method: str, num_agents: int, num_clusters: int, model: str, s
         embeddings = OpenAIEmbedding(model="text-embedding-3-small", use_summary=False)
     elif embedding_method == "seed_statement":
         embeddings = BaselineEmbedding()
+    elif embedding_method == "fish":
+        # NOTE: We assume that the run directory already has the embeddings!
+        results_paths = get_results_paths(run_id=run_id, embedding_type=embedding_method, generation_model=model, labelling_model="4o-mini")
+        embedding_path = results_paths["base_dir"] / "fish_embeddings.json"
+        if not os.path.exists(embedding_path):
+            raise FileNotFoundError(f"Fish embeddings not found at {embedding_path}!")
+        embeddings = PrecomputedEmbedding(filepath=embedding_path)
     else:
         raise ValueError(f"Invalid embedding method: {embedding_method} (should be 'llm' or 'seed_statement')")
 
@@ -180,7 +188,7 @@ if __name__=="__main__":
         "--embeddings",
         type=str,
         default="llm",
-        choices=["llm", "seed_statement"],
+        choices=["llm", "seed_statement", "fish"],
         help="Embedding method to use for partitioning.",
     )
 
@@ -191,6 +199,13 @@ if __name__=="__main__":
         help="Seed for random number generator.",
     )
 
+    parser.add_argument(
+        "--run_id",
+        type=str,
+        default=None,
+        help="Optional run ID to specify output directory structure.",
+    )
+
     args = parser.parse_args()
 
-    run(embedding_method=args.embeddings, num_agents=args.num_agents, num_clusters=args.num_clusters, model=args.model, seed=args.seed)
+    run(embedding_method=args.embeddings, num_agents=args.num_agents, num_clusters=args.num_clusters, model=args.model, seed=args.seed, run_id=args.run_id)
