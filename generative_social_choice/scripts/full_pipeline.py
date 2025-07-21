@@ -43,6 +43,7 @@ def run_pipeline(
             num_agents=num_agents,
             run_id=run_id,
             generation_model=generation_model,
+            embedding_type=embedding_type,
             verbose=verbose,
         )
 
