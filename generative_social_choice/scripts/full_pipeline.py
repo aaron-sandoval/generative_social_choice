@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 from generative_social_choice.scripts.generate_statements import run as generate_statements
 from generative_social_choice.scripts.rate_statements import run as rate_statements
@@ -44,6 +43,7 @@ def run_pipeline(
             num_agents=num_agents,
             run_id=run_id,
             generation_model=generation_model,
+            embedding_type=embedding_type,
             verbose=verbose,
         )
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--embedding_type",
         type=str,
-        choices=["llm", "seed_statement"],
+        choices=["llm", "seed_statement", "fish"],
         default="llm",
         help="Type of embeddings to use. Default is llm.",
     )
