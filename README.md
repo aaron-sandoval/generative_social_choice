@@ -52,6 +52,8 @@ You can also run the different steps of the pipeline individually, using the scr
 - `generative_social_choice/scripts/rate_statements.py`, which creates a file with the utility matrix and another file which maps the statement IDs used in the utility matrix back to statements
 - `generative_social_choice/scripts/compute_assignments.py`, which creates final assignments for each method and writes these assignments to JSON files
 
+To run our pipeline with embeddings from Fish et al., first compute an embedding matrix using the script `generative_social_choice/scripts/compute_fish_embeddings.py`, then move the file with the embeddings matrix that is created by that script to a folder for the run results (`generative_social_choice/data/results/statements/[run_id]/`) and then call the pipeline using arguments `--embeddings=fish` and `--run_id=[run_id]`.
+
 You can then use the jupyter notebooks in `generative_social_choice/plots/` to analyze the results.
 
 Notes:
