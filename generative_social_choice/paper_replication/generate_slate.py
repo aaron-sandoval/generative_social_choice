@@ -159,4 +159,5 @@ if __name__ == "__main__":
     # args.dir_suffix = "via_fish_nn"
     args.nn_function = "openai"
 
-    generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, nn_function=args.nn_function)
+    for _ in range(4):
+        generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, nn_function=args.nn_function)
