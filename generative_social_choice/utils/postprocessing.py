@@ -69,6 +69,123 @@ def scalar_utility_metrics(utilities: pd.DataFrame) -> pd.DataFrame:
     return scalar_metrics
 
 
+def bootstrap_df_rows(
+    data: pd.DataFrame,
+    confidence_level: float = 0.95,
+    n_bootstrap: int = 400
+) -> pd.DataFrame:
+    """
+    Calculate bootstrap confidence intervals for the mean across rows grouped by MultiIndex.
+    
+    All levels of the MultiIndex except the last are treated as grouping indices,
+    where rows with the same grouping indices belong to a group. The last level is
+    a sample ID. If there is no MultiIndex, then the DataFrame is treated as having
+    1 group. The columns represent metrics and should be unchanged in the output.
+    
+    Args:
+        data: DataFrame with potentially MultiIndex rows. All levels except the last
+              are grouping indices, the last level is sample ID.
+        confidence_level: Width of the confidence interval for the mean (default: 0.95). 
+        n_bootstrap: Number of bootstrap samples to generate (default: 400).
+    
+    Returns:
+        DataFrame with same columns as input. Rows have MultiIndex with statistics
+        as the innermost level: 'Mean', f'{confidence_level}% lower bound', 
+        f'{confidence_level}% upper bound'.
+    """
+    # Calculate confidence interval bounds
+    alpha = 1 - confidence_level
+    lower_percentile = (alpha / 2) * 100
+    upper_percentile = (1 - alpha / 2) * 100
+    
+    # Create statistic labels
+    confidence_pct = int(confidence_level * 100)
+    statistics = [
+        f'{confidence_pct}% lower bound',
+        'Mean',
+        f'{confidence_pct}% upper bound'
+    ]
+    
+    # Handle MultiIndex vs simple index
+    if isinstance(data.index, pd.MultiIndex):
+        # Get grouping levels (all except last)
+        n_levels = data.index.nlevels
+        grouping_levels = list(range(n_levels - 1))
+        
+        # Group by all levels except the last
+        groups = data.groupby(level=grouping_levels)
+        group_names = list(groups.groups.keys())
+    else:
+        # Treat as single group
+        groups = [('all', data)]
+        group_names = ['all']
+    
+    # Process each group
+    results_list = []
+    row_indices = []
+    
+    for group_name, group_data in groups:
+        # Convert to numpy array for bootstrapping
+        group_array = group_data.values
+        n_samples, n_metrics = group_array.shape
+        
+        # Generate bootstrap samples
+        bootstrap_means = []
+        for _ in range(n_bootstrap):
+            # Sample with replacement from the rows
+            bootstrap_indices = np.random.choice(n_samples, size=n_samples, replace=True)
+            bootstrap_sample = group_array[bootstrap_indices]
+            bootstrap_mean = np.mean(bootstrap_sample, axis=0)
+            bootstrap_means.append(bootstrap_mean)
+        
+        bootstrap_means = np.array(bootstrap_means)
+        
+        # Calculate statistics
+        sample_mean = np.mean(group_array, axis=0)
+        lower_bound = np.percentile(bootstrap_means, lower_percentile, axis=0)
+        upper_bound = np.percentile(bootstrap_means, upper_percentile, axis=0)
+        
+        # Add results for this group - one row per statistic
+        results_list.append(lower_bound)
+        results_list.append(sample_mean)
+        results_list.append(upper_bound)
+        
+        # Create row indices
+        if isinstance(group_name, tuple):
+            # Multi-level grouping
+            for stat in statistics:
+                row_indices.append(group_name + (stat,))
+        else:
+            # Single-level grouping
+            for stat in statistics:
+                row_indices.append((group_name, stat))
+    
+    # Create the result DataFrame
+    if len(group_names) == 1 and group_names[0] == 'all':
+        # Single group case - create simple MultiIndex
+        row_index = pd.MultiIndex.from_tuples(
+            [(group_names[0], stat) for stat in statistics],
+            names=['group', 'statistic']
+        )
+    else:
+        # Multiple groups case - preserve original grouping structure
+        if isinstance(data.index, pd.MultiIndex):
+            # Get original level names (except the last one)
+            original_names = list(data.index.names[:-1]) + ['statistic']
+        else:
+            original_names = ['group', 'statistic']
+        
+        row_index = pd.MultiIndex.from_tuples(row_indices, names=original_names)
+    
+    result_df = pd.DataFrame(
+        results_list,
+        index=row_index,
+        columns=data.columns
+    )
+    
+    return result_df
+
+
 def plot_likert_category_bar_chart(assignments: pd.DataFrame) -> plt.figure:
     """
     Bar chart of the distribution of likert scores with error bars.
@@ -381,7 +498,7 @@ def plot_sorted_utility_CIs(
             MultiIndex. If using a MultiIndex, columns with the same first-level
             index will be grouped together.
         confidence_level: Width of the confidence interval (default: 0.95).
-        n_bootstrap: Number of bootstrap samples to generate (default: 1000).
+        n_bootstrap: Number of bootstrap samples to generate (default: 400).
     
     Returns:
         matplotlib Figure object containing the plot
@@ -389,133 +506,143 @@ def plot_sorted_utility_CIs(
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
     
-    # Calculate confidence interval bounds
-    alpha = 1 - confidence_level
-    lower_percentile = (alpha / 2) * 100
-    upper_percentile = (1 - alpha / 2) * 100
+    # Prepare data for bootstrap_df_rows
+    # We need to create a DataFrame where rows represent sorted utility trajectories
+    # and columns represent position indices
     
-    def bootstrap_confidence_interval(data: np.ndarray, n_bootstrap: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Calculate bootstrap confidence intervals for the mean trajectory.
-        
-        Args:
-            data: Array of shape (n_samples, n_points) where each row is a sorted utility trajectory
-            n_bootstrap: Number of bootstrap samples
-            
-        Returns:
-            Tuple of (mean_trajectory, lower_bound, upper_bound)
-        """
-        n_samples, n_points = data.shape
-        bootstrap_means = []
-        
-        for _ in range(n_bootstrap):
-            # Sample with replacement from the rows (trajectories)
-            bootstrap_indices = np.random.choice(n_samples, size=n_samples, replace=True)
-            bootstrap_sample = data[bootstrap_indices]
-            bootstrap_mean = np.mean(bootstrap_sample, axis=0)
-            bootstrap_means.append(bootstrap_mean)
-        
-        bootstrap_means = np.array(bootstrap_means)
-        mean_trajectory = np.mean(data, axis=0)  # Sample mean
-        lower_bound = np.percentile(bootstrap_means, lower_percentile, axis=0)
-        upper_bound = np.percentile(bootstrap_means, upper_percentile, axis=0)
-        
-        return mean_trajectory, lower_bound, upper_bound
+    # First, calculate sorted utilities for all columns
+    sorted_utilities_dict = {}
+    for column in utilities.columns:
+        sorted_values = utilities[column].sort_values(ascending=False).values
+        sorted_utilities_dict[column] = sorted_values
     
-    # Check if we have a MultiIndex
+    # Create DataFrame with sorted trajectories as rows
+    max_length = max(len(values) for values in sorted_utilities_dict.values())
+    
+    # Create position column names
+    position_columns = [f"pos_{i}" for i in range(max_length)]
+    
+    # Prepare data for DataFrame
+    data_rows = []
+    row_indices = []
+    
     if isinstance(utilities.columns, pd.MultiIndex):
-        # Get unique first-level indices
-        first_level_indices = sorted(set(utilities.columns.get_level_values(0)))
-        
-        # Define colors for each group
-        colors = [
-            '#1a365d',  # dark blue
-            '#7c2d12',  # dark orange
-            '#145214',  # dark green
-            '#7f1d1d',  # dark red
-            '#4c1d95',  # dark purple
-            '#713f12',  # dark brown
-            '#0f766e',  # dark teal
-            '#831843',  # dark pink
-        ]
-        
-        # Process each group
-        for i, group_name in enumerate(first_level_indices):
-            # Get columns for this group
-            group_columns = [col for col in utilities.columns if col[0] == group_name]
-            
-            # Calculate sorted utilities for each column in the group
-            sorted_utilities_group = []
-            for column in group_columns:
-                sorted_values = utilities[column].sort_values(ascending=False).values
-                sorted_utilities_group.append(sorted_values)
-            
-            # Convert to numpy array for easier calculation
-            sorted_utilities_array = np.array(sorted_utilities_group)
-            
-            # Calculate bootstrap confidence intervals
-            mean_trajectory, lower_bound, upper_bound = bootstrap_confidence_interval(
-                sorted_utilities_array, n_bootstrap
-            )
-            
-            # Create x-axis indices
-            indices = np.arange(len(mean_trajectory))
-            
-            # Plot confidence interval as shaded region
-            color = colors[i % len(colors)]
-            ax.fill_between(
-                indices, 
-                lower_bound, 
-                upper_bound, 
-                alpha=0.3, 
-                color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={len(group_columns)})"
-            )
-            
-            # Plot sample mean trajectory
-            ax.plot(
-                indices, 
-                mean_trajectory, 
-                color=color, 
-                linewidth=2,
-                label=f"{group_name} (sample mean, n={len(group_columns)})"
-            )
-    else:
-        # For simple column index, treat all columns as one group
-        # Calculate sorted utilities for each column
-        sorted_utilities_list = []
+        # Group by first level of MultiIndex
         for column in utilities.columns:
-            sorted_values = utilities[column].sort_values(ascending=False).values
-            sorted_utilities_list.append(sorted_values)
+            # Pad shorter trajectories with NaN if needed
+            values = sorted_utilities_dict[column]
+            if len(values) < max_length:
+                values = np.concatenate([values, [np.nan] * (max_length - len(values))])
+            data_rows.append(values)
+            
+            # Create MultiIndex for rows: (group, sample_id)
+            group_name = column[0]
+            sample_id = column[1] if len(column) > 1 else column
+            row_indices.append((group_name, sample_id))
         
-        # Convert to numpy array
-        sorted_utilities_array = np.array(sorted_utilities_list)
+        # Create MultiIndex for rows
+        row_index = pd.MultiIndex.from_tuples(row_indices, names=['group', 'sample'])
+    else:
+        # Simple column index - treat as single group
+        for i, column in enumerate(utilities.columns):
+            values = sorted_utilities_dict[column]
+            if len(values) < max_length:
+                values = np.concatenate([values, [np.nan] * (max_length - len(values))])
+            data_rows.append(values)
+            
+            # Create MultiIndex for rows: (group, sample_id)
+            row_indices.append(('all', column))
         
-        # Calculate bootstrap confidence intervals
-        mean_trajectory, lower_bound, upper_bound = bootstrap_confidence_interval(
-            sorted_utilities_array, n_bootstrap
-        )
+        # Create MultiIndex for rows
+        row_index = pd.MultiIndex.from_tuples(row_indices, names=['group', 'sample'])
+    
+    # Create DataFrame for bootstrap analysis
+    bootstrap_data = pd.DataFrame(
+        data_rows,
+        index=row_index,
+        columns=position_columns
+    )
+    
+    # Use bootstrap_df_rows to calculate confidence intervals
+    bootstrap_results = bootstrap_df_rows(
+        bootstrap_data,
+        confidence_level=confidence_level,
+        n_bootstrap=n_bootstrap
+    )
+    
+    # Define colors for each group
+    colors = [
+        '#1a365d',  # dark blue
+        '#7c2d12',  # dark orange
+        '#145214',  # dark green
+        '#7f1d1d',  # dark red
+        '#4c1d95',  # dark purple
+        '#713f12',  # dark brown
+        '#0f766e',  # dark teal
+        '#831843',  # dark pink
+    ]
+    
+    # Get unique groups from the bootstrap results
+    if isinstance(bootstrap_results.index, pd.MultiIndex):
+        # Get unique group names (all levels except the last 'statistic' level)
+        unique_groups = bootstrap_results.index.droplevel(-1).unique()
+    else:
+        unique_groups = ['all']
+    
+    # Create statistic labels
+    confidence_pct = int(confidence_level * 100)
+    mean_label = 'Mean'
+    lower_label = f'{confidence_pct}% lower bound'
+    upper_label = f'{confidence_pct}% upper bound'
+    
+    # Plot results for each group
+    for i, group_name in enumerate(unique_groups):
+        # Extract mean, lower, and upper bounds for all positions
+        if isinstance(bootstrap_results.index, pd.MultiIndex):
+            means = bootstrap_results.loc[(group_name, mean_label), :].values
+            lower_bounds = bootstrap_results.loc[(group_name, lower_label), :].values
+            upper_bounds = bootstrap_results.loc[(group_name, upper_label), :].values
+        else:
+            means = bootstrap_results.loc[mean_label, :].values
+            lower_bounds = bootstrap_results.loc[lower_label, :].values
+            upper_bounds = bootstrap_results.loc[upper_label, :].values
         
-        # Create x-axis indices
-        indices = np.arange(len(mean_trajectory))
+        # Find last valid index (remove trailing NaNs)
+        valid_indices = ~np.isnan(means)
+        if not np.any(valid_indices):
+            continue
+            
+        last_valid = np.where(valid_indices)[0][-1] + 1
+        
+        means = means[:last_valid]
+        lower_bounds = lower_bounds[:last_valid]
+        upper_bounds = upper_bounds[:last_valid]
+        indices = np.arange(len(means))
+        
+        # Count number of samples in this group
+        if isinstance(utilities.columns, pd.MultiIndex):
+            n_samples = sum(1 for col in utilities.columns if col[0] == group_name)
+        else:
+            n_samples = len(utilities.columns)
         
         # Plot confidence interval as shaded region
+        color = colors[i % len(colors)]
         ax.fill_between(
             indices, 
-            lower_bound, 
-            upper_bound, 
+            lower_bounds, 
+            upper_bounds, 
             alpha=0.3, 
-            color='blue',
-            label=f"All methods ({confidence_level:.0%} CI)"
+            color=color,
+            label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
         )
         
         # Plot sample mean trajectory
         ax.plot(
             indices, 
-            mean_trajectory, 
-            color='blue', 
+            means, 
+            color=color, 
             linewidth=2,
-            label="All methods (sample mean)"
+            label=f"{group_name} (sample mean, n={n_samples})"
         )
     
     # Customize plot
