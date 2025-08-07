@@ -155,9 +155,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     # args.num_agents = 10
-    args.dir_suffix = "via_openai_embeddings_nn"
-    # args.dir_suffix = "via_fish_nn"
-    args.nn_function = "openai"
+    # args.dir_suffix = "via_openai_embeddings_nn"
+    args.dir_suffix = "via_fish_nn"
+    args.nn_function = "original"
 
-    for _ in range(7):
+    for _ in range(6):
         generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, nn_function=args.nn_function)
