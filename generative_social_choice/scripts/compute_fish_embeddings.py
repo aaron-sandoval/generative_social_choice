@@ -60,6 +60,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--k", type=int, default=10, help="Save after every k updates (default: 10)")
     parser.add_argument("--model", type=str, default="gpt-4o-mini-2024-07-18", help="Model to use for approval queries")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility (default: 0)")  # Add seed argument
     args = parser.parse_args()
 
     df = pd.read_csv(get_base_dir_path() / "data/chatbot_personalization_data.csv")
@@ -77,8 +78,9 @@ if __name__ == "__main__":
             id=id,
             survey_responses=df[df.user_id == id],
             summary=agent_id_to_summary[id],
+            openai_seed=args.seed,  # Pass seed to agent
             **disc_query_model_arg,
         )
         agents.append(agent)
-    output_path = get_base_dir_path() / "data/demo_data/fish_embeddings.json"
+    output_path = get_base_dir_path() / f"data/demo_data/fish_embeddings_{args.seed}.json"
     compute_approval_matrix_incremental(agents, output_path, k=args.k)
