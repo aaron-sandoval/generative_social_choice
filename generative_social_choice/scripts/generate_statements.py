@@ -130,6 +130,8 @@ def run(embedding_method: str, num_agents: int, num_clusters: int, model: str, s
         results_paths = get_results_paths(run_id=run_id, embedding_type=embedding_method, generation_model=model, labelling_model="4o-mini")
         embedding_path = results_paths["base_dir"] / "fish_embeddings.json"
         if not os.path.exists(embedding_path):
+            embedding_path = results_paths["base_dir"] / f"fish_embeddings_{seed}.json"
+        if not os.path.exists(embedding_path):
             raise FileNotFoundError(f"Fish embeddings not found at {embedding_path}!")
         embeddings = PrecomputedEmbedding(filepath=embedding_path)
     else:
