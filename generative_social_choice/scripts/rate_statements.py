@@ -10,7 +10,7 @@ from generative_social_choice.ratings.utility_matrix import create_utility_matri
 
 
 def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_statements: Optional[int]=None,
-        run_id: Optional[str]=None, generation_model: str = "4o"):
+        run_id: Optional[str]=None, generation_model: str = "4o", embedding_type: str = "llm"):
     agents = get_agents(model=model)
 
     # Subsample agents
@@ -21,7 +21,7 @@ def run(model: str, verbose: bool=True, num_agents: Optional[int]=None, num_stat
     result_paths = get_results_paths(
         labelling_model="4o-mini" if "mini" in model else "4o",
         generation_model=generation_model,
-        embedding_type="llm",  # Default to llm embeddings
+        embedding_type=embedding_type,
         baseline=False,
         run_id=run_id
     )
@@ -77,8 +77,15 @@ if __name__=="__main__":
     parser.add_argument(
         "--generation_model",
         type=str,
-        default="4o-mini",
-        help="Default is 4o-mini. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
+        default="4o",
+        help="Default is 4o. Fish's experiments (late 2023) used gpt-4-32k-0613 (publicly unavailable).",
+    )
+
+    parser.add_argument(
+        "--embedding_type",
+        type=str,
+        default="llm",
+        help="Type of embedding to use for the utility matrix. Default is 'llm'.",
     )
 
     parser.add_argument(
@@ -90,4 +97,4 @@ if __name__=="__main__":
 
     args = parser.parse_args()
 
-    run(model=args.model, num_statements=args.num_statements, num_agents=args.num_agents, run_id=args.run_id, generation_model=args.generation_model)
+    run(model=args.model, num_statements=args.num_statements, num_agents=args.num_agents, run_id=args.run_id, generation_model=args.generation_model, embedding_type=args.embedding_type)

@@ -5,7 +5,7 @@ import pandas as pd
 import random
 import numpy as np
 
-from generative_social_choice.statements.partitioning import OpenAIEmbedding, PrecomputedEmbedding, BASELINE_EMBEDDINGS_FILE
+from generative_social_choice.statements.partitioning import PrecomputedEmbedding, BASELINE_EMBEDDINGS_FILE
 from generative_social_choice.utils.gpt_wrapper import GPT
 from generative_social_choice.utils.dataframe_completion import DataFrameCompleter
 from generative_social_choice.queries.query_interface import Agent, Generator, LLMLog
@@ -86,6 +86,7 @@ class ChatbotPersonalizationAgent(Agent):
         survey_responses: pd.DataFrame,
         summary: str,
         model: str = "gpt-4o-mini-2024-07-18",
+        openai_seed: int = 0,  # Add seed parameter
     ):
         self.id = id
         self.survey_responses = survey_responses
@@ -104,6 +105,7 @@ class ChatbotPersonalizationAgent(Agent):
                 "logprobs": 10,
                 "stop": [",", "}"],
                 "max_tokens": 2,
+                "openai_seed": openai_seed,  # Pass seed to GPT
             }
             self.token_idx = 1  # due to legacy model quirks, LLM writes space first, then approval level
         else:  # e.g. using gpt-4o
@@ -115,6 +117,7 @@ class ChatbotPersonalizationAgent(Agent):
                 "top_logprobs": 10,
                 "stop": [",", "}"],
                 "max_tokens": 1,
+                "openai_seed": openai_seed,  # Pass seed to GPT
             }
             self.token_idx = 0  # LLM immediately writes approval level
 

@@ -92,7 +92,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--embedding_type",
         type=str,
-        choices=["llm", "seed_statement"],
+        choices=["llm", "seed_statement", "fish"],
         default="llm",
         help="Type of embeddings used. Default is llm.",
     )
