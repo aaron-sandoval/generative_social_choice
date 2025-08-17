@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Literal, Optional, List
 from pathlib import Path
 import re
 
@@ -7,6 +7,7 @@ import pandas as pd
 from generative_social_choice.queries.simple_personalization_agent import SimplePersonalizationAgent
 from generative_social_choice.queries.query_chatbot_personalization import ChatbotPersonalizationAgent
 from generative_social_choice.ratings.rating_generation import complete_ratings, Rating
+from generative_social_choice.utils.helper_functions import get_base_dir_path
 
 
 def get_initial_statements(agents: List[ChatbotPersonalizationAgent | SimplePersonalizationAgent]) -> List[str]:
@@ -147,8 +148,67 @@ def extract_voter_utilities_from_info_csv(info_csv_path: Path, assigned_utilitie
             approval_value = df.loc[matched_idx, approval_col]
             records.append({
                 "Voter": f"generation{voter_id}",
-                "candidate_id": matched_idx,
+                "candidate_id": f"s{matched_idx}",
                 "utility": approval_value
             })
 
     return pd.DataFrame(records).set_index("Voter").sort_index()
+
+
+
+def get_baseline_generate_slate_results(run_ids: list[int] | None = None, embedding_type: Literal["llm", "seed_statement"] = "llm") -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Load baseline generate slate results from data/demo_data directories.
+    
+    Args:
+        run_ids: List of zero-indexed directory indices to load. If None, loads all directories.
+        embedding_type: "llm" for generate_slate_results_baseline, "seed_statement" for generate_slate_results_openai_embeddings
+        
+    Returns:
+        Tuple of (utilities_df, assignments_df) where column names are run_ids.
+    """
+    # Choose directory based on embedding type
+    if embedding_type == "llm":
+        baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_baseline"
+    elif embedding_type == "seed_statement":
+        baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_openai_embeddings"
+    else:
+        raise ValueError(f"Invalid embedding_type: {embedding_type}. Must be 'llm' or 'seed_statement'")
+    
+    # Get all directories sorted by name
+    all_dirs = sorted([d for d in baseline_dir.iterdir() if d.is_dir()])
+    
+    # Select directories based on run_ids
+    if run_ids is None:
+        selected_dirs = all_dirs
+        column_names = list(range(len(all_dirs)))
+    else:
+        selected_dirs = [all_dirs[i] for i in run_ids]
+        column_names = run_ids
+    
+    utilities_data = []
+    assignments_data = []
+    
+    for i, dir_path in enumerate(selected_dirs):
+        info_csv_path = dir_path / "info.csv"
+        
+        if not info_csv_path.exists():
+            raise FileNotFoundError(f"info.csv not found in {dir_path}")
+        
+        # Extract utilities using the helper function
+        utilities_df = extract_voter_utilities_from_info_csv(info_csv_path, assigned_utilities_only=False)
+        utilities_data.append(utilities_df['utility'])
+        
+        # Create assignments series (candidate_id for each voter)
+        assignments_data.append(utilities_df['candidate_id'])
+    
+    # Combine into DataFrames with run_ids as column names
+    utilities = pd.DataFrame({
+        col_name: data for col_name, data in zip(column_names, utilities_data)
+    })
+    
+    assignments = pd.DataFrame({
+        col_name: data for col_name, data in zip(column_names, assignments_data)
+    })
+    
+    return utilities, assignments
