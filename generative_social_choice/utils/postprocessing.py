@@ -2,6 +2,7 @@
 This module contains functions for postprocessing results, including plotting and metrics.
 """
 
+from typing import Literal, Optional, Sequence
 import matplotlib.pyplot as plt
 import matplotlib
 import json
@@ -57,14 +58,14 @@ def scalar_utility_metrics(utilities: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame of scalar metrics.
     """
-    scalar_metrics = pd.DataFrame(index=utilities.columns, columns=["Avg_Utility", "Min_Utility", r"25th_Pctile_Utility", "Gini"])
+    scalar_metrics = pd.DataFrame(index=utilities.columns)
 
-    scalar_metrics.Avg_Utility = utilities.mean(0).T
-    scalar_metrics.Min_Utility = utilities.min(0).T
-    scalar_metrics["25th_Pctile_Utility"] = utilities.quantile(0.25, axis=0).T
+    scalar_metrics["Average"] = utilities.mean(0).T
+    scalar_metrics["Minimum"] = utilities.min(0).T
+    scalar_metrics["p25"] = utilities.quantile(0.25, axis=0).T
     # Calculate Gini coefficient using scipy's implementation
 
-    scalar_metrics.Gini = utilities.apply(gini)
+    scalar_metrics["Gini"] = utilities.apply(gini)
 
     return scalar_metrics
 
@@ -99,11 +100,11 @@ def bootstrap_df_rows(
     upper_percentile = (1 - alpha / 2) * 100
     
     # Create statistic labels
-    confidence_pct = int(confidence_level * 100)
+    confidence_pct = round(confidence_level * 100)
     statistics = [
-        f'{confidence_pct}% lower bound',
-        'Mean',
-        f'{confidence_pct}% upper bound'
+        'lower bound',
+        'mean',
+        'upper bound'
     ]
     
     # Handle MultiIndex vs simple index
@@ -367,8 +368,8 @@ def plot_likert_category_clustered_bar_chart(
     ax.yaxis.set_major_locator(plt.MultipleLocator(10))
     ax.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Add legend
-    ax.legend()
+    # Add legend with automatic positioning to minimize data overlap
+    ax.legend(loc='best')
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
@@ -591,9 +592,9 @@ def plot_sorted_utility_CIs(
     
     # Create statistic labels
     confidence_pct = int(confidence_level * 100)
-    mean_label = 'Mean'
-    lower_label = f'{confidence_pct}% lower bound'
-    upper_label = f'{confidence_pct}% upper bound'
+    mean_label = 'mean'
+    lower_label = 'lower bound'
+    upper_label = 'upper bound'
     
     # Plot results for each group
     for i, group_name in enumerate(unique_groups):
@@ -725,6 +726,425 @@ def plot_candidate_distribution_stacked(assignments: pd.DataFrame) -> plt.Figure
     )
     
     # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+
+def _preprocess_clustered_ci_data(
+        df: pd.DataFrame,
+        bar_index: str = 'mean',
+        error_bar_lower_index: str = "lower bound", 
+        error_bar_upper_index: str = "upper bound", 
+        bar_index_level: Literal[0, 1] = 0,
+        ) -> tuple[list, list, dict]:
+    """
+    Preprocess data for clustered confidence interval plots.
+    
+    Args:
+        df: DataFrame with a 2-level row MultiIndex including bar labels and 
+            quantiles, and columns for each cluster.
+        bar_index: Index of the bar value.
+        error_bar_lower_index: Index of the error bar lower bound.
+        error_bar_upper_index: Index of the error bar upper bound.
+        bar_index_level: Index level of the bar labels. The other index level 
+            is the quantiles.
+    
+    Returns:
+        tuple containing:
+        - bar_labels: List of bar labels from the index
+        - metrics: List of column names (metrics)
+        - processed_data: Dict mapping each bar label to its means, lower bounds,
+          and upper bounds for all metrics
+    """
+    assert set(df.index.get_level_values(1-bar_index_level).unique()) == {
+        bar_index, error_bar_lower_index, error_bar_upper_index
+    }, f'{set(df.index.get_level_values(1-bar_index_level).unique())} != {bar_index, error_bar_lower_index, error_bar_upper_index}'
+    
+    # Get bar labels from index
+    bar_labels = df.index.get_level_values(bar_index_level).unique()
+    metrics = df.columns
+    
+    # Process data for each label
+    processed_data = {}
+    for label in bar_labels:
+        # Get data for this label using the correct index level
+        label_data = df.xs(label, level=bar_index_level)
+        means = [label_data.xs(bar_index)[metric] for metric in metrics]
+        lower_bounds = [label_data.xs(error_bar_lower_index)[metric] 
+                       for metric in metrics]
+        upper_bounds = [label_data.xs(error_bar_upper_index)[metric] 
+                       for metric in metrics]
+        
+        processed_data[label] = {
+            'means': means,
+            'lower_bounds': lower_bounds,
+            'upper_bounds': upper_bounds
+        }
+    
+    return list(bar_labels), list(metrics), processed_data
+
+
+def clustered_barplot_with_error_bars(
+        df: pd.DataFrame,
+        bar_index: str = 'mean',
+        error_bar_lower_index: str = "lower bound", 
+        error_bar_upper_index: str = "upper bound", 
+        colors: Optional[Sequence[str]] = None,
+        bar_index_level: Literal[0, 1] = 0,
+        y_label: str = "",
+        fig_size: Optional[tuple[float, float]] = None,
+        legend_loc: Literal["best", "upper left", "upper right", "lower left", "lower right", "center left", "center right", "lower center", "upper center", "center"] = "best",
+        secondary_axis_df: Optional[pd.DataFrame] = None,
+        secondary_y_label: Optional[str] = None,
+        ) -> plt.Figure:
+    """
+    Clustered bar plot with error bars.
+
+    Plots all columns in `df` as bars, with error bars.
+    Each column is a separate cluster. If secondary_axis_df is provided, 
+    creates a second subplot below the first for the secondary data.
+
+    Args:
+        df: DataFrame with a 2-level row MultiIndex including bar labels and 
+            quantiles, and columns for each cluster.
+            The quantile index must contain:
+            - `bar_index`
+            - `error_bar_lower_index`
+            - `error_bar_upper_index`
+        bar_index: Index of the bar value.
+        error_bar_lower_index: Index of the error bar lower bound.
+        error_bar_upper_index: Index of the error bar upper bound.
+        colors: Optional sequence of colors for the bars. If None, uses 
+            matplotlib's default tab10 colormap.
+        bar_index_level: Index level of the bar labels. The other index level 
+            is the quantiles.
+        y_label: Label for the y-axis.
+        fig_size: Optional tuple specifying figure size (width, height). If None, 
+            uses default sizing.
+        legend_loc: Location for the legend placement.
+        secondary_axis_df: Optional DataFrame with the same structure as df to 
+            plot on a second subplot (1,2,2). If provided, creates two subplots 
+            horizontally arranged with widths proportional to the number of 
+            clusters in each subplot to maintain consistent cluster spacing.
+        secondary_y_label: Optional y-axis label for the second subplot. If None 
+            and secondary_axis_df is provided, the second subplot will have no 
+            y-axis label.
+
+    Returns:
+        plt.Figure: The generated matplotlib figure
+    """
+    # Use the helper function to preprocess the data
+    bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
+        df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+        bar_index_level
+    )
+    
+    # Check if we need a secondary axis
+    has_secondary = secondary_axis_df is not None
+    
+    # Preprocess secondary data if provided
+    if has_secondary:
+        secondary_bar_labels, secondary_metrics, secondary_processed_data = _preprocess_clustered_ci_data(
+            secondary_axis_df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+            bar_index_level
+        )
+        
+        # Check if bar labels are different to determine if we need separate legends
+        need_separate_legends = set(bar_labels) != set(secondary_bar_labels)
+    else:
+        secondary_bar_labels = None
+        secondary_metrics = None
+        secondary_processed_data = None
+        need_separate_legends = False
+    
+    # Create figure and axes
+    if fig_size is None:
+        if has_secondary:
+            # Base width on total number of metrics across both subplots
+            total_metrics = len(metrics) + len(secondary_metrics)
+            fig_size = (max(4.0, 1.2*total_metrics), 4)  # Width based on total metrics
+        else:
+            fig_size = (max(2.5, 1.2*len(df.columns)), 4)
+    
+    if has_secondary:
+        # Calculate relative widths based on number of clusters (metrics) in each subplot
+        primary_width = len(metrics)
+        secondary_width = len(secondary_metrics)
+        total_width = primary_width + secondary_width
+        
+        # Create width ratios for gridspec
+        width_ratios = [primary_width / total_width, secondary_width / total_width]
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=fig_size, 
+                                      gridspec_kw={'width_ratios': width_ratios})
+        axes = [ax1, ax2]
+        datasets = [(bar_labels, metrics, processed_data), 
+                   (secondary_bar_labels, secondary_metrics, secondary_processed_data)]
+    else:
+        fig, ax = plt.subplots(figsize=fig_size)
+        axes = [ax]
+        datasets = [(bar_labels, metrics, processed_data)]
+    
+    # Set up colors - use matplotlib default if not provided
+    if colors is None:
+        colors = plt.cm.tab10(np.linspace(0, 1, len(bar_labels)))
+    
+    # Plot data on each axis
+    for ax_idx, (current_ax, (current_bar_labels, current_metrics, current_processed_data)) in enumerate(zip(axes, datasets)):
+        # Set up the x positions for each cluster
+        # Use a fixed width of 0.8 for each cluster
+        cluster_width = 0.8
+        x = np.arange(len(current_metrics)) * (.5 + cluster_width)
+        
+        # Calculate bar width based on number of bar labels
+        width = cluster_width / len(current_bar_labels)
+        
+        # Plot bars for each label
+        for i, label in enumerate(current_bar_labels):
+            data = current_processed_data[label]
+            means = data['means']
+            lower_bounds = data['lower_bounds']
+            upper_bounds = data['upper_bounds']
+            
+            # Calculate error bar deltas
+            yerr_lower = [means[j] - lower_bounds[j] for j in range(len(means))]
+            yerr_upper = [upper_bounds[j] - means[j] for j in range(len(means))]
+            
+            # Calculate offset to center the bars in their cluster
+            offset = width * (i - (len(current_bar_labels)-1)/2)
+            
+            # Only add label for legend if it's the first subplot or if legends are different
+            show_label = (ax_idx == 0) or (has_secondary and need_separate_legends)
+            current_ax.bar(x + offset, means, width, 
+                   label=label if show_label else None, 
+                   color=colors[i % len(colors)])
+            
+            # Add error bars
+            current_ax.errorbar(x + offset, means,
+                       yerr=[yerr_lower, yerr_upper],
+                       fmt='none', color='black', capsize=5)
+        
+        # Customize plot
+        # Set y-label based on axis and secondary_y_label parameter
+        if ax_idx == 0:
+            # First axis always uses y_label
+            current_ax.set_ylabel(y_label, fontsize=12)
+        elif ax_idx == 1 and secondary_y_label is not None:
+            # Second axis uses secondary_y_label if provided
+            current_ax.set_ylabel(secondary_y_label, fontsize=12)
+        # If ax_idx == 1 and secondary_y_label is None, no y-label is set
+        
+        current_ax.set_xticks(x)
+        current_ax.set_xticklabels(current_metrics, rotation=0)
+        
+        # Adjust x-axis limits for better appearance, especially with single clusters
+        if len(current_metrics) == 1:
+            # For single cluster, center it with reasonable margins
+            current_ax.set_xlim(-0.6, 0.6)
+        else:
+            # For multiple clusters, use default behavior with small margins
+            current_ax.set_xlim(x[0] - 0.6, x[-1] + 0.6)
+
+        # Add grid
+        current_ax.grid(axis="y", linestyle='--', alpha=0.7)
+        
+        # Add legend with automatic positioning to minimize data overlap
+        # Only add legend if it's the first subplot or if legends are different
+        if (ax_idx == 0) or (has_secondary and need_separate_legends):
+            current_ax.legend(loc=legend_loc)
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    return fig
+
+
+def plot_scalar_clustered_confidence_intervals(
+        df: pd.DataFrame,
+        bar_index: str = 'mean',
+        error_bar_lower_index: str = "lower bound", 
+        error_bar_upper_index: str = "upper bound", 
+        colors: Optional[Sequence[str]] = None,
+        bar_index_level: Literal[0, 1] = 0,
+        y_label: str = "",
+        fig_size: Optional[tuple[float, float]] = None,
+        legend_loc: Literal["best", "upper left", "upper right", "lower left", "lower right", "center left", "center right", "lower center", "upper center", "center"] = "best",
+        secondary_axis_df: Optional[pd.DataFrame] = None,
+        secondary_y_label: Optional[str] = None,
+        ) -> plt.Figure:
+    """
+    Clustered scatter plot with vertical confidence intervals.
+
+    Plots all columns in `df` as points with vertical confidence intervals.
+    Each column is a separate cluster. The y-axis limits float freely to bound
+    the range of the data including confidence intervals. If secondary_axis_df
+    is provided, creates a second subplot below the first for the secondary data.
+
+    Args:
+        df: DataFrame with a 2-level row MultiIndex including bar labels and 
+            quantiles, and columns for each cluster.
+            The quantile index must contain:
+            - `bar_index`
+            - `error_bar_lower_index`
+            - `error_bar_upper_index`
+        bar_index: Index of the point value.
+        error_bar_lower_index: Index of the confidence interval lower bound.
+        error_bar_upper_index: Index of the confidence interval upper bound.
+        colors: Optional sequence of colors for the points. If None, uses 
+            matplotlib's default tab10 colormap.
+        bar_index_level: Index level of the point labels. The other index level 
+            is the quantiles.
+        y_label: Label for the y-axis.
+        fig_size: Optional tuple specifying figure size (width, height). If None, 
+            uses default sizing.
+        legend_loc: Location for the legend placement.
+        secondary_axis_df: Optional DataFrame with the same structure as df to 
+            plot on a second subplot (1,2,2). If provided, creates two subplots 
+            horizontally arranged with widths proportional to the number of 
+            clusters in each subplot to maintain consistent cluster spacing.
+        secondary_y_label: Optional y-axis label for the second subplot. If None 
+            and secondary_axis_df is provided, the second subplot will have no 
+            y-axis label.
+
+    Returns:
+        plt.Figure: The generated matplotlib figure
+    """
+    # Use the helper function to preprocess the data
+    bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
+        df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+        bar_index_level
+    )
+    
+    # Check if we need a secondary axis
+    has_secondary = secondary_axis_df is not None
+    
+    # Preprocess secondary data if provided
+    if has_secondary:
+        secondary_bar_labels, secondary_metrics, secondary_processed_data = _preprocess_clustered_ci_data(
+            secondary_axis_df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+            bar_index_level
+        )
+        
+        # Check if bar labels are different to determine if we need separate legends
+        need_separate_legends = set(bar_labels) != set(secondary_bar_labels)
+    else:
+        secondary_bar_labels = None
+        secondary_metrics = None
+        secondary_processed_data = None
+        need_separate_legends = False
+    
+    # Create figure and axes
+    if fig_size is None:
+        if has_secondary:
+            # Base width on total number of metrics across both subplots
+            total_metrics = len(metrics) + len(secondary_metrics)
+            fig_size = (max(4.0, 1.2*total_metrics), 4)  # Width based on total metrics
+        else:
+            fig_size = (max(2.5, 1.2*len(df.columns)), 4)
+    
+    if has_secondary:
+        # Calculate relative widths based on number of clusters (metrics) in each subplot
+        primary_width = len(metrics)
+        secondary_width = len(secondary_metrics)
+        total_width = primary_width + secondary_width
+        
+        # Create width ratios for gridspec
+        width_ratios = [primary_width / total_width, secondary_width / total_width]
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=fig_size, 
+                                      gridspec_kw={'width_ratios': width_ratios})
+        axes = [ax1, ax2]
+        datasets = [(bar_labels, metrics, processed_data), 
+                   (secondary_bar_labels, secondary_metrics, secondary_processed_data)]
+    else:
+        fig, ax = plt.subplots(figsize=fig_size)
+        axes = [ax]
+        datasets = [(bar_labels, metrics, processed_data)]
+    
+    # Set up colors - use matplotlib default if not provided
+    if colors is None:
+        colors = plt.cm.tab10(np.linspace(0, 1, len(bar_labels)))
+    
+    # Plot data on each axis
+    for ax_idx, (current_ax, (current_bar_labels, current_metrics, current_processed_data)) in enumerate(zip(axes, datasets)):
+        # Set up the x positions for each cluster
+        cluster_width = 0.8
+        x = np.arange(len(current_metrics)) * (1.0 + cluster_width)
+        
+        # Calculate offset spacing for points within each cluster
+        point_spacing = cluster_width / max(1, len(current_bar_labels) - 1) if len(current_bar_labels) > 1 else 0
+        
+        # Plot points for each label
+        for i, label in enumerate(current_bar_labels):
+            data = current_processed_data[label]
+            means = data['means']
+            lower_bounds = data['lower_bounds']
+            upper_bounds = data['upper_bounds']
+            
+            # Calculate offset to spread points within each cluster
+            if len(current_bar_labels) == 1:
+                offset = 0
+            else:
+                offset = point_spacing * (i - (len(current_bar_labels)-1)/2)
+            
+            x_positions = x + offset
+            
+            # Calculate error bar deltas (errorbar expects deltas, not absolute values)
+            yerr_lower = [means[j] - lower_bounds[j] for j in range(len(means))]
+            yerr_upper = [upper_bounds[j] - means[j] for j in range(len(means))]
+            
+            # Plot points with error bars using matplotlib's built-in errorbar function
+            # Only add label for legend if it's the first subplot or if legends are different
+            show_label = (ax_idx == 0) or (has_secondary and need_separate_legends)
+            current_ax.errorbar(x_positions, means,
+                       yerr=[yerr_lower, yerr_upper],
+                       fmt='o', color=colors[i % len(colors)], 
+                       markersize=6, capsize=5, capthick=1,
+                       label=label if show_label else None)
+        
+        # Customize plot
+        # Set y-label based on axis and secondary_y_label parameter
+        if ax_idx == 0:
+            # First axis always uses y_label
+            current_ax.set_ylabel(y_label, fontsize=12)
+        elif ax_idx == 1 and secondary_y_label is not None:
+            # Second axis uses secondary_y_label if provided
+            current_ax.set_ylabel(secondary_y_label, fontsize=12)
+        # If ax_idx == 1 and secondary_y_label is None, no y-label is set
+        current_ax.set_xticks(x)
+        current_ax.set_xticklabels(current_metrics, rotation=0)
+        
+        # Adjust x-axis limits for better appearance, especially with single clusters
+        if len(current_metrics) == 1:
+            # For single cluster, center it with reasonable margins
+            current_ax.set_xlim(-0.6, 0.6)
+        else:
+            # For multiple clusters, use default behavior with small margins
+            current_ax.set_xlim(x[0] - 0.6, x[-1] + 0.6)
+        
+        # Let y-axis limits float freely to bound the data (including CIs)
+        all_lower = []
+        all_upper = []
+        for data in current_processed_data.values():
+            all_lower.extend(data['lower_bounds'])
+            all_upper.extend(data['upper_bounds'])
+        
+        y_min = min(all_lower)
+        y_max = max(all_upper)
+        y_range = y_max - y_min
+        # Add 5% padding to the y-axis range
+        current_ax.set_ylim(y_min - 0.05 * y_range, y_max + 0.05 * y_range)
+        
+        # Add grid
+        current_ax.grid(axis="y", linestyle='--', alpha=0.7)
+        
+        # Add legend with automatic positioning to minimize data overlap
+        # Only add legend if it's the first subplot or if legends are different
+        if (ax_idx == 0) or (has_secondary and need_separate_legends):
+            current_ax.legend(loc=legend_loc)
+    
+    # Adjust layout
     plt.tight_layout()
     
     return fig

@@ -25,14 +25,14 @@ def generate_slate_from_paper(
     generator_model: str = "default",
     discriminator_model: str = "default",
     dir_suffix: Optional[str] = "from_paper",
-    nn_function: Literal["openai", "original"] = "original",
+    embedding_type: Literal["llm", "seed_statement"] = "llm",
 ):
-    if nn_function == "openai":
-        nn_function = find_nearest_neighbors_by_embeddings
-    elif nn_function == "original":
-        nn_function = find_nearest_neighbors
+    if embedding_type == "seed_statement":
+        embedding_type = find_nearest_neighbors_by_embeddings
+    elif embedding_type == "llm":
+        embedding_type = find_nearest_neighbors
     else:
-        raise ValueError(f"Invalid nn_function: {nn_function}")
+        raise ValueError(f"Invalid embedding_type: {embedding_type}")
 
     disc_query_model_arg = {"model": "gpt-4o-mini-2024-07-18"} if discriminator_model == "default" else {"model": discriminator_model}
     gen_query_model_arg = {"model": "gpt-4o"} if generator_model == "default" else {"model": generator_model}
@@ -84,7 +84,7 @@ def generate_slate_from_paper(
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=nn_function,
+            nn_function=embedding_type,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -92,7 +92,7 @@ def generate_slate_from_paper(
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=nn_function,
+            nn_function=embedding_type,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -100,7 +100,7 @@ def generate_slate_from_paper(
             nbhd_size=10,
             seed=None,
             gpt_temperature=0,
-            nn_function=nn_function,
+            nn_function=embedding_type,
             **gen_query_model_arg,
         ),
     ]
@@ -111,6 +111,7 @@ def generate_slate_from_paper(
         get_base_dir_path()
         / "data"
         / "demo_data"
+        / ("generate_slate_results_openai_embeddings" if "openai" in embedding_type else "generate_slate_results_baseline")
         / f"{get_time_string()}__generate_slate_{dir_suffix}"
     )
     os.mkdir(full_log_dir)
@@ -155,9 +156,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     # args.num_agents = 10
-    args.dir_suffix = "via_openai_embeddings_nn"
-    # args.dir_suffix = "via_fish_nn"
-    args.nn_function = "openai"
+    # args.dir_suffix = "via_openai_embeddings_nn"
+    args.dir_suffix = "via_fish_nn"
+    args.embedding_type = "llm"
 
-    for _ in range(4):
-        generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, nn_function=args.nn_function)
+    for _ in range(1):
+        generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, embedding_type=args.embedding_type)
