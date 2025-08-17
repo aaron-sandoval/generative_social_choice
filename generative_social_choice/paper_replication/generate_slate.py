@@ -111,6 +111,7 @@ def generate_slate_from_paper(
         get_base_dir_path()
         / "data"
         / "demo_data"
+        / ("generate_slate_results_openai_embeddings" if "openai" in nn_function else "generate_slate_results_baseline")
         / f"{get_time_string()}__generate_slate_{dir_suffix}"
     )
     os.mkdir(full_log_dir)
