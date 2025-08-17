@@ -57,7 +57,7 @@ def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed
 
     assert labelling_model in ["4o", "4o-mini"]
     assert generation_model in ["4o", "4o-mini"]
-    assert embedding_type in ["seed_statement", "llm"]
+    assert embedding_type in ["seed_statement", "llm", "fish"]
 
     # Now figure out which directory to use
     selected_dir = base_dir / ("baseline" if baseline else "statements")
