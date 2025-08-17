@@ -159,5 +159,5 @@ if __name__ == "__main__":
     args.dir_suffix = "via_fish_nn"
     args.nn_function = "original"
 
-    for _ in range(6):
+    for _ in range(1):
         generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, nn_function=args.nn_function)

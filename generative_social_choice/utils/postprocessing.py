@@ -2,6 +2,7 @@
 This module contains functions for postprocessing results, including plotting and metrics.
 """
 
+from typing import Literal, Optional, Sequence
 import matplotlib.pyplot as plt
 import matplotlib
 import json
@@ -57,14 +58,14 @@ def scalar_utility_metrics(utilities: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame of scalar metrics.
     """
-    scalar_metrics = pd.DataFrame(index=utilities.columns, columns=["Avg_Utility", "Min_Utility", r"25th_Pctile_Utility", "Gini"])
+    scalar_metrics = pd.DataFrame(index=utilities.columns, columns=["Avg Utility", "Min Utility", "p25 Utility", "Gini"])
 
-    scalar_metrics.Avg_Utility = utilities.mean(0).T
-    scalar_metrics.Min_Utility = utilities.min(0).T
-    scalar_metrics["25th_Pctile_Utility"] = utilities.quantile(0.25, axis=0).T
+    scalar_metrics["Avg Utility"] = utilities.mean(0).T
+    scalar_metrics["Min Utility"] = utilities.min(0).T
+    scalar_metrics["p25 Utility"] = utilities.quantile(0.25, axis=0).T
     # Calculate Gini coefficient using scipy's implementation
 
-    scalar_metrics.Gini = utilities.apply(gini)
+    scalar_metrics["Gini"] = utilities.apply(gini)
 
     return scalar_metrics
 
@@ -99,11 +100,11 @@ def bootstrap_df_rows(
     upper_percentile = (1 - alpha / 2) * 100
     
     # Create statistic labels
-    confidence_pct = int(confidence_level * 100)
+    confidence_pct = round(confidence_level * 100)
     statistics = [
-        f'{confidence_pct}% lower bound',
-        'Mean',
-        f'{confidence_pct}% upper bound'
+        'lower bound',
+        'mean',
+        'upper bound'
     ]
     
     # Handle MultiIndex vs simple index
@@ -367,8 +368,8 @@ def plot_likert_category_clustered_bar_chart(
     ax.yaxis.set_major_locator(plt.MultipleLocator(10))
     ax.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Add legend
-    ax.legend()
+    # Add legend with automatic positioning to minimize data overlap
+    ax.legend(loc='best')
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
@@ -591,9 +592,9 @@ def plot_sorted_utility_CIs(
     
     # Create statistic labels
     confidence_pct = int(confidence_level * 100)
-    mean_label = 'Mean'
-    lower_label = f'{confidence_pct}% lower bound'
-    upper_label = f'{confidence_pct}% upper bound'
+    mean_label = 'mean'
+    lower_label = 'lower bound'
+    upper_label = 'upper bound'
     
     # Plot results for each group
     for i, group_name in enumerate(unique_groups):
@@ -725,6 +726,288 @@ def plot_candidate_distribution_stacked(assignments: pd.DataFrame) -> plt.Figure
     )
     
     # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+
+def _preprocess_clustered_ci_data(
+        df: pd.DataFrame,
+        bar_index: str = 'mean',
+        error_bar_lower_index: str = "lower bound", 
+        error_bar_upper_index: str = "upper bound", 
+        bar_index_level: Literal[0, 1] = 0,
+        ) -> tuple[list, list, dict]:
+    """
+    Preprocess data for clustered confidence interval plots.
+    
+    Args:
+        df: DataFrame with a 2-level row MultiIndex including bar labels and 
+            quantiles, and columns for each cluster.
+        bar_index: Index of the bar value.
+        error_bar_lower_index: Index of the error bar lower bound.
+        error_bar_upper_index: Index of the error bar upper bound.
+        bar_index_level: Index level of the bar labels. The other index level 
+            is the quantiles.
+    
+    Returns:
+        tuple containing:
+        - bar_labels: List of bar labels from the index
+        - metrics: List of column names (metrics)
+        - processed_data: Dict mapping each bar label to its means, lower bounds,
+          and upper bounds for all metrics
+    """
+    assert set(df.index.get_level_values(1-bar_index_level).unique()) == {
+        bar_index, error_bar_lower_index, error_bar_upper_index
+    }, f'{set(df.index.get_level_values(1-bar_index_level).unique())} != {bar_index, error_bar_lower_index, error_bar_upper_index}'
+    
+    # Get bar labels from index
+    bar_labels = df.index.get_level_values(bar_index_level).unique()
+    metrics = df.columns
+    
+    # Process data for each label
+    processed_data = {}
+    for label in bar_labels:
+        # Get data for this label using the correct index level
+        label_data = df.xs(label, level=bar_index_level)
+        means = [label_data.xs(bar_index)[metric] for metric in metrics]
+        lower_bounds = [label_data.xs(error_bar_lower_index)[metric] 
+                       for metric in metrics]
+        upper_bounds = [label_data.xs(error_bar_upper_index)[metric] 
+                       for metric in metrics]
+        
+        processed_data[label] = {
+            'means': means,
+            'lower_bounds': lower_bounds,
+            'upper_bounds': upper_bounds
+        }
+    
+    return list(bar_labels), list(metrics), processed_data
+
+
+def clustered_barplot_with_error_bars(
+        df: pd.DataFrame,
+        bar_index: str = 'mean',
+        error_bar_lower_index: str = "lower bound", 
+        error_bar_upper_index: str = "upper bound", 
+        colors: Optional[Sequence[str]] = None,
+        bar_index_level: Literal[0, 1] = 0,
+        y_label: str = "",
+        fig_size: Optional[tuple[float, float]] = None,
+        ) -> plt.Figure:
+    """
+    Clustered bar plot with error bars.
+
+    Plots all columns in `df` as bars, with error bars.
+    Each column is a separate cluster.
+
+    Args:
+        df: DataFrame with a 2-level row MultiIndex including bar labels and quantiles, and columns for each cluster.
+            The quantile index must contain:
+            - `bar_index`
+            - `error_bar_lower_index`
+            - `error_bar_upper_index`
+        bar_index: Index of the bar value.
+        error_bar_lower_index: Index of the error bar lower bound.
+        error_bar_upper_index: Index of the error bar upper bound.
+        colors: Optional sequence of colors for the bars. If None, uses matplotlib's default tab10 colormap.
+        bar_index_level: Index level of the bar labels. The other index level is the quantiles.
+        y_label: Label for the y-axis.
+        fig_size: Optional tuple specifying figure size (width, height). If None, uses default sizing.
+
+    Returns:
+        plt.Figure: The generated matplotlib figure
+    """
+    # Use the helper function to preprocess the data
+    bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
+        df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+        bar_index_level
+    )
+    
+    # Create figure and axis
+    if fig_size is None:
+        fig_size = (max(2.5, 1.2*len(df.columns)), 4)
+    fig, ax = plt.subplots(figsize=fig_size)
+    
+    # Set up colors - use matplotlib default if not provided
+    if colors is None:
+        colors = plt.cm.tab10(np.linspace(0, 1, len(bar_labels)))
+    
+    # Set up the x positions for each cluster
+    # Use a fixed width of 0.8 for each cluster
+    cluster_width = 0.8
+    x = np.arange(len(metrics)) * (.5 + cluster_width)
+    
+    # Calculate bar width based on number of bar labels
+    width = cluster_width / len(bar_labels)
+    
+    # Plot bars for each protocol
+    for i, label in enumerate(bar_labels):
+        data = processed_data[label]
+        means = data['means']
+        lower_bounds = data['lower_bounds']
+        upper_bounds = data['upper_bounds']
+        
+        # Calculate error bar deltas
+        yerr_lower = [means[j] - lower_bounds[j] for j in range(len(means))]
+        yerr_upper = [upper_bounds[j] - means[j] for j in range(len(means))]
+        
+        # Calculate offset to center the bars in their cluster
+        offset = width * (i - (len(bar_labels)-1)/2)
+        ax.bar(x + offset, means, width, 
+               label=label, color=colors[i % len(colors)])
+        
+        # Add error bars
+        ax.errorbar(x + offset, means,
+                   yerr=[yerr_lower, yerr_upper],
+                   fmt='none', color='black', capsize=5)
+    
+    # Customize plot
+    # ax.set_yticks(np.arange(0, max([label_data.xs(error_bar_upper_index)[metric] for metric in metrics]) + 0.1, 0.1))
+    ax.set_ylabel(y_label, fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(metrics, rotation=0)
+    
+    # Adjust x-axis limits for better appearance, especially with single clusters
+    if len(metrics) == 1:
+        # For single cluster, center it with reasonable margins
+        ax.set_xlim(-0.5, 0.5)
+    else:
+        # For multiple clusters, use default behavior with small margins
+        ax.set_xlim(x[0] - 0.5, x[-1] + 0.5)
+
+    # Add grid
+    ax.grid(axis="y", linestyle='--', alpha=0.7)
+    
+    # Add legend with automatic positioning to minimize data overlap
+    ax.legend(loc='best')
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    return fig
+
+
+def plot_scalar_clustered_confidence_intervals(
+        df: pd.DataFrame,
+        bar_index: str = 'mean',
+        error_bar_lower_index: str = "lower bound", 
+        error_bar_upper_index: str = "upper bound", 
+        colors: Optional[Sequence[str]] = None,
+        bar_index_level: Literal[0, 1] = 0,
+        y_label: str = "",
+        fig_size: Optional[tuple[float, float]] = None,
+        legend_loc: Literal["best", "upper left", "upper right", "lower left", "lower right", "center left", "center right", "lower center", "upper center", "center"] = "best",
+        ) -> plt.Figure:
+    """
+    Clustered scatter plot with vertical confidence intervals.
+
+    Plots all columns in `df` as points with vertical confidence intervals.
+    Each column is a separate cluster. The y-axis limits float freely to bound
+    the range of the data including confidence intervals.
+
+    Args:
+        df: DataFrame with a 2-level row MultiIndex including bar labels and 
+            quantiles, and columns for each cluster.
+            The quantile index must contain:
+            - `bar_index`
+            - `error_bar_lower_index`
+            - `error_bar_upper_index`
+        bar_index: Index of the point value.
+        error_bar_lower_index: Index of the confidence interval lower bound.
+        error_bar_upper_index: Index of the confidence interval upper bound.
+        colors: Optional sequence of colors for the points. If None, uses 
+            matplotlib's default tab10 colormap.
+        bar_index_level: Index level of the point labels. The other index level 
+            is the quantiles.
+        y_label: Label for the y-axis.
+        fig_size: Optional tuple specifying figure size (width, height). If None, 
+            uses default sizing.
+
+    Returns:
+        plt.Figure: The generated matplotlib figure
+    """
+    # Use the helper function to preprocess the data
+    bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
+        df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+        bar_index_level
+    )
+    
+    # Create figure and axis
+    if fig_size is None:
+        fig_size = (max(2.5, 1.2*len(df.columns)), 4)
+    fig, ax = plt.subplots(figsize=fig_size)
+    
+    # Set up colors - use matplotlib default if not provided
+    if colors is None:
+        colors = plt.cm.tab10(np.linspace(0, 1, len(bar_labels)))
+    
+    # Set up the x positions for each cluster
+    cluster_width = 0.8
+    x = np.arange(len(metrics)) * (1.0 + cluster_width)
+    
+    # Calculate offset spacing for points within each cluster
+    point_spacing = cluster_width / max(1, len(bar_labels) - 1) if len(bar_labels) > 1 else 0
+    
+    # Plot points for each label
+    for i, label in enumerate(bar_labels):
+        data = processed_data[label]
+        means = data['means']
+        lower_bounds = data['lower_bounds']
+        upper_bounds = data['upper_bounds']
+        
+        # Calculate offset to spread points within each cluster
+        if len(bar_labels) == 1:
+            offset = 0
+        else:
+            offset = point_spacing * (i - (len(bar_labels)-1)/2)
+        
+        x_positions = x + offset
+        
+        # Calculate error bar deltas (errorbar expects deltas, not absolute values)
+        yerr_lower = [means[j] - lower_bounds[j] for j in range(len(means))]
+        yerr_upper = [upper_bounds[j] - means[j] for j in range(len(means))]
+        
+        # Plot points with error bars using matplotlib's built-in errorbar function
+        ax.errorbar(x_positions, means,
+                   yerr=[yerr_lower, yerr_upper],
+                   fmt='o', color=colors[i % len(colors)], 
+                   markersize=6, capsize=5, capthick=1,
+                   label=label)
+    
+    # Customize plot
+    ax.set_ylabel(y_label, fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(metrics, rotation=0)
+    
+    # Adjust x-axis limits for better appearance, especially with single clusters
+    if len(metrics) == 1:
+        # For single cluster, center it with reasonable margins
+        ax.set_xlim(-0.5, 0.5)
+    else:
+        # For multiple clusters, use default behavior with small margins
+        ax.set_xlim(x[0] - 0.5, x[-1] + 0.5)
+    
+    # Let y-axis limits float freely to bound the data (including CIs)
+    all_lower = []
+    all_upper = []
+    for data in processed_data.values():
+        all_lower.extend(data['lower_bounds'])
+        all_upper.extend(data['upper_bounds'])
+    
+    y_min = min(all_lower)
+    y_max = max(all_upper)
+    y_range = y_max - y_min
+    # Add 5% padding to the y-axis range
+    ax.set_ylim(y_min - 0.05 * y_range, y_max + 0.05 * y_range)
+    
+    # Add grid
+    ax.grid(axis="y", linestyle='--', alpha=0.7)
+    
+    # Add legend with automatic positioning to minimize data overlap
+    ax.legend(loc=legend_loc)
+    
+    # Adjust layout
     plt.tight_layout()
     
     return fig
