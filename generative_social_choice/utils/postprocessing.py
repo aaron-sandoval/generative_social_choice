@@ -58,11 +58,11 @@ def scalar_utility_metrics(utilities: pd.DataFrame) -> pd.DataFrame:
     Returns:
         A DataFrame of scalar metrics.
     """
-    scalar_metrics = pd.DataFrame(index=utilities.columns, columns=["Avg Utility", "Min Utility", "p25 Utility", "Gini"])
+    scalar_metrics = pd.DataFrame(index=utilities.columns)
 
-    scalar_metrics["Avg Utility"] = utilities.mean(0).T
-    scalar_metrics["Min Utility"] = utilities.min(0).T
-    scalar_metrics["p25 Utility"] = utilities.quantile(0.25, axis=0).T
+    scalar_metrics["Average"] = utilities.mean(0).T
+    scalar_metrics["Minimum"] = utilities.min(0).T
+    scalar_metrics["p25"] = utilities.quantile(0.25, axis=0).T
     # Calculate Gini coefficient using scipy's implementation
 
     scalar_metrics["Gini"] = utilities.apply(gini)
