@@ -23,7 +23,7 @@ def get_base_dir_path() -> Path:
     return base_dir_path
 
 
-def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement"], generation_model: str = "4o", baseline: bool=False,
+def get_results_paths(labelling_model: str, embedding_type: Literal["llm", "seed_statement", "fish"], generation_model: str = "4o", baseline: bool=False,
                       base_dir: Path | None = None, run_id: str | None = None) -> dict[str, Path]:
     """Get directories given a hierarchy of directories.
     
