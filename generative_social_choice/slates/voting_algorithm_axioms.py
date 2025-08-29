@@ -1,6 +1,7 @@
 import abc
 import itertools
 from dataclasses import dataclass, field
+from functools import cache, partial
 from typing import override
 
 import pandas as pd
@@ -11,7 +12,8 @@ from generative_social_choice.slates.voting_utils import (
     voter_utilities,
     voter_max_utilities_from_slate,
     pareto_dominates,
-    pareto_efficient_slates
+    pareto_efficient_slates,
+    df_cache
 )
 
 
@@ -60,6 +62,7 @@ class IndividualParetoAxiom(VotingAlgorithmAxiom):
 
     name: str = "Individual Pareto Efficiency"
 
+    
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -108,6 +111,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
 
     name: str = "m-th Happiest Person Pareto Efficiency"
 
+    
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -167,6 +171,7 @@ class CoverageAxiom(VotingAlgorithmAxiom):
 
     name: str = "Maximum Coverage"
 
+    
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -266,11 +271,12 @@ class CoverageAxiom(VotingAlgorithmAxiom):
 
 @dataclass(frozen=True)
 class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
-    """There is no other slate with strictly better minimum utility and total utility among individual voters.
+    """There is no other slate with strictly better minimum utility and total utility among voters.
     """
 
     name: str = "Minimum Utility and Total Utility Pareto Efficiency"
 
+    
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
         # Get utilities for the given assignments
@@ -292,30 +298,32 @@ class MinimumAndTotalUtilityParetoAxiom(VotingAlgorithmAxiom):
 @dataclass(frozen=True)
 class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     """
-    There is no other slate with much higher min utility and slightly lower average utility.
+    There is no other slate with much higher min utility and marginally lower total utility.
 
-    The assignment output of a voting algorithm has the minimum utility is u_min and the average utility u_avg. 
-    The assignment meets the axiom if there exists no other slate with average utility = u_avg - delta and min utility u_min + epsilon, 
+    The assignment output of a voting algorithm has the minimum utility u_min and the total utility u_total. 
+    The assignment meets the axiom if there exists no other slate with total utility = u_total - delta and min utility u_min + epsilon, 
     where epsilon/delta >= `max_tradeoff` and epsilon > 0 and delta > 0.
     """
     
     max_tradeoff: float = 20.0
     name: str = "Non-radical Total Utility Pareto Efficiency"
-    abs_tol: float = 1e-8
 
+    @staticmethod
+    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+        if alternate_utilities.min() <= utilities.min() or alternate_utilities.sum() >= utilities.sum():
+            return -1.0
+        return (alternate_utilities.min() - utilities.min()) / (utilities.sum() - alternate_utilities.sum())
+    
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
-        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
-            if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
-                return -1.0
-            return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
-
         utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
-        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
+        pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
 
-        for alt_slate in worst_alt_slates:
+        for alt_slate in pareto_slates:
             alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
-            this_tradeoff = utility_tradeoff(alt_utilities)
+            if pareto_dominates([alt_utilities.min(), alt_utilities.sum()], [utilities.min(), utilities.sum()]):
+                return False
+            this_tradeoff = self.utility_tradeoff(utilities, alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False
         return True
@@ -325,28 +333,37 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
         """
         Identify slates that satisfy the non-radical total utility axiom.
         """
+        pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
+        
+        if len(pareto_slates) == 1:
+            return pareto_slates
+
         # Compute utility tuples for each slate
         slate_utilities = []
-        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+        for slate in pareto_slates:
             utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
-            avg_utility = utilities.mean()
+            total_utility = utilities.sum()
             min_utility = utilities.min()
-            slate_utilities.append((frozenset(slate), avg_utility, min_utility))
+            slate_utilities.append((frozenset(slate), total_utility, min_utility))
 
-        # Sort slates by average utility in descending order
+        # Sort slates by total utility in descending order
         slate_utilities.sort(key=lambda x: x[1], reverse=True)
 
         # Start with all slates assumed valid
         valid_slates = {slate for slate, _, _ in slate_utilities}
 
         # Check each ordered pair (primary, alternate)
-        for i, (primary_slate, primary_avg, primary_min) in enumerate(slate_utilities):
+        for i, (primary_slate, primary_total, primary_min) in enumerate(slate_utilities):
             if primary_slate not in valid_slates:
                 continue
 
-            for alternate_slate, alternate_avg, alternate_min in slate_utilities[i+1:]:
+            for alternate_slate, alternate_total, alternate_min in slate_utilities[i+1:]:
                 epsilon = alternate_min - primary_min
-                delta = primary_avg - alternate_avg
+                delta = primary_total - alternate_total
+
+                # If alternate is Pareto-dominated, we discard it
+                if epsilon <= 0:
+                    valid_slates.discard(alternate_slate)
 
                 # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
                 if epsilon > 0 and delta > 0 and (epsilon / delta) >= self.max_tradeoff:
@@ -359,7 +376,7 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
 @dataclass(frozen=True)
 class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
     """
-    There is no other slate with much higher total utility and slightly lower minimum utility.
+    There is no other slate with much higher total utility and marginally lower minimum utility.
 
     The assignment output of a voting algorithm has the minimum utility u_min and the total utility u_total.
     The assignment meets the axiom if there exists no other slate with total utility = u_total + delta and min utility u_min - epsilon,
@@ -368,50 +385,63 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
     
     max_tradeoff: float = 20.0
     name: str = "Non-radical Minimum Utility Pareto Efficiency"
-    abs_tol: float = 1e-8
 
+    @staticmethod
+    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+        if alternate_utilities.sum() <= utilities.sum() or alternate_utilities.min() >= utilities.min():
+            return -1.0
+        return (alternate_utilities.sum() - utilities.sum()) / (utilities.min() - alternate_utilities.min())
+    
+    @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
-        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
-            if alternate_utilities.mean() - self.abs_tol <= utilities.mean() or alternate_utilities.min() + self.abs_tol >= utilities.min():
-                return -1.0
-            return (utilities.mean() - alternate_utilities.mean()) / (utilities.min() - alternate_utilities.min())
-
         utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
-        worst_alt_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [utility_tradeoff])
+        pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
 
-        for alt_slate in worst_alt_slates:
+        for alt_slate in pareto_slates:
             alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
-            this_tradeoff = utility_tradeoff(alt_utilities)
+            if pareto_dominates([alt_utilities.min(), alt_utilities.sum()], [utilities.min(), utilities.sum()]):
+                return False
+            this_tradeoff = self.utility_tradeoff(utilities, alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False
         return True
 
+    @override
     def satisfactory_slates(self, rated_votes: pd.DataFrame, slate_size: int) -> set[frozenset[str]]:
         """
         Identify slates that satisfy the non-radical minimum utility axiom.
         """
+        pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
+        
+        if len(pareto_slates) == 1:
+            return pareto_slates
+
         # Compute utility tuples for each slate
         slate_utilities = []
-        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+        for slate in pareto_slates:
             utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
-            avg_utility = utilities.mean()
+            total_utility = utilities.sum()
             min_utility = utilities.min()
-            slate_utilities.append((frozenset(slate), avg_utility, min_utility))
+            slate_utilities.append((frozenset(slate), total_utility, min_utility))
 
-        # Sort slates by minimum utility in ascending order
-        slate_utilities.sort(key=lambda x: x[2])
+        # Sort slates by minimum utility in descending order
+        slate_utilities.sort(key=lambda x: x[2], reverse=True)
 
         # Start with all slates assumed valid
         valid_slates = {slate for slate, _, _ in slate_utilities}
 
         # Check each ordered pair (primary, alternate)
-        for i, (primary_slate, primary_avg, primary_min) in enumerate(slate_utilities):
+        for i, (primary_slate, primary_total, primary_min) in enumerate(slate_utilities):
             if primary_slate not in valid_slates:
                 continue
 
-            for alternate_slate, alternate_avg, alternate_min in slate_utilities[i+1:]:
+            for alternate_slate, alternate_total, alternate_min in slate_utilities[i+1:]:
                 epsilon = primary_min - alternate_min
-                delta = alternate_avg - primary_avg
+                delta = alternate_total - primary_total
+
+                # If alternate is Pareto-dominated, we discard it
+                if delta <= 0:
+                    valid_slates.discard(alternate_slate)
 
                 # Check if epsilon and delta are valid and if the tradeoff exceeds max_tradeoff
                 if epsilon > 0 and delta > 0 and (delta / epsilon) >= self.max_tradeoff:

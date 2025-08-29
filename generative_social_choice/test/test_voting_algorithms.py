@@ -5,7 +5,8 @@ from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
 import sys
 import inspect
-
+import multiprocessing
+from functools import partial
 import itertools
 import pandas as pd
 import numpy as np
@@ -132,41 +133,80 @@ class TestVotingAlgorithmFunctionality(unittest.TestCase):
         #                 assert pd.DataFrame.equals(assignments[col], rated_vote_case.expected_assignments[col])
 
 
-class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
-    @parameterized.expand(voting_algorithm_test_cases)
-    def test_voting_algorithm_for_pareto(
-        self,
-        name: str,
-        rated_vote_case: RatedVoteCase,
-        voting_algorithm: VotingAlgorithm,
-    ):
-        """
-        Test whether the algorithm satisfies various forms of Pareto efficiency.
-
-        # Arguments
+def run_single_axiom_test(test_case):
+    """
+    Run a single axiom test case in a separate process.
+    
+    Args:
+        test_case: A tuple containing (voting_algorithm, rated_vote_case, axiom)
         
-        """
+    Returns:
+        A tuple containing (voting_algorithm_name, rated_vote_case_name, axiom_name, success)
+    """
+    voting_algorithm, rated_vote_case, axiom = test_case
+    
+    # Check if the axiom is satisfied for all augmented cases
+    for rated_votes in rated_vote_case.augmented_cases:
         # Compute the solution using the voting algorithm
         slate, assignments = voting_algorithm.vote(
-            rated_vote_case.rated_votes.copy(),  # Voting algorithms might append columns
+            rated_votes.copy(),  # Voting algorithms might append columns
             rated_vote_case.slate_size,
         )
+        
+        # Use the return value of evaluate_assignment directly
+        if not axiom.evaluate_assignment(
+            rated_votes=rated_votes, 
+            slate_size=rated_vote_case.slate_size, 
+            assignments=assignments
+        ):
+            return (voting_algorithm.name, rated_vote_case.name, axiom.name, False)
+    
+    # If we get here, all augmented cases passed the axiom test
+    return (voting_algorithm.name, rated_vote_case.name, axiom.name, True)
 
-        for axiom in axioms_to_evaluate:
-            with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm.name, rated_vote_case.name, axiom.name])):
-                assert axiom.evaluate_assignment(rated_votes=rated_vote_case.rated_votes, slate_size=rated_vote_case.slate_size, assignments=assignments), \
-                    f"Slate {slate} does not satisfy {axiom.name}"
+
+class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
+    """
+    Test whether voting algorithms satisfy various axioms using parallel processing.
+    """
+    
+    def setUp(self):
+        """Set up the test environment."""
+        # Create a pool of worker processes
+        self.process_pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+        
+    def tearDown(self):
+        """Clean up resources after tests."""
+        self.process_pool.close()
+        self.process_pool.join()
+    
+    def test_voting_algorithm_for_pareto(self):
+        """
+        Test whether the algorithms satisfy axioms using parallel processing.
+        """
+        # Create all test cases
+        test_cases = []
+        for voting_algorithm in voting_algorithms_to_test:
+            for rated_vote_case in rated_vote_cases.values():
+                for axiom in axioms_to_evaluate:
+                    test_cases.append((voting_algorithm, rated_vote_case, axiom))
+        
+        # Run tests in parallel
+        results = self.process_pool.map(run_single_axiom_test, test_cases)
+        
+        # Process results
+        for voting_algorithm_name, rated_vote_case_name, axiom_name, success in results:
+            with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm_name, rated_vote_case_name, axiom_name])):
+                self.assertTrue(success, f"Algorithm {voting_algorithm_name} failed axiom {axiom_name} for vote case {rated_vote_case_name}")
 
 
 class TestVotingAlgorithmAssignments(unittest.TestCase):
 
     @parameterized.expand([
         (rated_vote_cases["Ex 1.2"], ["s2", "s3"], None, {}),
-        (rated_vote_cases["Ex 1.2"], ["s2", "s3"], None, dict(load_magnitude_method="total")),
         (rated_vote_cases["Ex 1.1"], ["s2", "s4"], None, {}),
-        (rated_vote_cases["Ex 1.1"], ["s2", "s4"], None, dict(load_magnitude_method="total")),
+        (rated_vote_cases["Ex 1.3"], ["s1", "s3"], None, {}),
         (rated_vote_cases["Ex 1.1 modified"], ["s2", "s4"], None, {}),
-        (rated_vote_cases["Ex 1.1 modified"], ["s2", "s4"], None, dict(load_magnitude_method="total")),
         # (rated_vote_cases["Ex Alg A.1"], ["s1", "s3", "s4"], None, {}), # Stochastic selection
     ])
     def test_phragmen_assignments(

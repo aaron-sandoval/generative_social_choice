@@ -1,10 +1,144 @@
+import abc
+from functools import cache, wraps
 from collections.abc import Iterable
-from typing import Optional, Sequence, Callable, Hashable
+from dataclasses import dataclass
+from typing import Optional, Sequence, Callable, Hashable, Literal
 import itertools
 
 import pandas as pd
 import numpy as np
 from jaxtyping import Float, Bool
+
+@dataclass(frozen=True)
+class NoiseAugmentationMethod(abc.ABC):
+    """
+    A method for augmenting a single RatedVoteCase by adding extra cases with noise.
+    """
+    min_magnitude: Optional[float] = 1e-8
+    max_magnitude: Optional[float] = 1e-6
+    sign: Literal["positive", "negative", "both"] = "both"
+
+    @abc.abstractmethod
+    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+        """
+        Augment the given rated votes with noise.
+
+        # Arguments
+        - `rated_votes: pd.DataFrame`: The rated votes to augment
+        - `num_augmentations: int`: The number of additional cases to create
+
+        # Returns
+        - A list of `num_augmentations` pd.DataFrames, each with the same rated votes as the input but with noise added.
+        """
+        pass
+
+    def sample_signs(self, num_augmentations: int) -> list[int]:
+        """
+        Sample a list of signs for the noise.
+        """
+        if self.sign == "positive":
+            return np.ones(num_augmentations, dtype=int)
+        elif self.sign == "negative":
+            return -np.ones(num_augmentations, dtype=int)
+        else:  # "both"
+            return np.random.choice([-1, 1], size=num_augmentations, p=[0.5, 0.5])
+
+
+@dataclass(frozen=True)
+class CellWiseAugmentation(NoiseAugmentationMethod):
+    """
+    Adds noise to each cell of the utility matrix independently.
+    """
+    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+        """
+        Adds noise to each cell of the utility matrix independently.
+        """
+        signs = self.sample_signs(num_augmentations)
+        augmented_votes = []
+        
+        for i in range(num_augmentations):
+            noise = np.random.uniform(self.min_magnitude, self.max_magnitude, rated_votes.shape)
+            augmented_votes.append(rated_votes + signs[i] * noise)
+            
+        return augmented_votes
+
+@dataclass(frozen=True)
+class CandidateWiseAugmentation(NoiseAugmentationMethod):
+    """
+    Adds noise with a single value sampled for each candidate (column) and applied to all ratings for that candidate.
+    """
+    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+        """
+        Adds noise with a single value sampled for each candidate (column) and applied to all ratings for that candidate.
+        
+        # Arguments
+        - `rated_votes: pd.DataFrame`: The rated votes to augment
+        - `num_augmentations: int`: The number of additional cases to create
+        
+        # Returns
+        - A list of `num_augmentations` pd.DataFrames, each with the same rated votes as the input but with noise added.
+        """
+        signs = self.sample_signs(num_augmentations)
+        augmented_votes = []
+        
+        for i in range(num_augmentations):
+            # Sample one noise value per candidate (column)
+            candidate_noise = np.random.uniform(
+                self.min_magnitude, 
+                self.max_magnitude, 
+                len(rated_votes.columns)
+            )
+            
+            # Create a DataFrame with the same shape as rated_votes
+            # Each column has the same noise value applied to all rows
+            noise_df = pd.DataFrame(
+                {col: candidate_noise[j] for j, col in enumerate(rated_votes.columns)},
+                index=rated_votes.index
+            )
+            
+            # Apply the noise with the appropriate sign
+            augmented_votes.append(rated_votes + signs[i] * noise_df)
+            
+        return augmented_votes
+
+
+class VoterWiseAugmentation(NoiseAugmentationMethod):
+    """
+    Adds noise with a single value sampled for each voter (row) and applied to all ratings for that voter.
+    """
+    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+        """
+        Adds noise with a single value sampled for each voter (row) and applied to all ratings for that voter.
+        
+        # Arguments
+        - `rated_votes: pd.DataFrame`: The rated votes to augment
+        - `num_augmentations: int`: The number of additional cases to create
+        
+        # Returns
+        - A list of `num_augmentations` pd.DataFrames, each with the same rated votes as the input but with noise added.
+        """
+        signs = self.sample_signs(num_augmentations)
+        augmented_votes = []
+        
+        for i in range(num_augmentations):
+            # Sample one noise value per voter (row)
+            voter_noise = np.random.uniform(
+                self.min_magnitude, 
+                self.max_magnitude, 
+                len(rated_votes.index)
+            )
+            
+            # Create a DataFrame with the same shape as rated_votes
+            # Each row has the same noise value applied to all columns
+            noise_df = pd.DataFrame(
+                {col: voter_noise for col in rated_votes.columns},
+                index=rated_votes.index
+            )
+            
+            # Apply the noise with the appropriate sign
+            augmented_votes.append(rated_votes + signs[i] * noise_df)
+            
+        return augmented_votes
 
 
 def voter_utilities(rated_votes: pd.DataFrame, assignments_series: pd.Series, output_column_name: str = "utility") -> pd.Series:
@@ -15,7 +149,7 @@ def voter_utilities(rated_votes: pd.DataFrame, assignments_series: pd.Series, ou
     return pd.Series(utilities, index=assignments_series.index, name=output_column_name)
 
 
-def voter_max_utilities_from_slate(rated_votes: pd.DataFrame, slate: set[str]) -> pd.Series:
+def voter_max_utilities_from_slate(rated_votes: pd.DataFrame, slate: list[str]) -> pd.Series:
     """
     Get the maximum possible utility of each voter within a given slate.
     """
@@ -163,3 +297,43 @@ def gini(utilities: Float[np.ndarray, "person"], weights: Optional[Float[np.ndar
         cumx = np.cumsum(sorted_x, dtype=float)
         # The above formula, with all weights equal to 1 simplifies to:
         return (n + 1 - 2 * np.sum(cumx) / cumx[-1]) / n
+    
+
+
+## Option 3: Use a custom key function with lru_cache
+
+
+def df_cache(func):
+    """Cache decorator that handles DataFrames by using their content hash."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Create hashable versions of args and kwargs
+        hashable_args = []
+        for arg in args:
+            if isinstance(arg, pd.DataFrame):
+                # Use pandas' built-in hash function for the dataframe content
+                hashable_args.append(hash(pd.util.hash_pandas_object(arg).sum()))
+            else:
+                hashable_args.append(arg)
+        
+        hashable_kwargs = {}
+        for key, value in kwargs.items():
+            if isinstance(value, pd.DataFrame):
+                hashable_kwargs[key] = hash(pd.util.hash_pandas_object(value).sum())
+            else:
+                hashable_kwargs[key] = value
+        
+        # Use the cached function with hashable arguments
+        return _cached_func(tuple(hashable_args), frozenset(hashable_kwargs.items()))
+    
+    # The actual cached function that takes hashable arguments
+    @cache
+    def _cached_func(hashable_args, hashable_kwargs):
+        # Convert back to the original args and kwargs
+        args_list = list(hashable_args)
+        kwargs_dict = dict(hashable_kwargs)
+        
+        # Call the original function
+        return func(*args_list, **kwargs_dict)
+    
+    return wrapper
