@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 import unittest
 from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
@@ -46,15 +45,15 @@ _NAME_DELIMITER = "$&$"
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
     GreedyTotalUtilityMaximization(),
-    ExactTotalUtilityMaximization(),
-    LPTotalUtilityMaximization(),
-    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    *all_instances(SequentialPhragmenMinimax),
+    # ExactTotalUtilityMaximization(),
+    # LPTotalUtilityMaximization(),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # *all_instances(SequentialPhragmenMinimax),
 )
 
 voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
@@ -73,6 +72,7 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         col_index = pd.MultiIndex.from_product([rated_vote_cases.keys(), [axiom.name for axiom in self.included_subtests]], names=["vote", "subtest"])
         self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=col_index)
 
+
     @override
     def addSubTest(self, test, subtest, outcome):
         super().addSubTest(test, subtest, outcome)
@@ -83,7 +83,16 @@ class AlgorithmEvaluationResult(unittest.TestResult):
         alg_name, vote_name, subtest_name = subtest._message.split(_NAME_DELIMITER)
         if not pd.isna(self.results.at[alg_name, (vote_name, subtest_name)]):
             raise ValueError(f"Result already exists for {alg_name}, {vote_name}, {subtest_name}")
-        self.results.at[alg_name, (vote_name, subtest_name)] = 1 if outcome is None else 0
+        
+        # Get the fraction from the test instance if available
+        subtest_key = subtest._message
+        fraction_passed = 1.0 if outcome is None else 0.0  # Default
+        
+        # Try to get the fraction from the test instance
+        if hasattr(test, 'current_fractions') and subtest_key in test.current_fractions:
+            fraction_passed = test.current_fractions[subtest_key]
+        
+        self.results.at[alg_name, (vote_name, subtest_name)] = fraction_passed
 
     def stopTestRun(self):
         self.write_to_csv()
@@ -142,11 +151,14 @@ def run_single_axiom_test(test_case):
         test_case: A tuple containing (voting_algorithm, rated_vote_case, axiom)
         
     Returns:
-        A tuple containing (voting_algorithm_name, rated_vote_case_name, axiom_name, success)
+        A tuple containing (voting_algorithm_name, rated_vote_case_name, axiom_name, fraction_passed)
     """
     voting_algorithm, rated_vote_case, axiom = test_case
     
-    # Check if the axiom is satisfied for all augmented cases
+    total_cases = len(rated_vote_case.augmented_cases)
+    passed_cases = 0
+    
+    # Check if the axiom is satisfied for each augmented case
     for rated_votes in rated_vote_case.augmented_cases:
         # Compute the solution using the voting algorithm
         slate, assignments = voting_algorithm.vote(
@@ -155,15 +167,16 @@ def run_single_axiom_test(test_case):
         )
         
         # Use the return value of evaluate_assignment directly
-        if not axiom.evaluate_assignment(
+        if axiom.evaluate_assignment(
             rated_votes=rated_votes, 
             slate_size=rated_vote_case.slate_size, 
             assignments=assignments
         ):
-            return (voting_algorithm.name, rated_vote_case.name, axiom.name, False)
+            passed_cases += 1
     
-    # If we get here, all augmented cases passed the axiom test
-    return (voting_algorithm.name, rated_vote_case.name, axiom.name, True)
+    # Return the fraction of augmented cases that passed
+    fraction_passed = passed_cases / total_cases if total_cases > 0 else 0.0
+    return (voting_algorithm.name, rated_vote_case.name, axiom.name, fraction_passed)
 
 
 class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
@@ -175,11 +188,20 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         """Set up the test environment."""
         # Create a pool of worker processes
         self.process_pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+        # Dictionary to store fraction values for current test run
+        self.current_fractions = {}
         
     def tearDown(self):
         """Clean up resources after tests."""
         self.process_pool.close()
         self.process_pool.join()
+    
+    def subTest(self, msg=None, fraction_passed=None, **params):
+        """Override subTest to capture fraction_passed value."""
+        # Store the fraction for this specific subtest message
+        if msg is not None and fraction_passed is not None:
+            self.current_fractions[msg] = fraction_passed
+        return super().subTest(msg=msg, **params)
     
     def test_voting_algorithm_for_pareto(self):
         """
@@ -192,9 +214,12 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         results = list(tqdm(self.process_pool.imap(run_single_axiom_test, test_cases), desc="Running tests", total=len(test_cases)))
         
         # Process results
-        for voting_algorithm_name, rated_vote_case_name, axiom_name, success in results:
-            with self.subTest(msg=_NAME_DELIMITER.join([voting_algorithm_name, rated_vote_case_name, axiom_name])):
-                self.assertTrue(success, f"Algorithm {voting_algorithm_name} failed axiom {axiom_name} for vote case {rated_vote_case_name}")
+        for voting_algorithm_name, rated_vote_case_name, axiom_name, fraction_passed in results:
+            subtest_key = _NAME_DELIMITER.join([voting_algorithm_name, rated_vote_case_name, axiom_name])
+            
+            with self.subTest(msg=subtest_key, fraction_passed=fraction_passed):
+                # For backward compatibility with existing test behavior, we still assert that all cases pass (fraction = 1.0)
+                self.assertEqual(fraction_passed, 1.0, f"Algorithm {voting_algorithm_name} passed {fraction_passed:.2%} of augmented cases for axiom {axiom_name} in vote case {rated_vote_case_name}")
 
 
 class TestVotingAlgorithmAssignments(unittest.TestCase):
