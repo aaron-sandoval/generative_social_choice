@@ -309,7 +309,7 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     name: str = "Non-radical Total Utility Pareto Efficiency"
 
     @staticmethod
-    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:  # noqa: F821
         if alternate_utilities.min() <= utilities.min() or alternate_utilities.sum() >= utilities.sum():
             return -1.0
         return (alternate_utilities.min() - utilities.min()) / (utilities.sum() - alternate_utilities.sum())
@@ -387,7 +387,7 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
     name: str = "Non-radical Minimum Utility Pareto Efficiency"
 
     @staticmethod
-    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+    def utility_tradeoff(utilities: Float[np.ndarray, "voter"], alternate_utilities: Float[np.ndarray, "voter"]) -> float:  # noqa: F821
         if alternate_utilities.sum() <= utilities.sum() or alternate_utilities.min() >= utilities.min():
             return -1.0
         return (alternate_utilities.sum() - utilities.sum()) / (utilities.min() - alternate_utilities.min())

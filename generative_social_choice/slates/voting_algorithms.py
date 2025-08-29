@@ -13,7 +13,7 @@ import numpy as np
 
 from generative_social_choice.slates.voting_utils import (
     voter_utilities, voter_max_utilities_from_slate, NoiseAugmentationMethod,
-    CellWiseAugmentation, CandidateWiseAugmentation, VoterWiseAugmentation)
+    CellWiseAugmentation, CandidateWiseAugmentation, VoterAndCellWiseAugmentation)
 from generative_social_choice.utils.helper_functions import geq_lib
 
 @dataclass
@@ -33,7 +33,7 @@ class RatedVoteCase:
     slate_size: int
     name: Optional[str] = None
     noise_augmentation: bool = True
-    noise_augmentation_methods: dict[NoiseAugmentationMethod, int] = field(default_factory=lambda: {CellWiseAugmentation(): 4, CandidateWiseAugmentation(): 10, VoterWiseAugmentation(): 10})
+    noise_augmentation_methods: dict[NoiseAugmentationMethod, int] = field(default_factory=lambda: {CellWiseAugmentation(): 4, CandidateWiseAugmentation(): 10, VoterAndCellWiseAugmentation(): 10})
 
     def __post_init__(self):
         if isinstance(self.rated_votes, list):

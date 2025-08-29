@@ -14,11 +14,18 @@ class NoiseAugmentationMethod(abc.ABC):
     """
     A method for augmenting a single RatedVoteCase by adding extra cases with noise.
     """
-    min_magnitude: Optional[float] = 1e-7
-    max_magnitude: Optional[float] = 5e-6
+    min_magnitude: Optional[float] = 1e-5
+    max_magnitude: Optional[float] = 5e-4
     sign: Literal["positive", "negative", "both"] = "both"
 
+    
     @abc.abstractmethod
+    def noise_dfs(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+        """
+        The noise dfs to add to the rated votes.
+        """
+        raise NotImplementedError
+    
     def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
         """
         Augment the given rated votes with noise.
@@ -30,7 +37,7 @@ class NoiseAugmentationMethod(abc.ABC):
         # Returns
         - A list of `num_augmentations` pd.DataFrames, each with the same rated votes as the input but with noise added.
         """
-        pass
+        return [rated_votes + df for df in self.noise_dfs(rated_votes, num_augmentations)]
 
     def sample_signs(self, num_augmentations: int) -> list[int]:
         """
@@ -49,7 +56,7 @@ class CellWiseAugmentation(NoiseAugmentationMethod):
     """
     Adds noise to each cell of the utility matrix independently.
     """
-    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+    def noise_dfs(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
         """
         Adds noise to each cell of the utility matrix independently.
         """
@@ -58,7 +65,7 @@ class CellWiseAugmentation(NoiseAugmentationMethod):
         
         for i in range(num_augmentations):
             noise = np.random.uniform(self.min_magnitude, self.max_magnitude, rated_votes.shape)
-            augmented_votes.append(rated_votes + signs[i] * noise)
+            augmented_votes.append(signs[i] * noise)
             
         return augmented_votes
 
@@ -67,7 +74,7 @@ class CandidateWiseAugmentation(NoiseAugmentationMethod):
     """
     Adds noise with a single value sampled for each candidate (column) and applied to all ratings for that candidate.
     """
-    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+    def noise_dfs(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
         """
         Adds noise with a single value sampled for each candidate (column) and applied to all ratings for that candidate.
         
@@ -97,7 +104,7 @@ class CandidateWiseAugmentation(NoiseAugmentationMethod):
             )
             
             # Apply the noise with the appropriate sign
-            augmented_votes.append(rated_votes + signs[i] * noise_df)
+            augmented_votes.append(signs[i] * noise_df)
             
         return augmented_votes
 
@@ -106,7 +113,7 @@ class VoterWiseAugmentation(NoiseAugmentationMethod):
     """
     Adds noise with a single value sampled for each voter (row) and applied to all ratings for that voter.
     """
-    def augment(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+    def noise_dfs(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
         """
         Adds noise with a single value sampled for each voter (row) and applied to all ratings for that voter.
         
@@ -136,10 +143,22 @@ class VoterWiseAugmentation(NoiseAugmentationMethod):
             )
             
             # Apply the noise with the appropriate sign
-            augmented_votes.append(rated_votes + signs[i] * noise_df)
+            augmented_votes.append(signs[i] * noise_df)
             
         return augmented_votes
 
+class VoterAndCellWiseAugmentation(NoiseAugmentationMethod):
+    """
+    Adds noise with a single value sampled for each voter (row) and each cell of the utility matrix.
+    """
+    def noise_dfs(self, rated_votes: pd.DataFrame, num_augmentations: int) -> list[pd.DataFrame]:
+        """
+        Adds noise with a single value sampled for each voter (row) and each cell of the utility matrix.
+        """
+        voter_wise_augmentation = VoterWiseAugmentation(min_magnitude=self.max_magnitude*.5, max_magnitude=self.max_magnitude - self.min_magnitude)
+        cell_wise_augmentation = CellWiseAugmentation(min_magnitude=self.min_magnitude, max_magnitude=self.max_magnitude*.5)
+        return [a + b for a, b in zip(voter_wise_augmentation.noise_dfs(rated_votes, num_augmentations), cell_wise_augmentation.noise_dfs(rated_votes, num_augmentations))]
+        
 
 def voter_utilities(rated_votes: pd.DataFrame, assignments_series: pd.Series, output_column_name: str = "utility") -> pd.Series:
     """
@@ -194,7 +213,7 @@ def pareto_dominates(a: Sequence[float], b: Sequence[float]) -> bool:
     return all(a[i] >= b[i] for i in range(len(a))) and any(a[i] > b[i] for i in range(len(a)))
 
 
-def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"], abs_tol: float = 1e-6) -> Bool[np.ndarray, "slate"]:
+def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"], abs_tol: float = 1e-6) -> Bool[np.ndarray, "slate"]:  # noqa: F821
     """
     Finds the boolean mask of pareto efficiency among an array of candidates.
 
@@ -231,7 +250,7 @@ def is_pareto_efficient(positive_metrics: Float[np.ndarray, "slate metric_type"]
 def pareto_efficient_slates(
     rated_votes: pd.DataFrame,
     slate_size: int, 
-    positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]
+    positive_metrics: Iterable[Callable[[Float[np.ndarray, "voter_utility"]], float]]  # noqa: F821
 ) -> set[frozenset[Hashable]]:
     """
     Find all pareto efficient slates of a given size according to a set of positive metrics.
@@ -266,7 +285,7 @@ def pareto_efficient_slates(
     return set(frozenset(cand_tuple) for cand_tuple in metric_values.index[is_pareto_efficient(metric_values.values)])
 
 
-def gini(utilities: Float[np.ndarray, "person"], weights: Optional[Float[np.ndarray, "person"]] = None) -> float:
+def gini(utilities: Float[np.ndarray, "person"], weights: Optional[Float[np.ndarray, "person"]] = None) -> float:  # noqa: F821
     """
     Calculate the Gini coefficient of a given array of utilities.
 
