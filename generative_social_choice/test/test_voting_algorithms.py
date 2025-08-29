@@ -3,6 +3,7 @@ import re
 import unittest
 from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
+from tqdm import tqdm
 import sys
 import inspect
 import multiprocessing
@@ -185,14 +186,10 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         Test whether the algorithms satisfy axioms using parallel processing.
         """
         # Create all test cases
-        test_cases = []
-        for voting_algorithm in voting_algorithms_to_test:
-            for rated_vote_case in rated_vote_cases.values():
-                for axiom in axioms_to_evaluate:
-                    test_cases.append((voting_algorithm, rated_vote_case, axiom))
+        test_cases = [(voting_algorithm, rated_vote_case, axiom) for voting_algorithm, rated_vote_case, axiom in itertools.product(voting_algorithms_to_test, rated_vote_cases.values(), axioms_to_evaluate)]
         
         # Run tests in parallel
-        results = self.process_pool.map(run_single_axiom_test, test_cases)
+        results = list(tqdm(self.process_pool.imap(run_single_axiom_test, test_cases), desc="Running tests", total=len(test_cases)))
         
         # Process results
         for voting_algorithm_name, rated_vote_case_name, axiom_name, success in results:
