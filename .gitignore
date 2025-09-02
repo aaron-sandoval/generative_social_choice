@@ -180,3 +180,5 @@ cython_debug/
 
 # Windows dumb stuff
 *.bak
+
+generative_social_choice/data/_debug
