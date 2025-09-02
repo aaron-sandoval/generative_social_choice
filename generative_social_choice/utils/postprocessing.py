@@ -3,6 +3,7 @@ This module contains functions for postprocessing results, including plotting an
 """
 
 from typing import Literal, Optional, Sequence
+from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import matplotlib
 import json
@@ -12,6 +13,9 @@ import scipy
 from generative_social_choice.utils.helper_functions import get_base_dir_path
 from generative_social_choice.slates.voting_utils import gini
 from generative_social_choice.ratings.utility_matrix import extract_voter_utilities_from_info_csv
+from generative_social_choice.utils.helper_functions import get_results_paths
+from generative_social_choice.ratings.utility_matrix import get_baseline_generate_slate_results
+
 
 LIKERT_SCORES: dict[int, str] = {
     0: "Not at all",
@@ -1148,3 +1152,93 @@ def plot_scalar_clustered_confidence_intervals(
     plt.tight_layout()
     
     return fig
+
+
+def get_results_for_run(labelling_model: str, run_id: str, embedding_type: str = "llm"):
+    result_paths = get_results_paths(labelling_model=labelling_model, baseline=False,  embedding_type=embedding_type, run_id=run_id)
+
+    algo_assignment_result_dir = result_paths["assignments"]
+    algo_assignment_files = {
+        path.stem: path for path in algo_assignment_result_dir.glob("*.json")
+    }
+
+    algo_assignments = pd.DataFrame(columns=list(algo_assignment_files.keys())) #, index=baseline_assignments.index)
+    utilities = pd.DataFrame(columns=list(algo_assignment_files.keys()))
+
+    for algo_name, file_path in algo_assignment_files.items():
+        with open(file_path, "r") as f:
+            algo_assignment_data = (json.load(f))
+            algo_utilities = pd.Series(algo_assignment_data['utilities'], index=algo_assignment_data['agent_ids'])
+            utilities[algo_name] = algo_utilities
+            cur_algo_assignments = pd.Series(algo_assignment_data['assignments'], index=algo_assignment_data['agent_ids'])
+            algo_assignments[algo_name] = cur_algo_assignments
+
+
+    #algo_assignments.head()
+    #utilities.head()
+    return utilities, algo_assignments
+
+
+@dataclass
+class ResultConfig:
+    name: str
+    embedding_type: str
+    run_ids: list[str]
+    labelling_model: str = "4o-mini"
+    pipeline: Literal["ours", "fish"] = "ours"
+
+
+def collect_results_and_plot(configs: list[ResultConfig], method: str, confidence_level: float = 0.95, n_bootstrap: int = 400) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
+    utility_dfs = {}
+    all_algo_assignments = {}
+    pipelines = {}
+
+    for config in configs:
+        # Collect metrics for all runs
+        all_metrics = []
+        config_algo_assignments = []
+        all_utilities = []
+        pipelines[config.name] = config.pipeline
+
+        if config.pipeline=="fish":
+            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type)
+
+            utility_dfs[config.name] = [utilities[col] for col in utilities.columns]
+            all_algo_assignments[config.name] = [algo_assignments[col] for col in algo_assignments.columns]
+        else:
+            for run_id in config.run_ids:
+                utilities, algo_assignments = get_results_for_run(labelling_model=config.labelling_model, run_id=run_id, embedding_type=config.embedding_type)
+                metrics = scalar_utility_metrics(utilities)
+                all_metrics.append(metrics.loc[method])
+                config_algo_assignments.append(algo_assignments)
+                all_utilities.append(utilities)
+
+            utility_dfs[config.name] = all_utilities
+
+            all_algo_assignments[config.name] = config_algo_assignments
+
+    # Combine utilities for the selected method across all runs with MultiIndex columns
+    utilities_multidf = pd.DataFrame({
+        (name, i): utility_dfs[name][i][method] if pipelines[name] == "ours" else utility_dfs[name][i]
+        for name in utility_dfs.keys()
+        #for i in (range(len(utility_dfs[name])) if pipelines[name] == "ours" else range(len(utility_dfs[name].columns)))
+        for i in range(len(utility_dfs[name]))
+    })
+    utilities_multidf.columns = pd.MultiIndex.from_tuples(utilities_multidf.columns)
+
+    scalar_metrics_per_run = scalar_utility_metrics(utilities_multidf)
+    scalar_confidence_intervals = bootstrap_df_rows(scalar_metrics_per_run, confidence_level=confidence_level, n_bootstrap=n_bootstrap)
+
+    # Now plot with CIs
+    embedding_ablation_multi_fig = plot_sorted_utility_CIs(utilities_multidf, confidence_level=confidence_level, n_bootstrap=n_bootstrap)
+
+    embedding_ablation_multi_fig.axes[0].set_xlim(50, 100)
+    #embedding_ablation_multi_fig.savefig("embedding_ablation_multi_fig.png")
+    embedding_ablation_multi_fig.show()
+
+    return {
+        "utility_df_dict": utility_dfs,
+        "algo_assignments": all_algo_assignments,
+        "utility_df": utilities_multidf,
+        "scalar_confidence_intervals": scalar_confidence_intervals,
+    }
