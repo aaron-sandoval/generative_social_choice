@@ -125,7 +125,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
             # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
             mth_happiest = np.sort(w_utilities)[::-1]
             mth_happiest_prime = np.sort(wprime_utilities)[::-1]
-            if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime <= mth_happiest).all():
+            if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime >= mth_happiest).all():
                 return False
         return True
     
