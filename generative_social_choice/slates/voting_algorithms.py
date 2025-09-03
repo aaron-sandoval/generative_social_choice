@@ -13,7 +13,8 @@ import numpy as np
 
 from generative_social_choice.slates.voting_utils import (
     voter_utilities, voter_max_utilities_from_slate, NoiseAugmentationMethod,
-    CellWiseAugmentation, CandidateWiseAugmentation, VoterAndCellWiseAugmentation)
+    CellWiseAugmentation, CandidateWiseAugmentation, VoterAndCellWiseAugmentation,
+    filter_candidates_by_individual_pareto_efficiency)
 from generative_social_choice.utils.helper_functions import geq_lib
 
 @dataclass
@@ -214,7 +215,7 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
             - `utility_previous`: The utility of the voter for the candidate before the current assignment
             - `second_selected_candidate_id`: The 2nd-favorite candidate for each voter among the candidates in the current slate
         """
-        # TODO: Figure out egalitarian_utilitarian
+        rated_votes = filter_candidates_by_individual_pareto_efficiency(rated_votes)
 
         # Initialize the slate and assignments
         slate: list[str] = []

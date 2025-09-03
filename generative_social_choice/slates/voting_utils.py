@@ -8,6 +8,7 @@ import itertools
 import pandas as pd
 import numpy as np
 from jaxtyping import Float, Bool
+from kiwiutils.kiwilib import flatten
 
 @dataclass(frozen=True)
 class NoiseAugmentationMethod(abc.ABC):
@@ -356,3 +357,27 @@ def df_cache(func):
         return func(*args_list, **kwargs_dict)
     
     return wrapper
+
+
+def filter_candidates_by_individual_pareto_efficiency(rated_votes: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filter candidates by individual Pareto efficiency.
+    
+    This function removes candidates that are individually Pareto dominated by other 
+    candidates. A candidate is individually Pareto efficient if there is no other 
+    candidate that provides equal or better utility for all voters and strictly 
+    better utility for at least one voter.
+    
+    # Arguments
+    - `rated_votes: pd.DataFrame`: The utility of each voter (rows) for each candidate (columns)
+    
+    # Returns
+    - `pd.DataFrame`: A DataFrame with the same structure as the input but with only 
+      individually Pareto efficient candidates (columns) retained.
+    """
+    if len(rated_votes.columns) == 0:
+        return rated_votes
+    efficient_candidates = set(flatten(pareto_efficient_slates(rated_votes, 1, [(lambda utilities, idx=i: utilities[idx]) for i in range(len(rated_votes))])))
+    # Preserve the original column order
+    ordered_efficient_candidates = [col for col in rated_votes.columns if col in efficient_candidates]
+    return rated_votes.loc[:, ordered_efficient_candidates]
