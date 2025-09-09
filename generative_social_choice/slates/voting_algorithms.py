@@ -29,12 +29,14 @@ class RatedVoteCase:
     - `name: Optional[str] = None`: The name of the case
     - `noise_augmentation: bool = True`: Whether to augment the case with noise
     - `noise_augmentation_methods: dict[NoiseAugmentationMethod, int]`: The methods to use to augment the case and the number of augmentations to use for each method
+    - `base_seed: Optional[int] = None`: Base seed for reproducible random noise generation. If None, uses hash of case name.
     """
     rated_votes: pd.DataFrame | list[list[int | float]]
     slate_size: int
     name: Optional[str] = None
     noise_augmentation: bool = True
     noise_augmentation_methods: dict[NoiseAugmentationMethod, int] = field(default_factory=lambda: {CellWiseAugmentation(): 4, CandidateWiseAugmentation(): 10, VoterAndCellWiseAugmentation(): 10})
+    base_seed: Optional[int] = None
 
     def __post_init__(self):
         if isinstance(self.rated_votes, list):
@@ -44,17 +46,33 @@ class RatedVoteCase:
             cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
                               for col in self.rated_votes.columns)
             self.name = f"k_{self.slate_size}_{cols_str}"
+        
+        # Set base_seed using hash of name if not provided for consistent but unique seeds
+        if self.base_seed is None:
+            object.__setattr__(self, 'base_seed', hash(self.name) % (2**31))
 
     @cached_property
     def augmented_cases(self) -> list[pd.DataFrame]:
         """
         Return a list of rated vote matrices with noise added according to `self.noise_augmentation_methods`.
+        Each augmentation method gets a unique seed derived from the base_seed for reproducible results.
         """
         if not self.noise_augmentation:
             return [self.rated_votes]
         augmented_cases = []
+        method_index = 0
         for noise_method, num_augmentations in self.noise_augmentation_methods.items():
-            augmented_cases.extend(noise_method.augment(self.rated_votes, num_augmentations))
+            # Create a new instance of the noise method with a derived seed
+            # Use method_index and method type to ensure uniqueness
+            method_seed = self.base_seed + method_index * 1000 + hash(type(noise_method).__name__) % 1000
+            seeded_method = type(noise_method)(
+                min_magnitude=noise_method.min_magnitude,
+                max_magnitude=noise_method.max_magnitude,
+                sign=noise_method.sign,
+                seed=method_seed
+            )
+            augmented_cases.extend(seeded_method.augment(self.rated_votes, num_augmentations))
+            method_index += 1
         return augmented_cases
 
 

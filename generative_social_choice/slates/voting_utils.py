@@ -18,6 +18,7 @@ class NoiseAugmentationMethod(abc.ABC):
     min_magnitude: Optional[float] = 1e-5
     max_magnitude: Optional[float] = 5e-4
     sign: Literal["positive", "negative", "both"] = "both"
+    seed: Optional[int] = None
 
     
     @abc.abstractmethod
@@ -49,7 +50,8 @@ class NoiseAugmentationMethod(abc.ABC):
         elif self.sign == "negative":
             return -np.ones(num_augmentations, dtype=int)
         else:  # "both"
-            return np.random.choice([-1, 1], size=num_augmentations, p=[0.5, 0.5])
+            rng = np.random.default_rng(self.seed)
+            return rng.choice([-1, 1], size=num_augmentations, p=[0.5, 0.5])
 
 
 @dataclass(frozen=True)
@@ -61,11 +63,12 @@ class CellWiseAugmentation(NoiseAugmentationMethod):
         """
         Adds noise to each cell of the utility matrix independently.
         """
+        rng = np.random.default_rng(self.seed)
         signs = self.sample_signs(num_augmentations)
         augmented_votes = []
         
         for i in range(num_augmentations):
-            noise = np.random.uniform(self.min_magnitude, self.max_magnitude, rated_votes.shape)
+            noise = rng.uniform(self.min_magnitude, self.max_magnitude, rated_votes.shape)
             augmented_votes.append(signs[i] * noise)
             
         return augmented_votes
@@ -89,9 +92,11 @@ class CandidateWiseAugmentation(NoiseAugmentationMethod):
         signs = self.sample_signs(num_augmentations)
         augmented_votes = []
         
+        rng = np.random.default_rng(self.seed)
+        
         for i in range(num_augmentations):
             # Sample one noise value per candidate (column)
-            candidate_noise = np.random.uniform(
+            candidate_noise = rng.uniform(
                 self.min_magnitude, 
                 self.max_magnitude, 
                 len(rated_votes.columns)
@@ -128,9 +133,11 @@ class VoterWiseAugmentation(NoiseAugmentationMethod):
         signs = self.sample_signs(num_augmentations)
         augmented_votes = []
         
+        rng = np.random.default_rng(self.seed)
+        
         for i in range(num_augmentations):
             # Sample one noise value per voter (row)
-            voter_noise = np.random.uniform(
+            voter_noise = rng.uniform(
                 self.min_magnitude, 
                 self.max_magnitude, 
                 len(rated_votes.index)
@@ -156,8 +163,20 @@ class VoterAndCellWiseAugmentation(NoiseAugmentationMethod):
         """
         Adds noise with a single value sampled for each voter (row) and each cell of the utility matrix.
         """
-        voter_wise_augmentation = VoterWiseAugmentation(min_magnitude=self.max_magnitude*.5, max_magnitude=self.max_magnitude - self.min_magnitude)
-        cell_wise_augmentation = CellWiseAugmentation(min_magnitude=self.min_magnitude, max_magnitude=self.max_magnitude*.5)
+        # Create sub-augmentations with derived seeds to maintain independence
+        voter_seed = None if self.seed is None else self.seed * 2
+        cell_seed = None if self.seed is None else self.seed * 2 + 1
+        
+        voter_wise_augmentation = VoterWiseAugmentation(
+            min_magnitude=self.max_magnitude*.5, 
+            max_magnitude=self.max_magnitude - self.min_magnitude,
+            seed=voter_seed
+        )
+        cell_wise_augmentation = CellWiseAugmentation(
+            min_magnitude=self.min_magnitude, 
+            max_magnitude=self.max_magnitude*.5,
+            seed=cell_seed
+        )
         return [a + b for a, b in zip(voter_wise_augmentation.noise_dfs(rated_votes, num_augmentations), cell_wise_augmentation.noise_dfs(rated_votes, num_augmentations))]
         
 
