@@ -59,6 +59,7 @@ voting_algorithms_to_test = (
 voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
 axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
+# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (IndividualParetoAxiom(),)
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
@@ -154,7 +155,8 @@ def run_single_axiom_test(test_case):
         A tuple containing (voting_algorithm_name, rated_vote_case_name, axiom_name, fraction_passed)
     """
     voting_algorithm, rated_vote_case, axiom = test_case
-    
+    if rated_vote_case.name == "Ex 3.1":
+        a= 1 # DEBUG
     total_cases = len(rated_vote_case.augmented_cases)
     passed_cases = 0
     
