@@ -1,9 +1,7 @@
 from collections import defaultdict
 from functools import cached_property
-from pathlib import Path
-from dataclasses import dataclass, field
 import abc
-import re
+from dataclasses import dataclass
 from typing import Optional, Literal, override
 import warnings
 
@@ -17,7 +15,6 @@ from generative_social_choice.slates.voting_utils import (
     filter_candidates_by_individual_pareto_efficiency)
 from generative_social_choice.utils.helper_functions import geq_lib
 
-@dataclass
 class RatedVoteCase:
     """
     A voting case with rated votes and sets of possible results which satisfy various properties.
@@ -31,25 +28,55 @@ class RatedVoteCase:
     - `noise_augmentation_methods: dict[NoiseAugmentationMethod, int]`: The methods to use to augment the case and the number of augmentations to use for each method
     - `base_seed: Optional[int] = None`: Base seed for reproducible random noise generation. If None, uses hash of case name.
     """
-    rated_votes: pd.DataFrame | list[list[int | float]]
-    slate_size: int
-    name: Optional[str] = None
-    noise_augmentation: bool = True
-    noise_augmentation_methods: dict[NoiseAugmentationMethod, int] = field(default_factory=lambda: {CellWiseAugmentation(): 4, CandidateWiseAugmentation(): 10, VoterAndCellWiseAugmentation(): 10})
-    base_seed: Optional[int] = None
-
-    def __post_init__(self):
-        if isinstance(self.rated_votes, list):
-            self.rated_votes = pd.DataFrame(self.rated_votes, columns=[f"s{i}" for i in range(1, len(self.rated_votes[0]) + 1)])
-
-        if self.name is None:
-            cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self.rated_votes[col]) 
-                              for col in self.rated_votes.columns)
-            self.name = f"k_{self.slate_size}_{cols_str}"
+    
+    def __init__(
+        self,
+        rated_votes: pd.DataFrame | list[list[int | float]],
+        slate_size: int,
+        name: Optional[str] = None,
+        noise_augmentation: bool = True,
+        noise_augmentation_methods: dict[NoiseAugmentationMethod, int] = None,
+        base_seed: Optional[int] = None
+    ):
+        # Set default for noise_augmentation_methods
+        if noise_augmentation_methods is None:
+            noise_augmentation_methods = {
+                CellWiseAugmentation(): 4, 
+                CandidateWiseAugmentation(): 10, 
+                VoterAndCellWiseAugmentation(): 10
+            }
+        
+        # Convert input to DataFrame and store internally
+        if isinstance(rated_votes, list):
+            self._rated_votes = pd.DataFrame(rated_votes, columns=[f"s{i}" for i in range(1, len(rated_votes[0]) + 1)])
+        else:
+            self._rated_votes = rated_votes.copy()
+        
+        self.slate_size = slate_size
+        self.noise_augmentation = noise_augmentation
+        self.noise_augmentation_methods = noise_augmentation_methods
+        
+        # Generate name if not provided
+        if name is None:
+            cols_str = "_".join(str(col) + "_" + "_".join(str(x).replace(".", "p") for x in self._rated_votes[col]) 
+                              for col in self._rated_votes.columns)
+            name = f"k_{slate_size}_{cols_str}"
+        self.name = name
         
         # Set base_seed using hash of name if not provided for consistent but unique seeds
-        if self.base_seed is None:
-            object.__setattr__(self, 'base_seed', hash(self.name) % (2**31))
+        if base_seed is None:
+            base_seed = hash(name) % (2**31)
+        self.base_seed = base_seed
+
+    @property
+    def rated_votes(self) -> pd.DataFrame:
+        """
+        Return a copy of the rated votes to prevent external mutation.
+        
+        This ensures that the original rated_votes DataFrame cannot be modified
+        after the RatedVoteCase is constructed, maintaining immutability.
+        """
+        return self._rated_votes.copy()
 
     @cached_property
     def augmented_cases(self) -> list[pd.DataFrame]:

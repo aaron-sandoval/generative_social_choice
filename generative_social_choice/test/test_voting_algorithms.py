@@ -46,20 +46,21 @@ _NAME_DELIMITER = "$&$"
 voting_algorithms_to_test = (
     GreedyTotalUtilityMaximization(),
     ExactTotalUtilityMaximization(),
-    LPTotalUtilityMaximization(),
-    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    *all_instances(SequentialPhragmenMinimax),
+    # LPTotalUtilityMaximization(),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # *all_instances(SequentialPhragmenMinimax),
+    SequentialPhragmenMinimax(),
 )
 
 voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
-axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
-# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (IndividualParetoAxiom(),)
+# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (IndividualParetoAxiom(),)
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
