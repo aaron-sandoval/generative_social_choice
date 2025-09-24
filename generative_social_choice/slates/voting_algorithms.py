@@ -473,7 +473,7 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
                 prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
 
         # Now solve the problem using an existing integer programming solver
-        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-9))
+        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
 
         # Extract slate and assignments from the solved problem
         slate: list[str] = []
