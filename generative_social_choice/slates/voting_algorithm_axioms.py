@@ -121,7 +121,7 @@ class HappiestParetoAxiom(VotingAlgorithmAxiom):
             # (Note that we get the m-th happiest person function by sorting the utilities in descending order.)
             mth_happiest = np.sort(w_utilities)[::-1]
             mth_happiest_prime = np.sort(wprime_utilities)[::-1]
-            if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime <= mth_happiest).all():
+            if (mth_happiest_prime > mth_happiest).any() and (mth_happiest_prime >= mth_happiest).all():
                 return False
         return True
     
@@ -305,7 +305,7 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
 
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
-        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:  # noqa: F821
             if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
                 return -1.0
             return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
@@ -371,7 +371,7 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
     abs_tol: float = 1e-8
 
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
-        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:
+        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:  # noqa: F821
             if alternate_utilities.mean() - self.abs_tol <= utilities.mean() or alternate_utilities.min() + self.abs_tol >= utilities.min():
                 return -1.0
             return (utilities.mean() - alternate_utilities.mean()) / (utilities.min() - alternate_utilities.min())
