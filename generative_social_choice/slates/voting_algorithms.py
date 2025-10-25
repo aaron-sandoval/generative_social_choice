@@ -46,6 +46,7 @@ class RatedVoteCase:
                 VoterAndCellWiseAugmentation(): 10
             }
         
+
         # Convert input to DataFrame and store internally
         if isinstance(rated_votes, list):
             self._rated_votes = pd.DataFrame(rated_votes, columns=[f"s{i}" for i in range(1, len(rated_votes[0]) + 1)])
@@ -67,6 +68,9 @@ class RatedVoteCase:
         if base_seed is None:
             base_seed = hash(name) % (2**31)
         self.base_seed = base_seed
+
+    def __str__(self) -> str:
+        return f"RatedVoteCase(name={self.name}, slate_size={self.slate_size}, votes={self._rated_votes.to_numpy})"
 
     @property
     def rated_votes(self) -> pd.DataFrame:

@@ -15,8 +15,8 @@ class NoiseAugmentationMethod(abc.ABC):
     """
     A method for augmenting a single RatedVoteCase by adding extra cases with noise.
     """
-    min_magnitude: Optional[float] = 1e-5
-    max_magnitude: Optional[float] = 1e-3
+    min_magnitude: Optional[float] = 1e-3
+    max_magnitude: Optional[float] = 1e-1
     sign: Literal["positive", "negative", "both"] = "both"
     seed: Optional[int] = None
 

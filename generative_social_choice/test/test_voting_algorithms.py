@@ -46,21 +46,24 @@ _NAME_DELIMITER = "$&$"
 voting_algorithms_to_test = (
     GreedyTotalUtilityMaximization(),
     ExactTotalUtilityMaximization(),
-    # LPTotalUtilityMaximization(),
-    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    LPTotalUtilityMaximization(),
+    GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
     # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
     # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
     # *all_instances(SequentialPhragmenMinimax),
-    SequentialPhragmenMinimax(),
+    SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=True, redistribute_defected_candidate_loads=False),
+    SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=False, redistribute_defected_candidate_loads=False),
+    SequentialPhragmenMinimax(load_magnitude_method="marginal_previous", clear_reassigned_loads=True, redistribute_defected_candidate_loads=True),
+    # SequentialPhragmenMinimax(),
 )
 
-voting_algorithm_test_cases: tuple[tuple[str, VotingAlgorithm, RatedVoteCase], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
+voting_algorithm_test_cases: tuple[tuple[str, RatedVoteCase, VotingAlgorithm], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
-# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
-axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (IndividualParetoAxiom(),)
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x), sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
+# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (IndividualParetoAxiom(),)
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
