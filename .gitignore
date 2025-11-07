@@ -5,6 +5,7 @@ OPENAI_ORGANIZATION
 *.DS_Store
 Chatbot_Personalization.egg-info/
 experiment_logs/
+generative_social_choice/data/_debug/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
