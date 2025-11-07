@@ -642,8 +642,12 @@ class ReweightedRangeVoting(VotingAlgorithm):
     # Arguments
     - `k: float = 1.0`: Positive constant used in the reweighting formula.
       Higher values of k make the reweighting less aggressive.
+    - `max_rating: Optional[float] = None`: Maximum allowed rating value.
+      If None, uses the maximum value found in the rated_votes data.
+      If specified, uses this value in the reweighting formula.
     """
     k: float = 1.0
+    max_rating: Optional[float] = None
 
     @override
     def vote(
@@ -675,10 +679,14 @@ class ReweightedRangeVoting(VotingAlgorithm):
         weights = pd.Series(1.0, index=rated_votes.index)
         slate: list[str] = []
         
-        # Get the maximum allowed score (assuming all scores are non-negative)
-        max_score = rated_votes.max().max()
-        if max_score <= 0:
-            max_score = 1.0  # Avoid division by zero
+        # Get the maximum allowed score
+        if self.max_rating is not None:
+            max_score = self.max_rating
+        else:
+            # Use the maximum value found in the data (assuming all scores are non-negative)
+            max_score = rated_votes.max().max()
+            if max_score <= 0:
+                max_score = 1.0  # Avoid division by zero
         
         # Iteratively select candidates
         remaining_candidates = set(rated_votes.columns)
