@@ -628,3 +628,102 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
 
         #TODO If a utility transformation was applied, assignments["utilities"] won't match the original utilities
         return slate, assignments
+
+
+@dataclass(frozen=True)
+class ReweightedRangeVoting(VotingAlgorithm):
+    """
+    Reweighted Range Voting (RRV) algorithm.
+    
+    RRV works by iteratively selecting candidates with the highest weighted scores,
+    then reducing the ballot weights of voters who "got their way" by having a 
+    highly-rated candidate selected.
+    
+    # Arguments
+    - `k: float = 1.0`: Positive constant used in the reweighting formula.
+      Higher values of k make the reweighting less aggressive.
+    """
+    k: float = 1.0
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        Select a slate of candidates using Reweighted Range Voting.
+        
+        # Arguments
+        - `rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+        - `slate_size: int`: The number of candidates to be selected
+        
+        # Returns
+        - `slate: list[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: The candidate to which the voter is assigned
+            - `utility`: The utility of the voter for the assigned candidate
+            - `weight`: The final weight of each voter's ballot
+        """
+        if slate_size <= 0:
+            return [], pd.DataFrame(index=rated_votes.index, columns=["candidate_id", "utility", "weight"])
+        
+        if slate_size > len(rated_votes.columns):
+            slate_size = len(rated_votes.columns)
+        
+        # Initialize ballot weights to 1.0 for all voters
+        weights = pd.Series(1.0, index=rated_votes.index)
+        slate: list[str] = []
+        
+        # Get the maximum allowed score (assuming all scores are non-negative)
+        max_score = rated_votes.max().max()
+        if max_score <= 0:
+            max_score = 1.0  # Avoid division by zero
+        
+        # Iteratively select candidates
+        remaining_candidates = set(rated_votes.columns)
+        
+        for _ in range(slate_size):
+            if not remaining_candidates:
+                break
+                
+            # Calculate weighted scores for each remaining candidate
+            best_candidate = None
+            best_score = float('-inf')
+            
+            for candidate in remaining_candidates:
+                # Sum of weighted scores for this candidate
+                weighted_score = (weights * rated_votes[candidate]).sum()
+                
+                if weighted_score > best_score:
+                    best_score = weighted_score
+                    best_candidate = candidate
+            
+            if best_candidate is None:
+                break
+                
+            # Add the best candidate to the slate
+            slate.append(best_candidate)
+            remaining_candidates.remove(best_candidate)
+            
+            # Update ballot weights using the RRV formula
+            # weight = k / (k + SUM/MAX)
+            # where SUM is the sum of scores given to winners-so-far
+            sum_scores_for_winners = rated_votes[slate].sum(axis=1)
+            weights = self.k / (self.k + sum_scores_for_winners / max_score)
+        
+        # Create assignments by assigning each voter to their highest-utility candidate in the slate
+        if slate:
+            assignments = pd.DataFrame(index=rated_votes.index)
+            assignments["candidate_id"] = rated_votes[slate].idxmax(axis=1)
+            assignments["utility"] = rated_votes[slate].max(axis=1)
+            assignments["weight"] = weights
+        else:
+            # Handle edge case where no candidates were selected
+            assignments = pd.DataFrame(index=rated_votes.index)
+            assignments["candidate_id"] = pd.Series([None] * len(rated_votes.index), 
+                                                  index=rated_votes.index, dtype=str)
+            assignments["utility"] = pd.Series(0.0, index=rated_votes.index)
+            assignments["weight"] = weights
+        
+        return slate, assignments
