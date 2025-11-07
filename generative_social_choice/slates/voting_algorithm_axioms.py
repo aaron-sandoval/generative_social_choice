@@ -321,8 +321,8 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
 
         for alt_slate in pareto_slates:
             alt_utilities = voter_max_utilities_from_slate(rated_votes, alt_slate)["utility"].values
-            if pareto_dominates([alt_utilities.min(), alt_utilities.sum()], [utilities.min(), utilities.sum()]):
-                return False
+            # if pareto_dominates([alt_utilities.min(), alt_utilities.sum()], [utilities.min(), utilities.sum()]):
+            #     return False
             this_tradeoff = self.utility_tradeoff(utilities, alt_utilities)
             if this_tradeoff > self.max_tradeoff:
                 return False
