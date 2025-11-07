@@ -316,11 +316,6 @@ class NonRadicalTotalUtilityAxiom(NonRadicalAxiom):
     
     @override
     def evaluate_assignment(self, rated_votes: pd.DataFrame, slate_size: int, assignments: pd.DataFrame) -> bool:
-        def utility_tradeoff(alternate_utilities: Float[np.ndarray, "voter"]) -> float:  # noqa: F821
-            if alternate_utilities.min() - self.abs_tol <= utilities.min() or alternate_utilities.mean() + self.abs_tol >= utilities.mean():
-                return -1.0
-            return (alternate_utilities.min() - utilities.min()) / (utilities.mean() - alternate_utilities.mean())
-
         utilities = voter_utilities(rated_votes, assignments["candidate_id"]).values
         pareto_slates: set[frozenset[str]] = pareto_efficient_slates(rated_votes, slate_size, [lambda utilities: utilities.min(), lambda utilities: utilities.sum()])
 
