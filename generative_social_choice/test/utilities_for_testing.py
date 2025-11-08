@@ -319,7 +319,7 @@ _rated_vote_cases: tuple[RatedVoteCase, ...] = (
             [20, 20.3],
             [20, 17.6],
         ],
-        slate_size=3,
+        slate_size=1,
     ),
 )
 
