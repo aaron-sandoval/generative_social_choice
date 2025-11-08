@@ -48,7 +48,7 @@ class RatedVoteCase:
         
 
         # Convert input to DataFrame and store internally
-        if isinstance(rated_votes, list):
+        if isinstance(rated_votes, (list, np.ndarray)):
             self._rated_votes = pd.DataFrame(rated_votes, columns=[f"s{i}" for i in range(1, len(rated_votes[0]) + 1)])
         else:
             self._rated_votes = rated_votes.copy()

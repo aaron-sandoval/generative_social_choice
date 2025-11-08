@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import re
+import numpy as np
 import pandas as pd
 
 from generative_social_choice.slates.voting_algorithms import RatedVoteCase
@@ -306,19 +307,10 @@ _rated_vote_cases: tuple[RatedVoteCase, ...] = (
     ),
         RatedVoteCase(
         name="Ex NRU1",
-        rated_votes=[
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 20.3],
-            [20, 17.6],
-        ],
+        rated_votes=np.concat([
+            np.concat([np.full((1,1), 20), np.full((1,1), 20.1)], axis=1),
+            np.array([[20, 19.904]])
+        ], axis=0),
         slate_size=1,
     ),
 )
