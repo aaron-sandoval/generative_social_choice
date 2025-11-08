@@ -304,6 +304,23 @@ _rated_vote_cases: tuple[RatedVoteCase, ...] = (
         ],
         slate_size=3,
     ),
+        RatedVoteCase(
+        name="Ex NRU1",
+        rated_votes=[
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 20.3],
+            [20, 17.6],
+        ],
+        slate_size=3,
+    ),
 )
 
 rated_vote_cases: dict[str, RatedVoteCase] = {case.name: case for case in _rated_vote_cases}
