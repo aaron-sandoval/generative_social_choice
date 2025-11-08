@@ -307,10 +307,10 @@ _rated_vote_cases: tuple[RatedVoteCase, ...] = (
     ),
         RatedVoteCase(
         name="Ex NRU1",
-        rated_votes=np.concat([
-            np.concat([np.full((1,1), 20), np.full((1,1), 20.1)], axis=1),
-            np.array([[20, 19.904]])
-        ], axis=0),
+        rated_votes=[
+            [20, 20.1],
+            [20, 19.904]
+        ],
         slate_size=1,
     ),
 )
