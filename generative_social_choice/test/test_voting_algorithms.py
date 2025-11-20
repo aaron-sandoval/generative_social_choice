@@ -47,9 +47,9 @@ _NAME_DELIMITER = "$&$"
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
-    # GreedyTotalUtilityMaximization(),
+    GreedyTotalUtilityMaximization(),
     ExactTotalUtilityMaximization(),
-    # LPTotalUtilityMaximization(),
+    LPTotalUtilityMaximization(),
     # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
@@ -61,8 +61,8 @@ voting_algorithms_to_test = (
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=False, redistribute_defected_candidate_loads=False),
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_previous", clear_reassigned_loads=True, redistribute_defected_candidate_loads=True),
     # SequentialPhragmenMinimax(),
-    # ReweightedRangeVoting(),
-    # ReweightedRangeVoting(k=0.5),
+    ReweightedRangeVoting(),
+    ReweightedRangeVoting(k=0.5),
 )
 
 voting_algorithm_test_cases: tuple[tuple[str, RatedVoteCase, VotingAlgorithm], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
