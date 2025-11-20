@@ -153,11 +153,18 @@ class VotingAlgorithm(abc.ABC):
     @property
     def name(self) -> str:
         """
-        Succinct name of the voting algorithm, used in labeling test cases.
+        Fully distinguishing name of the voting algorithm, used in labeling test cases.
 
         Name must be a valid Python function name.
         """
         return repr(self)
+    
+    @property
+    def display_name(self) -> str:
+        """
+        Short name of the voting algorithm, used in plotting and labeling.
+        """
+        return self.name.replace("(", "").replace(")", "")
 
 
 @dataclass(frozen=True)
@@ -197,6 +204,10 @@ class UtilityTransformation(abc.ABC):
         """
         pass
 
+    @property
+    def display_name(self) -> str:
+        return repr(self)
+
 @dataclass(frozen=True)
 class GeometricTransformation(UtilityTransformation):
     """
@@ -215,6 +226,10 @@ class GeometricTransformation(UtilityTransformation):
     Higher values of p make total utility increasingly egalitarian.
     """
     p: float=1.5
+
+    @property
+    def display_name(self) -> str:
+        return f"p={self.p}"
 
     @override
     def transform(
@@ -246,6 +261,10 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
     @property
     def name(self) -> str:
         return f"Phragmen({self.load_magnitude_method}, clear={self.clear_reassigned_loads}, redist={self.redistribute_defected_candidate_loads})"
+
+    @property
+    def display_name(self) -> str:
+        return f"Phragmen({self.load_magnitude_method},{"T" if self.clear_reassigned_loads else "F"},{"T" if self.redistribute_defected_candidate_loads else "F"})"
 
     @override
     def vote(
@@ -428,6 +447,10 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
 class ExactTotalUtilityMaximization(VotingAlgorithm):
     # name = "ExactTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
+
+    @property
+    def display_name(self) -> str:
+        return f"Exact{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
         
     @override
     def vote(
@@ -504,6 +527,11 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
     # name = "LPTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
 
+    
+    @property
+    def display_name(self) -> str:
+        return f"LP{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+
     @override
     def vote(
         self,
@@ -570,6 +598,11 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
 class GreedyTotalUtilityMaximization(VotingAlgorithm):
     # name = "GreedyTotalUtilityMaximization"
     utility_transform: Optional[UtilityTransformation] = None
+
+    
+    @property
+    def display_name(self) -> str:
+        return f"Greedy{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -648,6 +681,11 @@ class ReweightedRangeVoting(VotingAlgorithm):
     """
     k: float = 1.0
     max_rating: Optional[float] = None
+
+    
+    @property
+    def display_name(self) -> str:
+        return f"RRV(k={self.k})"
 
     @override
     def vote(
