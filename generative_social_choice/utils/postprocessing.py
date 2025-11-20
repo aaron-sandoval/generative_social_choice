@@ -64,9 +64,13 @@ def scalar_utility_metrics(utilities: pd.DataFrame) -> pd.DataFrame:
     """
     scalar_metrics = pd.DataFrame(index=utilities.columns)
 
-    scalar_metrics["Average"] = utilities.mean(0).T
+    scalar_metrics["Mean"] = utilities.mean(0).T
+    scalar_metrics["Mean of\nBottom 50%"] = utilities.apply(
+        lambda col: col.nsmallest(int(np.floor(len(col) * 0.5))).mean(),
+        axis=0
+    )
     scalar_metrics["Minimum"] = utilities.min(0).T
-    scalar_metrics["p25"] = utilities.quantile(0.25, axis=0).T
+    scalar_metrics["Mean Log"] = np.log(utilities).mean(0).T
     # Calculate Gini coefficient using scipy's implementation
 
     scalar_metrics["Gini"] = utilities.apply(gini)
