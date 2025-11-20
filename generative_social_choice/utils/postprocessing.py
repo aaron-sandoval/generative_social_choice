@@ -27,6 +27,101 @@ LIKERT_SCORES: dict[int, str] = {
 
 LIKERT_SCORES_INVERSE: dict[str, int] = {v: k for k, v in LIKERT_SCORES.items()}
 
+def consolidate_duplicate_columns(df: pd.DataFrame, delimiter: str = ", ") -> pd.DataFrame:
+    """
+    Consolidate columns in a DataFrame.
+
+    Eliminates columns with duplicated values (using np.allclose).
+    Preserves a single column for each set of duplicated columns.
+    Concatenates duplicated column names with `delimiter`.
+    """
+    if df.empty or len(df.columns) == 0:
+        return df.copy()
+    
+    # Track which columns have been processed
+    processed = set()
+    # Map from kept column name to list of all column names in the group
+    column_groups: dict[str, list[str]] = {}
+    
+    # Compare all pairs of columns
+    for i, col1 in enumerate(df.columns):
+        if col1 in processed:
+            continue
+        
+        # Start a new group with this column
+        group = [col1]
+        processed.add(col1)
+        
+        # Check against all remaining columns
+        for col2 in df.columns[i+1:]:
+            if col2 in processed:
+                continue
+            
+            # Compare columns using np.allclose
+            col1_values = df[col1].values
+            col2_values = df[col2].values
+            
+            # Check if both columns have NaN in the same positions
+            col1_nan = pd.isna(col1_values)
+            col2_nan = pd.isna(col2_values)
+            
+            if not np.array_equal(col1_nan, col2_nan):
+                # Different NaN patterns, not duplicates
+                continue
+            
+            # For non-NaN values, use np.allclose
+            if np.all(col1_nan):
+                # Both columns are all NaN, consider them duplicates
+                group.append(col2)
+                processed.add(col2)
+            else:
+                # Compare non-NaN values
+                non_nan_mask = ~col1_nan
+                if np.allclose(
+                    col1_values[non_nan_mask],
+                    col2_values[non_nan_mask],
+                    equal_nan=True
+                ):
+                    group.append(col2)
+                    processed.add(col2)
+        
+        # Store the group (even if it's just one column)
+        column_groups[col1] = group
+    
+    # Build the result DataFrame
+    result_columns = []
+    result_data = {}
+    
+    # Process each group, preserving the order of first occurrence
+    for col in df.columns:
+        if col not in column_groups:
+            continue
+        
+        # Get the group for this column
+        group = column_groups[col]
+        
+        # Only process if this is the representative column (first in group)
+        if group[0] != col:
+            continue
+        
+        # Create new column name
+        if len(group) > 1:
+            # Concatenate all column names in the group
+            new_name = delimiter.join(sorted(group))
+        else:
+            # No duplicates, keep original name
+            new_name = col
+        
+        # Add to result (using the first column's data)
+        result_columns.append(new_name)
+        result_data[new_name] = df[col].values
+    
+    # Create result DataFrame
+    result_df = pd.DataFrame(result_data, index=df.index)
+    result_df = result_df[result_columns]  # Preserve order
+    
+    return result_df
+
 def calculate_proportion_confidence_intervals(counts: np.ndarray, total: int) -> np.ndarray:
     """
     Calculate confidence intervals for proportions, including exact calculation for small counts where the normal approximation is not valid.
@@ -403,8 +498,8 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame, figsize: tuple[fl
     
     # Check if we have a MultiIndex
     if isinstance(utilities.columns, pd.MultiIndex):
-        # Get unique first-level indices
-        first_level_indices = sorted(set(utilities.columns.get_level_values(0)))
+        # Get unique first-level indices in order of appearance
+        first_level_indices = pd.unique(utilities.columns.get_level_values(0))
         
         # Define primary colors for each group - using darker, more muted colors
         primary_colors = {
@@ -464,15 +559,20 @@ def plot_sorted_utility_distributions(utilities: pd.DataFrame, figsize: tuple[fl
                 color=color
             )
     else:
-        # Original behavior for simple column index
-        for column in utilities.columns:
+        # Use default matplotlib color cycle for simple column index
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
+        
+        for i, column in enumerate(utilities.columns):
             sorted_values = utilities[column].sort_values(ascending=False).values
             indices = np.arange(len(sorted_values))
+            # Cycle through default colors
+            color = colors[i % len(colors)]
             ax.plot(
                 indices, 
                 sorted_values, 
                 label=column, 
-                color=plt.cm.tab20(utilities.columns.get_loc(column))
+                color=color
             )
     
     # Customize plot
@@ -491,7 +591,8 @@ def plot_sorted_utility_CIs(
     utilities: pd.DataFrame, 
     confidence_level: float = 0.95,
     n_bootstrap: int = 400,
-    figsize: tuple[float, float] = (10, 6)
+    figsize: tuple[float, float] = (10, 6),
+    do_sort: bool = True
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -508,6 +609,8 @@ def plot_sorted_utility_CIs(
             index will be grouped together.
         confidence_level: Width of the confidence interval (default: 0.95).
         n_bootstrap: Number of bootstrap samples to generate (default: 400).
+        do_sort: Whether to sort utilities in each column in descending order
+            (default: True). When False, utilities are used in their original order.
     
     Returns:
         matplotlib Figure object containing the plot
@@ -519,10 +622,13 @@ def plot_sorted_utility_CIs(
     # We need to create a DataFrame where rows represent sorted utility trajectories
     # and columns represent position indices
     
-    # First, calculate sorted utilities for all columns
+    # First, calculate sorted utilities for all columns (or unsorted if do_sort=False)
     sorted_utilities_dict = {}
     for column in utilities.columns:
-        sorted_values = utilities[column].sort_values(ascending=False).values
+        if do_sort:
+            sorted_values = utilities[column].sort_values(ascending=False).values
+        else:
+            sorted_values = utilities[column].values
         sorted_utilities_dict[column] = sorted_values
     
     # Create DataFrame with sorted trajectories as rows
