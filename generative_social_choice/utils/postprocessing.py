@@ -592,7 +592,8 @@ def plot_sorted_utility_CIs(
     confidence_level: float = 0.95,
     n_bootstrap: int = 400,
     figsize: tuple[float, float] = (10, 6),
-    do_sort: bool = True
+    do_sort: bool = True,
+    do_CI: bool = True
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -611,6 +612,8 @@ def plot_sorted_utility_CIs(
         n_bootstrap: Number of bootstrap samples to generate (default: 400).
         do_sort: Whether to sort utilities in each column in descending order
             (default: True). When False, utilities are used in their original order.
+        do_CI: Whether to calculate and plot confidence intervals (default: True).
+            When False, only the mean trajectory is plotted without confidence intervals.
     
     Returns:
         matplotlib Figure object containing the plot
@@ -678,12 +681,46 @@ def plot_sorted_utility_CIs(
         columns=position_columns
     )
     
-    # Use bootstrap_df_rows to calculate confidence intervals
-    bootstrap_results = bootstrap_df_rows(
-        bootstrap_data,
-        confidence_level=confidence_level,
-        n_bootstrap=n_bootstrap
-    )
+    # Calculate confidence intervals or just means based on do_CI
+    if do_CI:
+        # Use bootstrap_df_rows to calculate confidence intervals
+        bootstrap_results = bootstrap_df_rows(
+            bootstrap_data,
+            confidence_level=confidence_level,
+            n_bootstrap=n_bootstrap
+        )
+    else:
+        # Calculate means directly without bootstrapping
+        if isinstance(bootstrap_data.index, pd.MultiIndex):
+            # Group by first level and calculate means
+            grouped = bootstrap_data.groupby(level=0)
+            results_list = []
+            row_indices = []
+            for group_name, group_df in grouped:
+                mean_values = group_df.mean(axis=0).values
+                results_list.append(mean_values)
+                row_indices.append((group_name, 'mean'))
+            # Create a DataFrame with MultiIndex similar to bootstrap_results
+            row_index = pd.MultiIndex.from_tuples(
+                row_indices, names=['group', 'statistic']
+            )
+            bootstrap_results = pd.DataFrame(
+                results_list,
+                index=row_index,
+                columns=position_columns
+            )
+        else:
+            # Simple case - just calculate mean
+            means = bootstrap_data.mean(axis=0).values
+            row_index = pd.MultiIndex.from_tuples(
+                [('all', 'mean')],
+                names=['group', 'statistic']
+            )
+            bootstrap_results = pd.DataFrame(
+                [means],
+                index=row_index,
+                columns=position_columns
+            )
     
     # Define colors for each group
     colors = [
@@ -712,15 +749,17 @@ def plot_sorted_utility_CIs(
     
     # Plot results for each group
     for i, group_name in enumerate(unique_groups):
-        # Extract mean, lower, and upper bounds for all positions
+        # Extract mean (and bounds if do_CI is True) for all positions
         if isinstance(bootstrap_results.index, pd.MultiIndex):
             means = bootstrap_results.loc[(group_name, mean_label), :].values
-            lower_bounds = bootstrap_results.loc[(group_name, lower_label), :].values
-            upper_bounds = bootstrap_results.loc[(group_name, upper_label), :].values
+            if do_CI:
+                lower_bounds = bootstrap_results.loc[(group_name, lower_label), :].values
+                upper_bounds = bootstrap_results.loc[(group_name, upper_label), :].values
         else:
             means = bootstrap_results.loc[mean_label, :].values
-            lower_bounds = bootstrap_results.loc[lower_label, :].values
-            upper_bounds = bootstrap_results.loc[upper_label, :].values
+            if do_CI:
+                lower_bounds = bootstrap_results.loc[lower_label, :].values
+                upper_bounds = bootstrap_results.loc[upper_label, :].values
         
         # Find last valid index (remove trailing NaNs)
         valid_indices = ~np.isnan(means)
@@ -730,8 +769,9 @@ def plot_sorted_utility_CIs(
         last_valid = np.where(valid_indices)[0][-1] + 1
         
         means = means[:last_valid]
-        lower_bounds = lower_bounds[:last_valid]
-        upper_bounds = upper_bounds[:last_valid]
+        if do_CI:
+            lower_bounds = lower_bounds[:last_valid]
+            upper_bounds = upper_bounds[:last_valid]
         indices = np.arange(len(means))
         
         # Count number of samples in this group
@@ -740,16 +780,18 @@ def plot_sorted_utility_CIs(
         else:
             n_samples = len(utilities.columns)
         
-        # Plot confidence interval as shaded region
         color = colors[i % len(colors)]
-        ax.fill_between(
-            indices, 
-            lower_bounds, 
-            upper_bounds, 
-            alpha=0.3, 
-            color=color,
-            label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
-        )
+        
+        # Plot confidence interval as shaded region (only if do_CI is True)
+        if do_CI:
+            ax.fill_between(
+                indices, 
+                lower_bounds, 
+                upper_bounds, 
+                alpha=0.3, 
+                color=color,
+                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+            )
         
         # Plot sample mean trajectory
         ax.plot(
