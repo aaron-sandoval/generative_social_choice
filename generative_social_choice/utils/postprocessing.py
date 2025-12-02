@@ -2,7 +2,7 @@
 This module contains functions for postprocessing results, including plotting and metrics.
 """
 
-from typing import Literal, Optional, Sequence
+from typing import Iterable, Literal, Optional, Sequence
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import matplotlib
@@ -147,28 +147,71 @@ def calculate_proportion_confidence_intervals(counts: np.ndarray, total: int) ->
     return np.vstack((lower_bounds, proportions, upper_bounds)).T
 
 
-def scalar_utility_metrics(utilities: pd.DataFrame) -> pd.DataFrame:
+def scalar_utility_metrics(
+        utilities: pd.DataFrame, metrics: Iterable[str] = ("Mean", "Mean of Bottom 50%", "Minimum", "Mean Log", "Gini", "2*Mean Log")) -> pd.DataFrame:
     """Calculate a set of scalar metrics from a DataFrame of utilities for different scenarios.
     
     Args:
         utilities: A DataFrame of utilities for different scenarios.
         Columns are scenarios, rows are voters.
+        metrics: A list of metrics to calculate. Valid metric names are:
+            - "Mean": Mean utility across all voters
+            - "Mean of Bottom 50%": Mean utility of the bottom 50% of voters
+            - "Minimum": Minimum utility across all voters
+            - "Mean Log": Mean of the logarithm of utilities
+            - "Gini": Gini coefficient of utility distribution
+            - "2*Mean Log": Twice the mean of the logarithm of utilities
 
     Returns:
-        A DataFrame of scalar metrics.
+        A DataFrame of scalar metrics with columns for each requested metric.
     """
     scalar_metrics = pd.DataFrame(index=utilities.columns)
-
-    scalar_metrics["Mean"] = utilities.mean(0).T
-    scalar_metrics["Mean of\nBottom 50%"] = utilities.apply(
-        lambda col: col.nsmallest(int(np.floor(len(col) * 0.5))).mean(),
-        axis=0
-    )
-    scalar_metrics["Minimum"] = utilities.min(0).T
-    scalar_metrics["Mean Log"] = np.log(utilities).mean(0).T
-    # Calculate Gini coefficient using scipy's implementation
-
-    scalar_metrics["Gini"] = utilities.apply(gini)
+    
+    # Convert metrics to a list if it's not already
+    metrics_list = list(metrics)
+    
+    # Map from argument names to DataFrame column names
+    # (allows argument to use "Mean of Bottom 50%" while DataFrame uses "Mean of\nBottom 50%")
+    metric_name_mapping = {
+        "Mean of Bottom 50%": "Mean of\nBottom 50%",
+    }
+    
+    # Define available metrics and their calculation functions
+    # Keys are the DataFrame column names (may include newlines for display)
+    available_metrics = {
+        "Mean": lambda: utilities.mean(0).T,
+        "Mean of\nBottom 50%": lambda: utilities.apply(
+            lambda col: col.nsmallest(int(np.floor(len(col) * 0.5))).mean(),
+            axis=0
+        ),
+        "Minimum": lambda: utilities.min(0).T,
+        "Mean Log": lambda: np.log(utilities).mean(0).T,
+        "Gini": lambda: utilities.apply(gini),
+        "2*Mean Log": lambda: 2 * np.log(utilities).mean(0).T,
+    }
+    
+    # Build list of available argument names for error messages
+    available_arg_names = []
+    for col_name in available_metrics.keys():
+        # Find the argument name (reverse lookup in mapping, or use col_name directly)
+        arg_name = next(
+            (k for k, v in metric_name_mapping.items() if v == col_name),
+            col_name
+        )
+        available_arg_names.append(arg_name)
+    
+    # Calculate only the requested metrics
+    for metric_arg in metrics_list:
+        # Map argument name to DataFrame column name if needed
+        metric_col_name = metric_name_mapping.get(metric_arg, metric_arg)
+        
+        if metric_col_name in available_metrics:
+            scalar_metrics[metric_col_name] = available_metrics[metric_col_name]()
+        else:
+            raise ValueError(
+                f"Unknown metric: '{metric_arg}'. "
+                f"Available metrics are: {available_arg_names}"
+            )
 
     return scalar_metrics
 
