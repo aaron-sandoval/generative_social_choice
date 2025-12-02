@@ -25,6 +25,28 @@ LIKERT_SCORES: dict[int, str] = {
     4: "Perfectly",
 }
 
+DARK_COLORS = [
+    '#1a365d',  # dark blue
+    '#7c2d12',  # dark orange
+    '#145214',  # dark green
+    '#7f1d1d',  # dark red
+    '#4c1d95',  # dark purple
+    '#713f12',  # dark brown
+    '#0f766e',  # dark teal
+    '#831843',  # dark pink
+]
+# Hex codes for the first 8 colors in the default matplotlib colormap (tab10)
+DEFAULT_COLORS = [
+    '#1f77b4',  # blue
+    '#ff7f0e',  # orange
+    '#2ca02c',  # green
+    '#d62728',  # red
+    '#9467bd',  # purple
+    '#8c564b',  # brown
+    '#e377c2',  # pink
+    '#7f7f7f',  # gray
+]
+
 LIKERT_SCORES_INVERSE: dict[str, int] = {v: k for k, v in LIKERT_SCORES.items()}
 
 def consolidate_duplicate_columns(df: pd.DataFrame, delimiter: str = ", ") -> pd.DataFrame:
@@ -148,7 +170,7 @@ def calculate_proportion_confidence_intervals(counts: np.ndarray, total: int) ->
 
 
 def scalar_utility_metrics(
-        utilities: pd.DataFrame, metrics: Iterable[str] = ("Mean", "Mean of Bottom 50%", "Minimum", "Mean Log", "Gini", "2*Mean Log")) -> pd.DataFrame:
+        utilities: pd.DataFrame, metrics: Iterable[str] = ("Mean", "Mean of Bottom 50%", "Minimum", "2*Mean Log", "Mean Log", "Gini")) -> pd.DataFrame:
     """Calculate a set of scalar metrics from a DataFrame of utilities for different scenarios.
     
     Args:
@@ -636,7 +658,8 @@ def plot_sorted_utility_CIs(
     n_bootstrap: int = 400,
     figsize: tuple[float, float] = (10, 6),
     do_sort: bool = True,
-    do_CI: bool = True
+    do_CI: bool = True,
+    colors: Optional[Sequence[str]] = DARK_COLORS,
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -765,17 +788,6 @@ def plot_sorted_utility_CIs(
                 columns=position_columns
             )
     
-    # Define colors for each group
-    colors = [
-        '#1a365d',  # dark blue
-        '#7c2d12',  # dark orange
-        '#145214',  # dark green
-        '#7f1d1d',  # dark red
-        '#4c1d95',  # dark purple
-        '#713f12',  # dark brown
-        '#0f766e',  # dark teal
-        '#831843',  # dark pink
-    ]
     
     # Get unique groups from the bootstrap results
     if isinstance(bootstrap_results.index, pd.MultiIndex):
@@ -1164,7 +1176,7 @@ def plot_scalar_clustered_confidence_intervals(
         bar_index: str = 'mean',
         error_bar_lower_index: str = "lower bound", 
         error_bar_upper_index: str = "upper bound", 
-        colors: Optional[Sequence[str]] = None,
+        colors: Optional[Sequence[str]] = DEFAULT_COLORS,
         bar_index_level: Literal[0, 1] = 0,
         y_label: str = "",
         fig_size: Optional[tuple[float, float]] = None,
@@ -1299,7 +1311,7 @@ def plot_scalar_clustered_confidence_intervals(
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
                        fmt='o', color=colors[i % len(colors)], 
-                       markersize=6, capsize=5, capthick=1,
+                       markersize=4, capsize=3, capthick=1,
                        label=label if show_label else None)
         
         # Customize plot
