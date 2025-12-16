@@ -392,17 +392,49 @@ class SequentialPhragmenMinimax(VotingAlgorithm):
             if self.load_magnitude_method == "marginal_previous":
                 new_candidate_total_load: float = 1 / (rated_votes.loc[is_reassigned, candidate] - old_assignments["utility"]).sum()
             elif self.load_magnitude_method == "marginal_slate":
+                # Convert to numpy view if possible (avoids O(nm) copy when DataFrame is contiguous)
+                # Safe to use view since we only read from it, never modify
+                rated_votes_np = rated_votes.to_numpy(copy=False)
+                
                 # is_first_assignment_voters = new_assignments.loc[is_reassigned, "second_selected_candidate_id"].isna()
                 marginal_utility = new_assignments.loc[is_reassigned, "utility"]
-                next_best_utility = np.diag(rated_votes.loc[reassignments.index, new_assignments.loc[is_reassigned, "second_selected_candidate_id"]].to_numpy())
-                marginal_utility -= pd.Series(next_best_utility, index=reassignments.index).fillna(BASELINE_UTILITY)
+                # Optimized: O(n) lookup instead of O(n*m) DataFrame creation + diagonal extraction
+                second_cand_ids = new_assignments.loc[is_reassigned, "second_selected_candidate_id"]
+                row_indices = rated_votes.index.get_indexer(reassignments.index)
+                col_indices = rated_votes.columns.get_indexer(second_cand_ids)
+                # Raise exception if any indices are invalid (get_indexer returns -1 for missing)
+                if np.any(row_indices < 0):
+                    invalid_rows = reassignments.index[row_indices < 0]
+                    raise ValueError(
+                        f"Invalid row indices found: {invalid_rows.tolist()}. "
+                        f"These voters are not in rated_votes.index."
+                    )
+                if np.any(col_indices < 0):
+                    invalid_cols = second_cand_ids[col_indices < 0]
+                    raise ValueError(
+                        f"Invalid column indices found: {invalid_cols.tolist()}. "
+                        f"These candidate IDs are not in rated_votes.columns."
+                    )
+                next_best_utility = rated_votes_np[row_indices, col_indices]
+                marginal_utility -= pd.Series(next_best_utility, index=reassignments.index, dtype=float).fillna(BASELINE_UTILITY)
                 new_candidate_total_load: float = 1 / (marginal_utility.sum())
 
                 # Update 2nd-favorite candidate for each voter
-                # https://pandas.pydata.org/docs/user_guide/indexing.html#looking-up-values-by-index-column-labels
+                # Optimized: O(n) lookup instead of O(n*m) reindex + numpy conversion
                 rated_votes["second_fav_cand_id"] = new_assignments.second_selected_candidate_id
-                idx, cols = pd.factorize(rated_votes["second_fav_cand_id"])
-                cur_2nd_fav_utility = pd.Series(rated_votes.reindex(cols, axis=1).to_numpy()[np.arange(len(rated_votes)), idx], index=rated_votes.index)
+                row_indices_all = np.arange(len(rated_votes))
+                col_indices_all = rated_votes.columns.get_indexer(rated_votes["second_fav_cand_id"])
+                # Raise exception if any indices are invalid (get_indexer returns -1 for missing)
+                if np.any(col_indices_all < 0):
+                    invalid_cols = rated_votes["second_fav_cand_id"][col_indices_all < 0]
+                    raise ValueError(
+                        f"Invalid column indices found: {invalid_cols.tolist()}. "
+                        f"These candidate IDs are not in rated_votes.columns."
+                    )
+                cur_2nd_fav_utility = pd.Series(
+                    rated_votes_np[row_indices_all, col_indices_all],
+                    index=rated_votes.index
+                )
                 new_2nd_favorite_voters = (rated_votes[candidate] >= cur_2nd_fav_utility) & ~is_reassigned
                 new_assignments.loc[new_2nd_favorite_voters, "second_selected_candidate_id"] = candidate
             elif self.load_magnitude_method == "total":
