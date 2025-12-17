@@ -255,8 +255,8 @@ class GeometricTransformation(UtilityTransformation):
 @dataclass(frozen=True)
 class SequentialPhragmenMinimax(VotingAlgorithm):
     load_magnitude_method: Phragmen_Load_Magnitude = "marginal_slate"
-    clear_reassigned_loads: bool = True
-    redistribute_defected_candidate_loads: bool = True
+    clear_reassigned_loads: bool = False
+    redistribute_defected_candidate_loads: bool = False
 
     @property
     def name(self) -> str:
