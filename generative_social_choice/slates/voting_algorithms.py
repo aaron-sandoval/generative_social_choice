@@ -1,5 +1,6 @@
 from collections import defaultdict
 from functools import cached_property
+from itertools import combinations
 import abc
 from dataclasses import dataclass
 from typing import Optional, Literal, override
@@ -550,6 +551,72 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
         assignments["candidate_id"] = pd.Series(candidate_assignments, index=assignments.index, dtype=str)
 
         return slate, assignments
+
+
+@dataclass(frozen=True)
+class ExactTotalUtilityMaximizationBruteSearch(VotingAlgorithm):
+    """Brute-force search over all slates of size k to maximize total utility."""
+
+    utility_transform: Optional[UtilityTransformation] = None
+
+    @property
+    def display_name(self) -> str:
+        return f"ExactBrute{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        Enumerate all slates of size `slate_size` and choose the one with the
+        highest total utility. Voters are assigned to their best candidate
+        within the chosen slate.
+
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the
+          voters with at least the column:
+            - `candidate_id`: The candidate to which the voter is assigned
+            - `utility`: The utility of the voter for the assigned candidate
+        """
+        if slate_size > len(rated_votes.columns):
+            raise ValueError(
+                "slate_size cannot exceed the number of available candidates."
+            )
+
+        if self.utility_transform is not None:
+            rated_votes = self.utility_transform.transform(
+                rated_votes=rated_votes, slate_size=slate_size
+            )
+
+        best_slate: Optional[tuple[str, ...]] = None
+        best_total_utility: float = -np.inf
+
+        for slate_candidates in combinations(rated_votes.columns, slate_size):
+            slate_votes = rated_votes.loc[:, slate_candidates]
+            utilities = slate_votes.max(axis=1)
+            total_utility = utilities.sum()
+
+            if total_utility > best_total_utility:
+                best_total_utility = total_utility
+                best_slate = slate_candidates
+
+        assert best_slate is not None
+        slate_votes = rated_votes.loc[:, best_slate]
+        best_utilities = slate_votes.max(axis=1)
+        best_candidate_id = slate_votes.idxmax(axis=1)
+
+        assignments = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(
+            best_candidate_id, index=assignments.index, dtype=str
+        )
+        assignments["utility"] = pd.Series(
+            best_utilities, index=assignments.index, dtype=float
+        )
+
+        return list(best_slate), assignments
 
 @dataclass(frozen=True)
 class LPTotalUtilityMaximization(VotingAlgorithm):
