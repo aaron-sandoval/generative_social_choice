@@ -21,6 +21,7 @@ from generative_social_choice.slates.voting_algorithms import (
     SequentialPhragmenMinimax,
     GreedyTotalUtilityMaximization,
     ExactTotalUtilityMaximization,
+    ExactTotalUtilityMaximizationBruteSearch,
     LPTotalUtilityMaximization,
     VotingAlgorithm,
     GeometricTransformation,
@@ -47,9 +48,10 @@ _NAME_DELIMITER = "$&$"
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
-    GreedyTotalUtilityMaximization(),
+    # GreedyTotalUtilityMaximization(),
     ExactTotalUtilityMaximization(),
-    LPTotalUtilityMaximization(),
+    ExactTotalUtilityMaximizationBruteSearch(),
+    # LPTotalUtilityMaximization(),
     # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
@@ -61,14 +63,15 @@ voting_algorithms_to_test = (
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=False, redistribute_defected_candidate_loads=False),
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_previous", clear_reassigned_loads=True, redistribute_defected_candidate_loads=True),
     # SequentialPhragmenMinimax(),
-    ReweightedRangeVoting(),
-    ReweightedRangeVoting(k=0.5),
+    # ReweightedRangeVoting(),
+    # ReweightedRangeVoting(k=0.5),
+    ExactTotalUtilityMaximizationBruteSearch(utility_transform=GeometricTransformation(p=1.5)),
 )
 
 voting_algorithm_test_cases: tuple[tuple[str, RatedVoteCase, VotingAlgorithm], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
 
-# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x) and x is not NonRadicalMinUtilityAxiom, sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
-axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (NonRadicalTotalUtilityAxiom(),)
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x) and x is not NonRadicalMinUtilityAxiom, sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
+# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (NonRadicalTotalUtilityAxiom(),)
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """
