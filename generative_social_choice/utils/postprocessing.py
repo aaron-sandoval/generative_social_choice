@@ -241,7 +241,8 @@ def scalar_utility_metrics(
 def bootstrap_df_rows(
     data: pd.DataFrame,
     confidence_level: float = 0.95,
-    n_bootstrap: int = 400
+    n_bootstrap: int = 400,
+    seed: Optional[int] = None
 ) -> pd.DataFrame:
     """
     Calculate bootstrap confidence intervals for the mean across rows grouped by MultiIndex.
@@ -266,6 +267,7 @@ def bootstrap_df_rows(
     alpha = 1 - confidence_level
     lower_percentile = (alpha / 2) * 100
     upper_percentile = (1 - alpha / 2) * 100
+    rng = np.random.default_rng(seed) if seed is not None else np.random.default_rng()
     
     # Create statistic labels
     confidence_pct = round(confidence_level * 100)
@@ -294,6 +296,8 @@ def bootstrap_df_rows(
     row_indices = []
     
     for group_name, group_data in groups:
+        if seed is not None:
+            rng = np.random.default_rng(seed)
         # Convert to numpy array for bootstrapping
         group_array = group_data.values
         n_samples, n_metrics = group_array.shape
@@ -302,7 +306,7 @@ def bootstrap_df_rows(
         bootstrap_means = []
         for _ in range(n_bootstrap):
             # Sample with replacement from the rows
-            bootstrap_indices = np.random.choice(n_samples, size=n_samples, replace=True)
+            bootstrap_indices = rng.choice(n_samples, size=n_samples, replace=True)
             bootstrap_sample = group_array[bootstrap_indices]
             bootstrap_mean = np.mean(bootstrap_sample, axis=0)
             bootstrap_means.append(bootstrap_mean)
@@ -753,7 +757,8 @@ def plot_sorted_utility_CIs(
         bootstrap_results = bootstrap_df_rows(
             bootstrap_data,
             confidence_level=confidence_level,
-            n_bootstrap=n_bootstrap
+            n_bootstrap=n_bootstrap,
+            seed=1612,
         )
     else:
         # Calculate means directly without bootstrapping
