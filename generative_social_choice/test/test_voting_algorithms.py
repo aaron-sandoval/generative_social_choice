@@ -48,10 +48,10 @@ _NAME_DELIMITER = "$&$"
 # Instances of voting algorithms to test, please add more as needed
 # voting_algorithms_to_test: Generator[VotingAlgorithm, None, None] = all_instances(VotingAlgorithm)
 voting_algorithms_to_test = (
-    # GreedyTotalUtilityMaximization(),
+    GreedyTotalUtilityMaximization(),
     ExactTotalUtilityMaximization(),
-    ExactTotalUtilityMaximizationBruteSearch(),
-    # LPTotalUtilityMaximization(),
+    # ExactTotalUtilityMaximizationBruteSearch(),
+    LPTotalUtilityMaximization(),
     # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
     # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
@@ -62,13 +62,16 @@ voting_algorithms_to_test = (
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=True, redistribute_defected_candidate_loads=False),
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=False, redistribute_defected_candidate_loads=False),
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_previous", clear_reassigned_loads=True, redistribute_defected_candidate_loads=True),
-    # SequentialPhragmenMinimax(),
-    # ReweightedRangeVoting(),
+    SequentialPhragmenMinimax(),
+    ReweightedRangeVoting(),
     # ReweightedRangeVoting(k=0.5),
-    ExactTotalUtilityMaximizationBruteSearch(utility_transform=GeometricTransformation(p=1.5)),
+    # ExactTotalUtilityMaximizationBruteSearch(utility_transform=GeometricTransformation(p=1.5)),
 )
 
-voting_algorithm_test_cases: tuple[tuple[str, RatedVoteCase, VotingAlgorithm], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases.values(), voting_algorithms_to_test))
+# vote_cases_to_test: tuple[RatedVoteCase, ...] = tuple(rated_vote_cases.values())
+rated_vote_cases_to_test: tuple[RatedVoteCase, ...] = (rated_vote_cases["Ex NRU1"], rated_vote_cases["Ex M1"])
+
+voting_algorithm_test_cases: tuple[tuple[str, RatedVoteCase, VotingAlgorithm], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases_to_test, voting_algorithms_to_test))
 
 axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x) and x is not NonRadicalMinUtilityAxiom, sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
 # axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (NonRadicalTotalUtilityAxiom(),)
@@ -82,7 +85,7 @@ class AlgorithmEvaluationResult(unittest.TestResult):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        col_index = pd.MultiIndex.from_product([rated_vote_cases.keys(), [axiom.name for axiom in self.included_subtests]], names=["vote", "subtest"])
+        col_index = pd.MultiIndex.from_product([[rated.name for rated in rated_vote_cases_to_test], [axiom.name for axiom in self.included_subtests]], names=["vote", "subtest"])
         self.results = pd.DataFrame(index=[algo.name for algo in voting_algorithms_to_test], columns=col_index)
 
 
@@ -222,7 +225,7 @@ class TestVotingAlgorithmAgainstAxioms(unittest.TestCase):
         Test whether the algorithms satisfy axioms using parallel processing.
         """
         # Create all test cases
-        test_cases = [(voting_algorithm, rated_vote_case, axiom) for voting_algorithm, rated_vote_case, axiom in itertools.product(voting_algorithms_to_test, rated_vote_cases.values(), axioms_to_evaluate)]
+        test_cases = [(voting_algorithm, rated_vote_case, axiom) for voting_algorithm, rated_vote_case, axiom in itertools.product(voting_algorithms_to_test, rated_vote_cases_to_test, axioms_to_evaluate)]
         
         # Run tests in parallel
         results = list(tqdm(self.process_pool.imap(run_single_axiom_test, test_cases), desc="Running tests", total=len(test_cases)))
