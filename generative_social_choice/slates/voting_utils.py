@@ -305,6 +305,24 @@ def pareto_efficient_slates(
     return set(frozenset(cand_tuple) for cand_tuple in metric_values.index[is_pareto_efficient(metric_values.values)])
 
 
+def generalized_lorenz_curve(utilities: Float[np.ndarray, "voter"]) -> Float[np.ndarray, "voter"]:  # noqa: F821
+    """
+    Compute the generalized Lorenz curve for a given utility vector.
+
+
+    The generalized Lorenz curve is the cumulative sum of utilities sorted in
+    ascending order.
+
+    # Arguments
+    - `utilities: Float[np.ndarray, "voter"]`: The utility vector
+
+    # Returns
+    - `Float[np.ndarray, "voter"]`: The cumulative sums of sorted utilities
+    """
+    sorted_utilities = np.sort(utilities)
+    return np.cumsum(sorted_utilities)
+
+
 def gini(utilities: Float[np.ndarray, "person"], weights: Optional[Float[np.ndarray, "person"]] = None) -> float:  # noqa: F821
     """
     Calculate the Gini coefficient of a given array of utilities.

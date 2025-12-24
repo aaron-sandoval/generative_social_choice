@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 import math
+import numpy as np
 from pathlib import Path
 import os
 from datetime import datetime, timezone
@@ -115,16 +116,29 @@ def sanitize_name(name: str) -> str:
 
 
 def geq_lib(
-    a: float | int | Sequence[float | int],
-    b: float | int | Sequence[float | int],
+    a: float | int | Sequence[float | int] | np.ndarray,
+    b: float | int | Sequence[float | int] | np.ndarray,
     rel_tol: float = 1e-9,
     abs_tol: float = 0.0,
 ) -> bool:
     """
     Returns True if a is greater than or close to b.
-    Supports both individual numbers and sequences of numbers.
+    Supports both individual numbers and sequences of numbers (including numpy arrays).
     """
-    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+    # Handle numpy arrays
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        a_arr = np.asarray(a)
+        b_arr = np.asarray(b)
+        # Use lexicographical comparison: compare elements up to minimum size
+        min_size = min(a_arr.size, b_arr.size)
+        for i in range(min_size):
+            x = a_arr.flat[i]
+            y = b_arr.flat[i]
+            if not math.isclose(x, y, rel_tol=rel_tol, abs_tol=abs_tol):
+                return x > y
+        # If all compared elements are close, compare sizes (lexicographical)
+        return a_arr.size >= b_arr.size
+    elif isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         for x, y in zip(a, b):
             if not math.isclose(x, y, rel_tol=rel_tol, abs_tol=abs_tol):
                 return x > y
@@ -135,16 +149,29 @@ def geq_lib(
         raise TypeError("Both arguments must be numbers or sequences of numbers")
 
 def leq_lib(
-    a: float | int | Sequence[float | int],
-    b: float | int | Sequence[float | int],
+    a: float | int | Sequence[float | int] | np.ndarray,
+    b: float | int | Sequence[float | int] | np.ndarray,
     rel_tol: float = 1e-9,
     abs_tol: float = 0.0,
 ) -> bool:
     """
     Returns True if a is less than or close to b.
-    Supports both individual numbers and sequences of numbers.
+    Supports both individual numbers and sequences of numbers (including numpy arrays).
     """
-    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+    # Handle numpy arrays
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        a_arr = np.asarray(a)
+        b_arr = np.asarray(b)
+        # Use lexicographical comparison: compare elements up to minimum size
+        min_size = min(a_arr.size, b_arr.size)
+        for i in range(min_size):
+            x = a_arr.flat[i]
+            y = b_arr.flat[i]
+            if not math.isclose(x, y, rel_tol=rel_tol, abs_tol=abs_tol):
+                return x < y
+        # If all compared elements are close, compare sizes (lexicographical)
+        return a_arr.size <= b_arr.size
+    elif isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         for x, y in zip(a, b):
             if not math.isclose(x, y, rel_tol=rel_tol, abs_tol=abs_tol):
                 return x < y

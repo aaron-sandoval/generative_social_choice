@@ -28,6 +28,7 @@ from generative_social_choice.slates.voting_algorithms import (
     ReweightedRangeVoting,
 )
 from generative_social_choice.slates.voting_algorithm_axioms import (
+    GeneralizedLorenzAxiom,
     IndividualParetoAxiom,
     HappiestParetoAxiom,
     CoverageAxiom,
@@ -68,13 +69,13 @@ voting_algorithms_to_test = (
     # ExactTotalUtilityMaximizationBruteSearch(utility_transform=GeometricTransformation(p=1.5)),
 )
 
-# vote_cases_to_test: tuple[RatedVoteCase, ...] = tuple(rated_vote_cases.values())
-rated_vote_cases_to_test: tuple[RatedVoteCase, ...] = (rated_vote_cases["Ex NRU1"], rated_vote_cases["Ex M1"])
+rated_vote_cases_to_test: tuple[RatedVoteCase, ...] = tuple(rated_vote_cases.values())
+# rated_vote_cases_to_test: tuple[RatedVoteCase, ...] = (rated_vote_cases["Ex NRU1"], rated_vote_cases["Ex M1"])
 
 voting_algorithm_test_cases: tuple[tuple[str, RatedVoteCase, VotingAlgorithm], ...] = tuple((algo.name + "___" + rated.name, rated, algo) for rated, algo in itertools.product(rated_vote_cases_to_test, voting_algorithms_to_test))
 
-axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x) and x is not NonRadicalMinUtilityAxiom, sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
-# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (NonRadicalTotalUtilityAxiom(),)
+# axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = tuple(axiom() for axiom in filter(lambda x: not inspect.isabstract(x) and x is not NonRadicalMinUtilityAxiom, sorted(leafClasses(VotingAlgorithmAxiom), key=lambda x: x.__name__)))
+axioms_to_evaluate: tuple[VotingAlgorithmAxiom, ...] = (GeneralizedLorenzAxiom(),)
 
 class AlgorithmEvaluationResult(unittest.TestResult):
     """

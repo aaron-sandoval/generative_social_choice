@@ -1,5 +1,6 @@
 import abc
 import itertools
+import math
 from dataclasses import dataclass, field
 from functools import cache, partial
 from typing import override
@@ -13,8 +14,10 @@ from generative_social_choice.slates.voting_utils import (
     voter_max_utilities_from_slate,
     pareto_dominates,
     pareto_efficient_slates,
-    df_cache
+    df_cache,
+    generalized_lorenz_curve
 )
+from generative_social_choice.utils.helper_functions import geq_lib, leq_lib
 
 
 @dataclass(frozen=True)
@@ -454,6 +457,147 @@ class NonRadicalMinUtilityAxiom(NonRadicalAxiom):
                     break
 
         return valid_slates
+
+
+@dataclass(frozen=True)
+class GeneralizedLorenzAxiom(VotingAlgorithmAxiom):
+    """
+    There is no alternate slate or assignment whose generalized Lorenz curve of utilities
+    dominates the selected assignments.
+
+    The generalized Lorenz curve is computed by sorting utilities in ascending order
+    and computing cumulative sums. Distribution A generalized Lorenz dominates B if:
+    - For all k from 1 to n, the cumulative sum of the k smallest utilities in A >= 
+      the cumulative sum of the k smallest utilities in B
+    - For at least one k, the cumulative sum in A is strictly greater
+    """
+
+    name: str = "Generalized Lorenz Efficiency"
+
+    @staticmethod
+    def generalized_lorenz_dominates(
+        utilities_a: Float[np.ndarray, "voter"],  # noqa: F821
+        utilities_b: Float[np.ndarray, "voter"],  # noqa: F821
+        rel_tol: float = 1e-9,
+        abs_tol: float = 0.0
+    ) -> bool:
+        """
+        Check if distribution A generalized Lorenz dominates distribution B.
+
+        Accounts for machine precision: if two curves are equal within tolerance,
+        neither is considered to dominate the other.
+
+        # Arguments
+        - `utilities_a: Float[np.ndarray, "voter"]`: Utility vector for distribution A
+        - `utilities_b: Float[np.ndarray, "voter"]`: Utility vector for distribution B
+        - `rel_tol: float`: Relative tolerance for floating point comparisons (default: 1e-9)
+        - `abs_tol: float`: Absolute tolerance for floating point comparisons (default: 0.0)
+
+        # Returns
+        - `bool`: True if A generalized Lorenz dominates B
+
+        # Raises
+        - `ValueError`: If utilities_a and utilities_b have different lengths
+        """
+        if len(utilities_a) != len(utilities_b):
+            raise ValueError(
+                f"Utility vectors must have the same length. "
+                f"Got len(utilities_a)={len(utilities_a)} and len(utilities_b)={len(utilities_b)}"
+            )
+        
+        lorenz_a = generalized_lorenz_curve(utilities_a)
+        lorenz_b = generalized_lorenz_curve(utilities_b)
+        
+        # Check if all cumulative sums in A are >= those in B (within tolerance)
+        # For generalized Lorenz dominance, we need ALL elements to be >=, not lexicographical comparison
+        # Match math.isclose logic: abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+        abs_diff = np.abs(lorenz_a - lorenz_b)
+        max_abs = np.maximum(np.abs(lorenz_a), np.abs(lorenz_b))
+        close_mask = abs_diff <= np.maximum(rel_tol * max_abs, abs_tol)
+        # An element satisfies >= if: (a >= b) OR (a < b but they're close, meaning we treat as equal)
+        element_wise_check = (lorenz_a >= lorenz_b) | close_mask
+        all_greater_equal = np.all(element_wise_check)
+        
+        if not all_greater_equal:
+            return False
+        
+        # Check if at least one cumulative sum in A is strictly greater than in B
+        # (not just within tolerance) using vectorized operations
+        strictly_greater = (lorenz_a > lorenz_b) & (~close_mask)
+        at_least_one_strictly_greater = np.any(strictly_greater)
+        
+        # A dominates B only if all are >= and at least one is strictly greater
+        return at_least_one_strictly_greater
+
+    @override
+    def evaluate_assignment(
+        self, 
+        rated_votes: pd.DataFrame, 
+        slate_size: int, 
+        assignments: pd.DataFrame
+    ) -> bool:
+        """
+        Evaluate if the assignment satisfies the generalized Lorenz axiom.
+
+        Returns False if there exists any alternate slate whose generalized Lorenz
+        curve dominates the current assignment.
+        """
+        # Get utilities for the given assignments
+        w_utilities = np.array(voter_utilities(rated_votes, assignments["candidate_id"]))
+        
+        # Extract the actual slate from assignments
+        actual_slate = set(assignments["candidate_id"].unique())
+        for Wprime in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Skip if this is the same slate as the algorithm selected
+            if set(Wprime) == actual_slate:
+                continue
+                
+            # Compute utilities (using optimal assignment for given slate)
+            wprime_utilities = rated_votes.loc[:, Wprime].max(axis=1).to_numpy()
+
+            # Check if the alternate slate's generalized Lorenz curve dominates
+            dominates = self.generalized_lorenz_dominates(wprime_utilities, w_utilities)
+            
+            
+            if dominates:
+                return False
+        
+        return True
+
+    @override
+    def satisfactory_slates(
+        self, 
+        rated_votes: pd.DataFrame, 
+        slate_size: int
+    ) -> set[frozenset[str]]:
+        """
+        Get the set of slates which satisfy the generalized Lorenz axiom.
+
+        A slate satisfies the axiom if no other slate's generalized Lorenz curve
+        dominates it.
+        """
+        efficient_slates = []  # (slate, utilities, lorenz_curve)
+
+        for slate in itertools.combinations(rated_votes.columns, r=slate_size):
+            # Compute utilities (using optimal assignment for given slate)
+            utilities = rated_votes.loc[:, slate].max(axis=1).to_numpy()
+            lorenz_curve = generalized_lorenz_curve(utilities)
+
+            no_better_slate_exists = True
+            for other_slate, other_utilities, other_lorenz_curve in efficient_slates[:]:
+                # If the new slate is strictly better, we drop the old one
+                if self.generalized_lorenz_dominates(utilities, other_utilities):
+                    efficient_slates.remove((other_slate, other_utilities, other_lorenz_curve))
+
+                # If strictly better combinations exist, this slate is not interesting
+                if self.generalized_lorenz_dominates(other_utilities, utilities):
+                    no_better_slate_exists = False
+                    break
+
+            if no_better_slate_exists:
+                efficient_slates.append((slate, utilities, lorenz_curve))
+
+        return {frozenset(slate[0]) for slate in efficient_slates}
 
 
 if __name__ == "__main__":
