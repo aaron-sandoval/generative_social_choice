@@ -663,6 +663,7 @@ def plot_sorted_utility_CIs(
     figsize: tuple[float, float] = (10, 6),
     do_sort: bool = True,
     do_CI: bool = True,
+    ylabel: str = "Utility",
     colors: Optional[Sequence[str]] = DARK_COLORS,
 ) -> plt.Figure:
     """
@@ -858,13 +859,13 @@ def plot_sorted_utility_CIs(
             indices, 
             means, 
             color=color, 
-            linewidth=2,
+            linewidth=1.5,
             label=f"{group_name} (sample mean, n={n_samples})"
         )
     
     # Customize plot
     ax.set_xlabel("Voter index (sorted by utility)")
-    ax.set_ylabel("Utility")
+    ax.set_ylabel(ylabel)
     ax.grid(axis='both', linestyle='--', alpha=0.7)
     ax.legend(loc='lower left')
     
