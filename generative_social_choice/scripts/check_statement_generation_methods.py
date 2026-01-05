@@ -17,11 +17,39 @@ Example:
 """
 
 import json
+import ast
+import re
 import pandas as pd
 import sys
 from pathlib import Path
 from collections import Counter
 from typing import Optional, List, Dict
+
+
+def extract_method_name(generation_method: str) -> str:
+    """Extract the base method name without parameters (e.g., 'LLMGenerator' from 'LLMGenerator(seed=0, ...)')."""
+    if generation_method == "SURVEY/BASELINE (not generated)":
+        return "SURVEY/BASELINE"
+    # Extract the class name before the first parenthesis
+    match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)', generation_method)
+    if match:
+        return match.group(1)
+    return generation_method
+
+
+def count_agents(agent_ids_str: str) -> int:
+    """Count the number of agents from the agent_ids string."""
+    if pd.isna(agent_ids_str) or not agent_ids_str:
+        return 0
+    try:
+        # Try to parse as a Python list literal
+        agent_list = ast.literal_eval(agent_ids_str)
+        if isinstance(agent_list, list):
+            return len(agent_list)
+    except (ValueError, SyntaxError):
+        pass
+    # If parsing fails, try to count commas + 1 as a fallback
+    return agent_ids_str.count(',') + 1 if agent_ids_str else 0
 
 
 def find_files(base_dir: Path, algorithm_name: str):
@@ -109,12 +137,17 @@ def process_directory(directory_name: str, algorithm_name: str, verbose: bool = 
         print(f"Found {len(raw_output_df)} statements in statement_generation_raw_output.csv")
         print()
     
-    # Create a mapping from statement text to generation method
-    statement_to_method = {}
+    # Create a mapping from statement text to generation method and agent info
+    statement_to_info = {}
     for _, row in raw_output_df.iterrows():
         statement_text = row['statement']
         generation_method = row['generation_method']
-        statement_to_method[statement_text] = generation_method
+        agent_ids = row.get('agent_ids', '')
+        num_agents = count_agents(agent_ids)
+        statement_to_info[statement_text] = {
+            'generation_method': generation_method,
+            'num_agents': num_agents
+        }
     
     # Now map selected statement IDs to their generation methods
     results = []
@@ -129,24 +162,32 @@ def process_directory(directory_name: str, algorithm_name: str, verbose: bool = 
         statement_text = stmt_row.iloc[0]['statement']
         
         # Try to find matching generation method
-        generation_method = statement_to_method.get(statement_text)
+        info = statement_to_info.get(statement_text)
         
-        if generation_method is None:
+        if info is None:
             # Try to find a close match (normalize whitespace)
             normalized_text = ' '.join(statement_text.split())
-            for key, method in statement_to_method.items():
+            for key, method_info in statement_to_info.items():
                 normalized_key = ' '.join(key.split())
                 if normalized_text == normalized_key:
-                    generation_method = method
+                    info = method_info
                     break
         
-        if generation_method is None:
+        if info is None:
             # This statement might be from the survey (baseline statements)
             generation_method = "SURVEY/BASELINE (not generated)"
+            method_name = "SURVEY/BASELINE"
+            num_agents = 0
+        else:
+            generation_method = info['generation_method']
+            method_name = extract_method_name(generation_method)
+            num_agents = info['num_agents']
         
         results.append({
             'statement_id': stmt_id,
             'generation_method': generation_method,
+            'method_name': method_name,
+            'num_agents': num_agents,
             'directory': directory_name
         })
     
@@ -194,16 +235,21 @@ def check_statement_generation_methods(directory_name: Optional[str], algorithm_
         print()
         
         for result in results:
-            print(f"  {result['statement_id']}: {result['generation_method']}")
+            agent_info = f" ({result['num_agents']} agents)" if result['num_agents'] > 0 else ""
+            print(f"  {result['statement_id']}: {result['generation_method']}{agent_info}")
         
         print()
         print("=" * 80)
         print(f"Summary by Generation Method (Directory: {dir_name}):")
         print("=" * 80)
         
-        method_counts = Counter([r['generation_method'] for r in results])
-        for method, count in method_counts.most_common():
-            print(f"  {method}: {count} statement(s)")
+        # Group by method_name + num_agents for summary
+        method_key_counts = Counter([
+            (r['method_name'], r['num_agents']) for r in results
+        ])
+        for (method_name, num_agents), count in method_key_counts.most_common():
+            agent_str = f" ({num_agents} agents)" if num_agents > 0 else ""
+            print(f"  {method_name}{agent_str}: {count} statement(s)")
         
         print()
         print(f"Total selected statements: {len(results)}")
@@ -221,9 +267,13 @@ def check_statement_generation_methods(directory_name: Optional[str], algorithm_
         print("=" * 80)
         print()
         
-        method_counts = Counter([r['generation_method'] for r in all_results])
-        for method, count in method_counts.most_common():
-            print(f"  {method}: {count} statement(s)")
+        # Group by method_name + num_agents for aggregate summary
+        method_key_counts = Counter([
+            (r['method_name'], r['num_agents']) for r in all_results
+        ])
+        for (method_name, num_agents), count in method_key_counts.most_common():
+            agent_str = f" ({num_agents} agents)" if num_agents > 0 else ""
+            print(f"  {method_name}{agent_str}: {count} statement(s)")
         
         print()
         print(f"Total selected statements across all directories: {len(all_results)}")
