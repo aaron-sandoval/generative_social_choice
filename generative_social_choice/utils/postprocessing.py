@@ -2,6 +2,7 @@
 This module contains functions for postprocessing results, including plotting and metrics.
 """
 
+from pathlib import Path
 from typing import Iterable, Literal, Optional, Sequence
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
@@ -46,6 +47,12 @@ DEFAULT_COLORS = [
     '#e377c2',  # pink
     '#7f7f7f',  # gray
 ]
+# Shared palette for method/config names (e.g. Ours, Baseline) so line and scalar CI plots match
+METHOD_COLORS = DEFAULT_COLORS
+# Default font size for collect_results_and_plot figures (labels, ticks, legend)
+PLOT_FONT_SIZE = 16
+# Supported figure file formats for saving
+FIG_FORMATS = ("png", "pdf")
 
 LIKERT_SCORES_INVERSE: dict[str, int] = {v: k for k, v in LIKERT_SCORES.items()}
 
@@ -664,7 +671,8 @@ def plot_sorted_utility_CIs(
     do_sort: bool = True,
     do_CI: bool = True,
     ylabel: str = "Utility",
-    colors: Optional[Sequence[str]] = DARK_COLORS,
+    colors: Optional[Sequence[str]] = None,
+    font_size: Optional[float] = None,
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -689,6 +697,10 @@ def plot_sorted_utility_CIs(
     Returns:
         matplotlib Figure object containing the plot
     """
+    if colors is None:
+        colors = METHOD_COLORS
+    if font_size is None:
+        font_size = PLOT_FONT_SIZE
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -864,10 +876,11 @@ def plot_sorted_utility_CIs(
         )
     
     # Customize plot
-    ax.set_xlabel("Voter index (sorted by utility)")
-    ax.set_ylabel(ylabel)
+    ax.set_xlabel("Voter index (sorted by utility)", fontsize=font_size)
+    ax.set_ylabel(ylabel, fontsize=font_size)
+    ax.tick_params(axis='both', labelsize=font_size)
     ax.grid(axis='both', linestyle='--', alpha=0.7)
-    ax.legend(loc='lower left')
+    ax.legend(loc='lower left', fontsize=font_size)
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
@@ -1182,7 +1195,7 @@ def plot_scalar_clustered_confidence_intervals(
         bar_index: str = 'mean',
         error_bar_lower_index: str = "lower bound", 
         error_bar_upper_index: str = "upper bound",
-        colors: Optional[Sequence[str]] = DEFAULT_COLORS,
+        colors: Optional[Sequence[str]] = None,
         bar_index_level: Literal[0, 1] = 0,
         y_label: str = "",
         fig_size: Optional[tuple[float, float]] = None,
@@ -1191,6 +1204,7 @@ def plot_scalar_clustered_confidence_intervals(
         secondary_y_label: Optional[str] = None,
         tertiary_axis_df: Optional[pd.DataFrame] = None,
         tertiary_y_label: Optional[str] = None,
+        font_size: Optional[float] = None,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
@@ -1240,7 +1254,10 @@ def plot_scalar_clustered_confidence_intervals(
     # Assert that if tertiary data is provided, secondary data must also be provided
     assert tertiary_axis_df is None or secondary_axis_df is not None, \
         "tertiary_axis_df requires secondary_axis_df to be provided"
-    
+    if colors is None:
+        colors = METHOD_COLORS
+    if font_size is None:
+        font_size = PLOT_FONT_SIZE
     # Use the helper function to preprocess the data
     bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
         df, bar_index, error_bar_lower_index, error_bar_upper_index, 
@@ -1329,10 +1346,6 @@ def plot_scalar_clustered_confidence_intervals(
         axes = [ax]
         datasets = [(bar_labels, metrics, processed_data)]
     
-    # Set up colors - use matplotlib default if not provided
-    if colors is None:
-        colors = plt.cm.tab10(np.linspace(0, 1, len(bar_labels)))
-    
     # Plot data on each axis
     for ax_idx, (current_ax, (current_bar_labels, current_metrics, current_processed_data)) in enumerate(zip(axes, datasets)):
         # Set up the x positions for each cluster
@@ -1367,23 +1380,24 @@ def plot_scalar_clustered_confidence_intervals(
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
                        fmt='o', color=colors[i % len(colors)], 
-                       markersize=4, capsize=3, capthick=1,
+                       markersize=6, capsize=4, capthick=1,
                        label=label if show_label else None)
         
         # Customize plot
         # Set y-label based on axis and y_label parameters
         if ax_idx == 0:
             # First axis always uses y_label
-            current_ax.set_ylabel(y_label, fontsize=12)
+            current_ax.set_ylabel(y_label, fontsize=font_size)
         elif ax_idx == 1 and secondary_y_label is not None:
             # Second axis uses secondary_y_label if provided
-            current_ax.set_ylabel(secondary_y_label, fontsize=12)
+            current_ax.set_ylabel(secondary_y_label, fontsize=font_size)
         elif ax_idx == 2 and tertiary_y_label is not None:
             # Third axis uses tertiary_y_label if provided
-            current_ax.set_ylabel(tertiary_y_label, fontsize=12)
+            current_ax.set_ylabel(tertiary_y_label, fontsize=font_size)
         # If y_label is None for secondary/tertiary, no y-label is set
         current_ax.set_xticks(x)
-        current_ax.set_xticklabels(current_metrics, rotation=0)
+        current_ax.set_xticklabels(current_metrics, rotation=0, fontsize=font_size)
+        current_ax.tick_params(axis='y', labelsize=font_size)
         
         # Adjust x-axis limits for better appearance, especially with single clusters
         if len(current_metrics) == 1:
@@ -1412,7 +1426,7 @@ def plot_scalar_clustered_confidence_intervals(
         # Add legend with automatic positioning to minimize data overlap
         # Only add legend if it's the first subplot or if legends are different
         if (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends):
-            current_ax.legend(loc=legend_loc)
+            current_ax.legend(loc=legend_loc, fontsize=font_size)
     
     # Adjust layout
     plt.tight_layout()
@@ -1454,7 +1468,23 @@ class ResultConfig:
     pipeline: Literal["ours", "fish"] = "ours"
 
 
-def collect_results_and_plot(configs: list[ResultConfig], method: str, confidence_level: float = 0.95, n_bootstrap: int = 400) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
+def save_figure(fig: plt.Figure, path: str | Path, fig_format: Literal["png", "pdf"] = "png") -> None:
+    """Save a figure to path with the given format. Extension is set from fig_format if missing."""
+    path = Path(path)
+    if path.suffix.lower() not in (".png", ".pdf"):
+        path = path.with_suffix(f".{fig_format}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, format=fig_format, bbox_inches="tight")
+
+
+def collect_results_and_plot(
+    configs: list[ResultConfig],
+    method: str,
+    confidence_level: float = 0.95,
+    n_bootstrap: int = 400,
+    save_dir: Optional[str | Path] = None,
+    fig_format: Literal["png", "pdf"] = "png",
+) -> dict:
     utility_dfs = {}
     all_algo_assignments = {}
     pipelines = {}
@@ -1499,7 +1529,12 @@ def collect_results_and_plot(configs: list[ResultConfig], method: str, confidenc
     embedding_ablation_multi_fig = plot_sorted_utility_CIs(utilities_multidf, confidence_level=confidence_level, n_bootstrap=n_bootstrap)
 
     embedding_ablation_multi_fig.axes[0].set_xlim(50, 100)
-    #embedding_ablation_multi_fig.savefig("embedding_ablation_multi_fig.png")
+    if save_dir is not None:
+        save_figure(
+            embedding_ablation_multi_fig,
+            Path(save_dir) / "sorted_utility_CIs",
+            fig_format=fig_format,
+        )
     embedding_ablation_multi_fig.show()
 
     return {
