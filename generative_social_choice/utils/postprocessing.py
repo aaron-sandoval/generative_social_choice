@@ -39,16 +39,45 @@ DARK_COLORS = [
 # Hex codes for the first 8 colors in the default matplotlib colormap (tab10)
 DEFAULT_COLORS = [
     '#1f77b4',  # blue
-    '#ff7f0e',  # orange
     '#2ca02c',  # green
-    '#d62728',  # red
+    '#ff7f0e',  # orange
     '#9467bd',  # purple
+    '#d62728',  # red
     '#8c564b',  # brown
     '#e377c2',  # pink
     '#7f7f7f',  # gray
 ]
 # Shared palette for method/config names (e.g. Ours, Baseline) so line and scalar CI plots match
 METHOD_COLORS = DEFAULT_COLORS
+# Map method/config labels to a stable color index. Same key = same color across plots.
+# "Ours" and "Ours (LLM Embeddings)" share a color; "Ours (Their Embeddings)" is distinct; same idea for Baseline.
+METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
+    "Ours": 0,
+    "Ours (LLM Embeddings)": 0,
+    "Ours (Their Embeddings)": 1,
+    "Ours (LLM Embs.)": 0,
+    "Ours (Their Embs.)": 1,
+    "Baseline": 2,
+    "Baseline (Their Embeddings)": 2,
+    "Baseline (LLM Embeddings)": 3,
+    "Baseline (Their Embs.)": 2,
+    "Baseline (LLM Embs.)": 3,
+}
+
+
+def _method_color_index(label: str) -> int:
+    """Return a stable color index for a method/config label. Exact match first; then 'Ours'/'Baseline' prefix for unknown variants."""
+    s = label.strip()
+    if s in METHOD_COLOR_KEY_TO_INDEX:
+        return METHOD_COLOR_KEY_TO_INDEX[s]
+    # Unknown variant: give distinct indices so they don't clash with known Ours/Baseline variants
+    if s.startswith("Ours "):
+        return 4
+    if s.startswith("Baseline "):
+        return 5
+    return min(6 + (abs(hash(s)) % max(1, len(METHOD_COLORS) - 6)), len(METHOD_COLORS) - 1)
+
+
 # Default font size for collect_results_and_plot figures (labels, ticks, legend)
 PLOT_FONT_SIZE = 16
 # Supported figure file formats for saving
@@ -853,7 +882,7 @@ def plot_sorted_utility_CIs(
         else:
             n_samples = len(utilities.columns)
         
-        color = colors[i % len(colors)]
+        color = colors[_method_color_index(str(group_name)) % len(colors)]
         
         # Plot confidence interval as shaded region (only if do_CI is True)
         if do_CI:
@@ -1379,7 +1408,7 @@ def plot_scalar_clustered_confidence_intervals(
             show_label = (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends)
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
-                       fmt='o', color=colors[i % len(colors)], 
+                       fmt='o', color=colors[_method_color_index(str(label)) % len(colors)],
                        markersize=6, capsize=4, capthick=1,
                        label=label if show_label else None)
         
@@ -1484,6 +1513,7 @@ def collect_results_and_plot(
     n_bootstrap: int = 400,
     save_dir: Optional[str | Path] = None,
     fig_format: Literal["png", "pdf"] = "png",
+    **plot_kwargs: dict,
 ) -> dict:
     utility_dfs = {}
     all_algo_assignments = {}
@@ -1526,7 +1556,7 @@ def collect_results_and_plot(
     scalar_confidence_intervals = bootstrap_df_rows(scalar_metrics_per_run, confidence_level=confidence_level, n_bootstrap=n_bootstrap)
 
     # Now plot with CIs
-    embedding_ablation_multi_fig = plot_sorted_utility_CIs(utilities_multidf, confidence_level=confidence_level, n_bootstrap=n_bootstrap)
+    embedding_ablation_multi_fig = plot_sorted_utility_CIs(utilities_multidf, confidence_level=confidence_level, n_bootstrap=n_bootstrap, **plot_kwargs)
 
     embedding_ablation_multi_fig.axes[0].set_xlim(50, 100)
     if save_dir is not None:
