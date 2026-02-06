@@ -16,7 +16,7 @@ def run_pipeline(
     num_clusters: int = 5,
     slate_size: int = 5,
     seed: int = 0,
-    ignore_initial: bool = False,
+    include_seed: bool = False,
     verbose: bool = True,
     steps_to_run: list[str] = ["generate_statements", "rate_statements", "compute_assignments"],
 ):
@@ -57,7 +57,7 @@ def run_pipeline(
             compute_assignments(
                 slate_size=slate_size,
                 voting_algotirhm=algo,
-                ignore_initial_statements=ignore_initial,
+                include_seed=include_seed,
                 verbose=verbose,
                 utility_matrix_file=results_paths["utility_matrix_file"],
                 statement_id_file=results_paths["statement_id_file"],
@@ -126,9 +126,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--ignore_initial",
+        "--include_seed",
         action="store_true",
-        help="If set, the first 6 statements in the utility matrix will be ignored.",
+        help="If set, the first 6 (seed) statements are included in the candidate set. By default only generated statements are considered; results are saved with '_with-seed' in the filename when this is set.",
     )
 
     parser.add_argument(
@@ -148,6 +148,6 @@ if __name__ == "__main__":
         num_clusters=args.num_clusters,
         slate_size=args.slate_size,
         seed=args.seed,
-        ignore_initial=args.ignore_initial,
+        include_seed=args.include_seed,
         verbose=args.verbose,
     ) 
