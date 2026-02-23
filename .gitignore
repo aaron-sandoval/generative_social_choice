@@ -183,4 +183,9 @@ cython_debug/
 # Windows dumb stuff
 *.bak
 
+# Claude
+.claude/
+claude_sandbox/
+CLAUDE.md
+
 generative_social_choice/data/_debug

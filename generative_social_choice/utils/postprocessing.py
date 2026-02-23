@@ -2,7 +2,7 @@
 This module contains functions for postprocessing results, including plotting and metrics.
 """
 
-from typing import Iterable, Literal, Optional, Sequence
+from typing import Hashable, Iterable, Literal, Optional, Sequence
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import matplotlib
@@ -143,6 +143,82 @@ def consolidate_duplicate_columns(df: pd.DataFrame, delimiter: str = ", ") -> pd
     result_df = result_df[result_columns]  # Preserve order
     
     return result_df
+
+
+def compute_utilities_relative_to_reference(
+    utilities: pd.DataFrame,
+    reference_col: Hashable = "Exact"
+) -> pd.DataFrame:
+    """
+    Compute utilities relative to a reference algorithm for each run_id.
+    
+    Args:
+        utilities: DataFrame with either MultiIndex columns (algorithm, run_id) or simple columns (algorithm)
+        reference_col: Column name of the reference algorithm (default: "Exact")
+        
+    Returns:
+        DataFrame with utilities relative to reference, with reference columns removed
+    """
+    sorted_utilities_relative = utilities.copy()
+    
+    # Sort each column independently
+    for col in sorted_utilities_relative.columns:
+        sorted_utilities_relative[col] = sorted_utilities_relative[col].sort_values(ascending=False).values
+    
+    # Check if columns are MultiIndex or simple
+    if isinstance(utilities.columns, pd.MultiIndex):
+        # MultiIndex case: columns are (algorithm, run_id)
+        for run_id in utilities.columns.get_level_values('run_id').unique():
+            # Find the reference column for this run_id
+            reference_cols = [
+                col for col in utilities.columns
+                if col[1] == run_id and col[0] == reference_col
+            ]
+            
+            if len(reference_cols) == 0:
+                continue
+            elif len(reference_cols) > 1:
+                ref_col = reference_cols[0]
+            else:
+                ref_col = reference_cols[0]
+            
+            # Get the sorted reference values for this run_id
+            reference_values = sorted_utilities_relative[ref_col]
+            
+            # Subtract from all columns with this run_id
+            for col in utilities.columns:
+                if col[1] == run_id:
+                    sorted_utilities_relative[col] = sorted_utilities_relative[col] - reference_values
+    else:
+        # Simple columns case: find the reference column
+        reference_cols = [
+            col for col in utilities.columns
+            if col == reference_col
+        ]
+        
+        if len(reference_cols) > 0:
+            ref_col = reference_cols[0]
+            reference_values = sorted_utilities_relative[ref_col]
+            
+            # Subtract from all columns
+            for col in utilities.columns:
+                sorted_utilities_relative[col] = sorted_utilities_relative[col] - reference_values
+    
+    # Filter out all reference columns at the end
+    if isinstance(sorted_utilities_relative.columns, pd.MultiIndex):
+        filtered_cols = [
+            col for col in sorted_utilities_relative.columns
+            if not str(col[0]) == str(reference_col)
+        ]
+        sorted_utilities_relative = sorted_utilities_relative[filtered_cols]
+    else:
+        filtered_cols = [
+            col for col in sorted_utilities_relative.columns
+            if not str(col) == str(reference_col)
+        ]
+        sorted_utilities_relative = sorted_utilities_relative[filtered_cols]
+    
+    return sorted_utilities_relative
 
 def calculate_proportion_confidence_intervals(counts: np.ndarray, total: int) -> np.ndarray:
     """
@@ -868,6 +944,589 @@ def plot_sorted_utility_CIs(
     ax.set_ylabel(ylabel)
     ax.grid(axis='both', linestyle='--', alpha=0.7)
     ax.legend(loc='lower left')
+    
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+
+def _compute_lorenz_curves_from_utilities(
+    utilities: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Compute generalized Lorenz curves from utilities DataFrame.
+    
+    For each column, sorts utilities in descending order and computes
+    cumulative sums.
+    
+    Args:
+        utilities: DataFrame where each column contains utilities
+        
+    Returns:
+        DataFrame with same structure, but values are cumulative sums
+        of sorted utilities
+    """
+    lorenz_curves = pd.DataFrame(index=utilities.index, columns=utilities.columns)
+    
+    for column in utilities.columns:
+        # Sort in descending order (like plot_sorted_utility_CIs does)
+        sorted_values = utilities[column].sort_values(ascending=False).values
+        # Compute cumulative sums
+        lorenz_curve = np.cumsum(sorted_values)
+        # Store back in original order (we'll use the sorted order for plotting)
+        lorenz_curves[column] = lorenz_curve
+    
+    return lorenz_curves
+
+
+def _prepare_trajectory_data_for_bootstrap(
+    data_df: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Prepare trajectory data for bootstrap analysis.
+    
+    Creates a DataFrame suitable for bootstrap_df_rows, where rows are trajectories
+    and columns are position indices. The input DataFrame should have trajectories
+    as columns (one trajectory per column).
+    
+    Args:
+        data_df: DataFrame where each column contains a trajectory
+        
+    Returns:
+        DataFrame with MultiIndex rows (group, sample) and position columns
+    """
+    # Extract trajectories from columns
+    trajectories_dict = {}
+    for column in data_df.columns:
+        # Get values, handling NaN padding if needed
+        values = data_df[column].values
+        # Remove trailing NaNs if any
+        valid_mask = ~np.isnan(values)
+        if np.any(valid_mask):
+            last_valid = np.where(valid_mask)[0][-1] + 1
+            values = values[:last_valid]
+        trajectories_dict[column] = values
+    
+    # Find maximum length
+    max_length = max(len(values) for values in trajectories_dict.values())
+    
+    # Create position column names
+    position_columns = [f"pos_{i}" for i in range(max_length)]
+    
+    # Prepare data for DataFrame
+    data_rows = []
+    row_indices = []
+    
+    if isinstance(data_df.columns, pd.MultiIndex):
+        # Group by first level of MultiIndex
+        for column in data_df.columns:
+            # Pad shorter trajectories with NaN if needed
+            values = trajectories_dict[column]
+            if len(values) < max_length:
+                values = np.concatenate([values, [np.nan] * (max_length - len(values))])
+            data_rows.append(values)
+            
+            # Create MultiIndex for rows: (group, sample_id)
+            group_name = column[0]
+            sample_id = column[1] if len(column) > 1 else column
+            row_indices.append((group_name, sample_id))
+        
+        # Create MultiIndex for rows
+        row_index = pd.MultiIndex.from_tuples(row_indices, names=['group', 'sample'])
+    else:
+        # Simple column index - treat as single group
+        for i, column in enumerate(data_df.columns):
+            values = trajectories_dict[column]
+            if len(values) < max_length:
+                values = np.concatenate([values, [np.nan] * (max_length - len(values))])
+            data_rows.append(values)
+            
+            # Create MultiIndex for rows: (group, sample_id)
+            row_indices.append(('all', column))
+        
+        # Create MultiIndex for rows
+        row_index = pd.MultiIndex.from_tuples(row_indices, names=['group', 'sample'])
+    
+    # Create DataFrame for bootstrap analysis
+    bootstrap_data = pd.DataFrame(
+        data_rows,
+        index=row_index,
+        columns=position_columns
+    )
+    
+    return bootstrap_data
+
+
+def _prepare_lorenz_curve_data_for_bootstrap(
+    utilities: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Prepare Lorenz curve data for bootstrap analysis.
+    
+    Computes Lorenz curves for each column and creates a DataFrame
+    suitable for bootstrap_df_rows, where rows are trajectories
+    and columns are position indices.
+    
+    Args:
+        utilities: DataFrame where each column contains utilities
+        
+    Returns:
+        DataFrame with MultiIndex rows (group, sample) and position columns
+    """
+    # Compute Lorenz curves for all columns
+    lorenz_curves_dict = {}
+    for column in utilities.columns:
+        # Sort in descending order and compute cumulative sums
+        sorted_values = utilities[column].sort_values(ascending=False).values
+        lorenz_curve = np.cumsum(sorted_values)
+        lorenz_curves_dict[column] = lorenz_curve
+    
+    # Convert to DataFrame format for _prepare_trajectory_data_for_bootstrap
+    lorenz_curves_df = pd.DataFrame(index=utilities.index, columns=utilities.columns)
+    for column in utilities.columns:
+        values = lorenz_curves_dict[column]
+        # Pad to match index length if needed
+        if len(values) < len(utilities.index):
+            values = np.concatenate([values, [np.nan] * (len(utilities.index) - len(values))])
+        lorenz_curves_df[column] = values[:len(utilities.index)]
+    
+    # Use the trajectory preparation function
+    return _prepare_trajectory_data_for_bootstrap(lorenz_curves_df)
+
+
+def plot_generalized_lorenz_curve(
+    utilities: pd.DataFrame, 
+    confidence_level: float = 0.95,
+    n_bootstrap: int = 400,
+    figsize: tuple[float, float] = (10, 6),
+    do_CI: bool = True,
+    ylabel: str = "Cumulative Utility",
+    colors: Optional[Sequence[str]] = DARK_COLORS,
+) -> plt.Figure:
+    """
+    Plot confidence intervals for generalized Lorenz curves using bootstrapping.
+    
+    The generalized Lorenz curve is computed by sorting utilities in descending
+    order and computing cumulative sums. Instead of plotting each line individually,
+    this function treats the lines as a sample from a population and plots confidence
+    intervals of the mean trajectory across the domain using bootstrapping. When there
+    is a MultiIndex on the columns, it groups columns by the first level and plots
+    separate confidence intervals for each group.
+    
+    Args:
+        utilities: DataFrame where each column contains utilities for different
+            methods/conditions. Can have either a simple column index or a 2-level
+            MultiIndex. If using a MultiIndex, columns with the same first-level
+            index will be grouped together.
+        confidence_level: Width of the confidence interval (default: 0.95).
+        n_bootstrap: Number of bootstrap samples to generate (default: 400).
+        figsize: Figure size tuple (default: (10, 6)).
+        do_CI: Whether to calculate and plot confidence intervals (default: True).
+            When False, only the mean trajectory is plotted without confidence intervals.
+        ylabel: Label for the y-axis (default: "Cumulative Utility").
+        colors: Optional sequence of colors for plotting (default: DARK_COLORS).
+    
+    Returns:
+        matplotlib Figure object containing the plot
+    """
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Prepare data for bootstrap analysis
+    bootstrap_data = _prepare_lorenz_curve_data_for_bootstrap(utilities)
+    
+    # Calculate confidence intervals or just means based on do_CI
+    if do_CI:
+        # Use bootstrap_df_rows to calculate confidence intervals
+        bootstrap_results = bootstrap_df_rows(
+            bootstrap_data,
+            confidence_level=confidence_level,
+            n_bootstrap=n_bootstrap,
+            seed=1612,
+        )
+    else:
+        # Calculate means directly without bootstrapping
+        if isinstance(bootstrap_data.index, pd.MultiIndex):
+            # Group by first level and calculate means
+            grouped = bootstrap_data.groupby(level=0)
+            results_list = []
+            row_indices = []
+            for group_name, group_df in grouped:
+                mean_values = group_df.mean(axis=0).values
+                results_list.append(mean_values)
+                row_indices.append((group_name, 'mean'))
+            # Create a DataFrame with MultiIndex similar to bootstrap_results
+            row_index = pd.MultiIndex.from_tuples(
+                row_indices, names=['group', 'statistic']
+            )
+            bootstrap_results = pd.DataFrame(
+                results_list,
+                index=row_index,
+                columns=bootstrap_data.columns
+            )
+        else:
+            # Simple case - just calculate mean
+            means = bootstrap_data.mean(axis=0).values
+            row_index = pd.MultiIndex.from_tuples(
+                [('all', 'mean')],
+                names=['group', 'statistic']
+            )
+            bootstrap_results = pd.DataFrame(
+                [means],
+                index=row_index,
+                columns=bootstrap_data.columns
+            )
+    
+    # Get unique groups from the bootstrap results
+    if isinstance(bootstrap_results.index, pd.MultiIndex):
+        # Get unique group names (all levels except the last 'statistic' level)
+        unique_groups = bootstrap_results.index.droplevel(-1).unique()
+    else:
+        unique_groups = ['all']
+    
+    # Create statistic labels
+    mean_label = 'mean'
+    lower_label = 'lower bound'
+    upper_label = 'upper bound'
+    
+    # Plot results for each group
+    for i, group_name in enumerate(unique_groups):
+        # Extract mean (and bounds if do_CI is True) for all positions
+        if isinstance(bootstrap_results.index, pd.MultiIndex):
+            means = bootstrap_results.loc[(group_name, mean_label), :].values
+            if do_CI:
+                lower_bounds = bootstrap_results.loc[(group_name, lower_label), :].values
+                upper_bounds = bootstrap_results.loc[(group_name, upper_label), :].values
+        else:
+            means = bootstrap_results.loc[mean_label, :].values
+            if do_CI:
+                lower_bounds = bootstrap_results.loc[lower_label, :].values
+                upper_bounds = bootstrap_results.loc[upper_label, :].values
+        
+        # Find last valid index (remove trailing NaNs)
+        valid_indices = ~np.isnan(means)
+        if not np.any(valid_indices):
+            continue
+            
+        last_valid = np.where(valid_indices)[0][-1] + 1
+        
+        means = means[:last_valid]
+        if do_CI:
+            lower_bounds = lower_bounds[:last_valid]
+            upper_bounds = upper_bounds[:last_valid]
+        indices = np.arange(len(means))
+        
+        # Count number of samples in this group
+        if isinstance(utilities.columns, pd.MultiIndex):
+            n_samples = sum(1 for col in utilities.columns if col[0] == group_name)
+        else:
+            n_samples = len(utilities.columns)
+        
+        color = colors[i % len(colors)]
+        
+        # Plot confidence interval as shaded region (only if do_CI is True)
+        if do_CI:
+            ax.fill_between(
+                indices, 
+                lower_bounds, 
+                upper_bounds, 
+                alpha=0.3, 
+                color=color,
+                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+            )
+        
+        # Plot sample mean trajectory
+        ax.plot(
+            indices, 
+            means, 
+            color=color, 
+            linewidth=1.5,
+            label=f"{group_name} (sample mean, n={n_samples})"
+        )
+    
+    # Customize plot
+    ax.set_xlabel("Voter index (sorted by utility)")
+    ax.set_ylabel(ylabel)
+    ax.grid(axis='both', linestyle='--', alpha=0.7)
+    ax.legend(loc='lower left')
+    
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+
+def plot_generalized_lorenz_curve_differences(
+    utilities: pd.DataFrame,
+    reference_col: Hashable = "Exact",
+    confidence_level: float = 0.95,
+    n_bootstrap: int = 400,
+    figsize: tuple[float, float] = (10, 6),
+    do_CI: bool = True,
+    ylabel: str = "Cumulative Utility Difference",
+    colors: Optional[Sequence[str]] = DARK_COLORS,
+) -> plt.Figure:
+    """
+    Plot differences between generalized Lorenz curves relative to a reference algorithm.
+    
+    For each run, computes the generalized Lorenz curve for each algorithm and the
+    reference algorithm, then computes the difference relative to the reference.
+    The differences are then aggregated across runs using bootstrapping to produce
+    confidence intervals.
+    
+    Args:
+        utilities: DataFrame where each column contains utilities for different
+            methods/conditions. Can have either a simple column index or a 2-level
+            MultiIndex. If using a MultiIndex, columns with the same first-level
+            index will be grouped together.
+        reference_col: Column name of the reference algorithm (default: "Exact").
+        confidence_level: Width of the confidence interval (default: 0.95).
+        n_bootstrap: Number of bootstrap samples to generate (default: 400).
+        figsize: Figure size tuple (default: (10, 6)).
+        do_CI: Whether to calculate and plot confidence intervals (default: True).
+            When False, only the mean trajectory is plotted without confidence intervals.
+        ylabel: Label for the y-axis (default: "Cumulative Utility Difference").
+        colors: Optional sequence of colors for plotting (default: DARK_COLORS).
+    
+    Returns:
+        matplotlib Figure object containing the plot
+    """
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Compute Lorenz curves for all columns first
+    # For each run, we need to compute Lorenz curves and then compute differences
+    # relative to the reference algorithm for that run
+    
+    lorenz_curves_relative_dict = {}
+    
+    # Check if columns are MultiIndex or simple
+    if isinstance(utilities.columns, pd.MultiIndex):
+        # MultiIndex case: columns are (algorithm, run_id)
+        for run_id in utilities.columns.get_level_values('run_id').unique():
+            # Find the reference column for this run_id
+            reference_cols = [
+                col for col in utilities.columns
+                if col[1] == run_id and col[0] == reference_col
+            ]
+            
+            if len(reference_cols) == 0:
+                continue
+            
+            ref_col = reference_cols[0]
+            
+            # Compute reference Lorenz curve for this run
+            ref_sorted = utilities[ref_col].sort_values(ascending=False).values
+            ref_lorenz = np.cumsum(ref_sorted)
+            
+            # Compute Lorenz curves for all algorithms in this run and subtract reference
+            for col in utilities.columns:
+                if col[1] == run_id and col[0] != reference_col:
+                    # Compute Lorenz curve for this algorithm
+                    sorted_values = utilities[col].sort_values(ascending=False).values
+                    lorenz_curve = np.cumsum(sorted_values)
+                    
+                    # Compute difference relative to reference
+                    # Pad to same length if needed
+                    min_len = min(len(lorenz_curve), len(ref_lorenz))
+                    lorenz_diff = lorenz_curve[:min_len] - ref_lorenz[:min_len]
+                    
+                    # Store with the column name
+                    lorenz_curves_relative_dict[col] = lorenz_diff
+    else:
+        # Simple columns case: find the reference column
+        reference_cols = [
+            col for col in utilities.columns
+            if col == reference_col
+        ]
+        
+        if len(reference_cols) > 0:
+            ref_col = reference_cols[0]
+            
+            # Compute reference Lorenz curve
+            ref_sorted = utilities[ref_col].sort_values(ascending=False).values
+            ref_lorenz = np.cumsum(ref_sorted)
+            
+            # Compute Lorenz curves for all algorithms and subtract reference
+            for col in utilities.columns:
+                if col != reference_col:
+                    # Compute Lorenz curve for this algorithm
+                    sorted_values = utilities[col].sort_values(ascending=False).values
+                    lorenz_curve = np.cumsum(sorted_values)
+                    
+                    # Compute difference relative to reference
+                    # Pad to same length if needed
+                    min_len = min(len(lorenz_curve), len(ref_lorenz))
+                    lorenz_diff = lorenz_curve[:min_len] - ref_lorenz[:min_len]
+                    
+                    # Store with the column name
+                    lorenz_curves_relative_dict[col] = lorenz_diff
+    
+    # Convert to DataFrame with proper structure
+    if len(lorenz_curves_relative_dict) == 0:
+        # No data to plot - return empty DataFrame with same column structure
+        if isinstance(utilities.columns, pd.MultiIndex):
+            # Filter out reference columns
+            filtered_cols = [
+                col for col in utilities.columns
+                if not str(col[0]) == str(reference_col)
+            ]
+        else:
+            filtered_cols = [
+                col for col in utilities.columns
+                if not str(col) == str(reference_col)
+            ]
+        lorenz_curves_relative = pd.DataFrame(columns=filtered_cols)
+    else:
+        # Find maximum length
+        max_length = max(len(values) for values in lorenz_curves_relative_dict.values())
+        
+        # Create DataFrame with proper index
+        lorenz_curves_relative = pd.DataFrame(
+            index=pd.RangeIndex(max_length),
+            columns=list(lorenz_curves_relative_dict.keys())
+        )
+        
+        for col, values in lorenz_curves_relative_dict.items():
+            # Pad to match max_length if needed
+            if len(values) < max_length:
+                padded_values = np.concatenate([values, [np.nan] * (max_length - len(values))])
+            else:
+                padded_values = values
+            lorenz_curves_relative[col] = padded_values
+    
+    # Prepare data for bootstrap analysis
+    # Use trajectory preparation since we already have Lorenz curves (differences)
+    if lorenz_curves_relative.empty:
+        # No data to plot - return empty figure
+        ax.text(0.5, 0.5, 'No data to plot\n(Reference algorithm not found or no other algorithms)', 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=12)
+        ax.set_xlabel("Voter index (sorted by utility)")
+        ax.set_ylabel(ylabel)
+        plt.tight_layout()
+        return fig
+    
+    bootstrap_data = _prepare_trajectory_data_for_bootstrap(lorenz_curves_relative)
+    
+    # Calculate confidence intervals or just means based on do_CI
+    if do_CI:
+        # Use bootstrap_df_rows to calculate confidence intervals
+        bootstrap_results = bootstrap_df_rows(
+            bootstrap_data,
+            confidence_level=confidence_level,
+            n_bootstrap=n_bootstrap,
+            seed=1612,
+        )
+    else:
+        # Calculate means directly without bootstrapping
+        if isinstance(bootstrap_data.index, pd.MultiIndex):
+            # Group by first level and calculate means
+            grouped = bootstrap_data.groupby(level=0)
+            results_list = []
+            row_indices = []
+            for group_name, group_df in grouped:
+                mean_values = group_df.mean(axis=0).values
+                results_list.append(mean_values)
+                row_indices.append((group_name, 'mean'))
+            # Create a DataFrame with MultiIndex similar to bootstrap_results
+            row_index = pd.MultiIndex.from_tuples(
+                row_indices, names=['group', 'statistic']
+            )
+            bootstrap_results = pd.DataFrame(
+                results_list,
+                index=row_index,
+                columns=bootstrap_data.columns
+            )
+        else:
+            # Simple case - just calculate mean
+            means = bootstrap_data.mean(axis=0).values
+            row_index = pd.MultiIndex.from_tuples(
+                [('all', 'mean')],
+                names=['group', 'statistic']
+            )
+            bootstrap_results = pd.DataFrame(
+                [means],
+                index=row_index,
+                columns=bootstrap_data.columns
+            )
+    
+    # Get unique groups from the bootstrap results
+    if isinstance(bootstrap_results.index, pd.MultiIndex):
+        # Get unique group names (all levels except the last 'statistic' level)
+        unique_groups = bootstrap_results.index.droplevel(-1).unique()
+    else:
+        unique_groups = ['all']
+    
+    # Create statistic labels
+    mean_label = 'mean'
+    lower_label = 'lower bound'
+    upper_label = 'upper bound'
+    
+    # Plot results for each group
+    for i, group_name in enumerate(unique_groups):
+        # Extract mean (and bounds if do_CI is True) for all positions
+        if isinstance(bootstrap_results.index, pd.MultiIndex):
+            means = bootstrap_results.loc[(group_name, mean_label), :].values
+            if do_CI:
+                lower_bounds = bootstrap_results.loc[(group_name, lower_label), :].values
+                upper_bounds = bootstrap_results.loc[(group_name, upper_label), :].values
+        else:
+            means = bootstrap_results.loc[mean_label, :].values
+            if do_CI:
+                lower_bounds = bootstrap_results.loc[lower_label, :].values
+                upper_bounds = bootstrap_results.loc[upper_label, :].values
+        
+        # Find last valid index (remove trailing NaNs)
+        valid_indices = ~np.isnan(means)
+        if not np.any(valid_indices):
+            continue
+            
+        last_valid = np.where(valid_indices)[0][-1] + 1
+        
+        means = means[:last_valid]
+        if do_CI:
+            lower_bounds = lower_bounds[:last_valid]
+            upper_bounds = upper_bounds[:last_valid]
+        indices = np.arange(len(means))
+        
+        # Count number of samples in this group
+        if isinstance(lorenz_curves_relative.columns, pd.MultiIndex):
+            n_samples = sum(1 for col in lorenz_curves_relative.columns if col[0] == group_name)
+        else:
+            n_samples = len(lorenz_curves_relative.columns)
+        
+        color = colors[i % len(colors)]
+        
+        # Plot confidence interval as shaded region (only if do_CI is True)
+        if do_CI:
+            ax.fill_between(
+                indices, 
+                lower_bounds, 
+                upper_bounds, 
+                alpha=0.3, 
+                color=color,
+                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+            )
+        
+        # Plot sample mean trajectory
+        ax.plot(
+            indices, 
+            means, 
+            color=color, 
+            linewidth=1.5,
+            label=f"{group_name} (sample mean, n={n_samples})"
+        )
+    
+    # Customize plot
+    ax.set_xlabel("Voter index (sorted by utility)")
+    ax.set_ylabel(ylabel)
+    ax.grid(axis='both', linestyle='--', alpha=0.7)
+    ax.legend(loc='lower left')
+    
+    # Add horizontal line at y=0 for reference
+    ax.axhline(y=0, color='black', linestyle='--', linewidth=0.5, alpha=0.5)
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
