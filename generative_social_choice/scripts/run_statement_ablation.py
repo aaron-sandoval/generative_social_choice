@@ -2,6 +2,7 @@ import argparse
 import ast
 import hashlib
 import json
+import random
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -122,6 +123,46 @@ def rule_matches(rule: ExclusionRule, row: pd.Series) -> bool:
     return True
 
 
+def apply_llm_subsample_per_condition(
+    generation_df: pd.DataFrame,
+    llm_subsample_per_condition: int,
+    random_seed: int,
+) -> pd.DataFrame:
+    """
+    Keep up to `llm_subsample_per_condition` rows for each LLMGenerator condition.
+
+    A condition is defined by the set of voters the generator was run on, represented
+    by `cluster_key` (this includes the all-voters condition and each cluster).
+    """
+    if llm_subsample_per_condition <= 0:
+        raise ValueError("llm_subsample_per_condition must be > 0.")
+
+    df = generation_df.copy()
+    df["is_excluded_subsample"] = False
+
+    llm_mask = df["method_name"] == "LLMGenerator"
+    if not llm_mask.any():
+        return df
+
+    rng = random.Random(random_seed)
+    llm_ix = df[llm_mask].index.to_list()
+
+    groups: dict[str, list[int]] = {}
+    for ix in llm_ix:
+        c_key = str(df.loc[ix, "cluster_key"])
+        groups.setdefault(c_key, []).append(ix)
+
+    for _, group_indices in groups.items():
+        if len(group_indices) <= llm_subsample_per_condition:
+            continue
+        keep_ix = set(rng.sample(group_indices, llm_subsample_per_condition))
+        for ix in group_indices:
+            if ix not in keep_ix:
+                df.loc[ix, "is_excluded_subsample"] = True
+
+    return df
+
+
 def print_available_contexts(df: pd.DataFrame) -> None:
     print("\nAvailable generator contexts:\n")
     grouped = (
@@ -151,6 +192,8 @@ def run_ablation(
     ablation_name: str,
     exclusion_rules: list[ExclusionRule],
     list_contexts_only: bool,
+    llm_subsample_per_condition: Optional[int],
+    random_seed: int,
 ) -> None:
     result_paths = get_results_paths(
         labelling_model=labelling_model,
@@ -182,12 +225,27 @@ def run_ablation(
         print_available_contexts(generation_df)
         return
 
-    if not exclusion_rules:
-        raise ValueError("No exclusion rules were provided.")
+    if not exclusion_rules and llm_subsample_per_condition is None:
+        raise ValueError(
+            "No filtering was configured. Provide --exclude and/or "
+            "--llm_subsample_per_condition."
+        )
+
+    if llm_subsample_per_condition is not None:
+        generation_df = apply_llm_subsample_per_condition(
+            generation_df=generation_df,
+            llm_subsample_per_condition=llm_subsample_per_condition,
+            random_seed=random_seed,
+        )
+    else:
+        generation_df["is_excluded_subsample"] = False
 
     generation_df["is_excluded"] = generation_df.apply(
         lambda row: any(rule_matches(rule, row) for rule in exclusion_rules),
         axis=1,
+    )
+    generation_df["is_excluded"] = (
+        generation_df["is_excluded"] | generation_df["is_excluded_subsample"]
     )
 
     # Keep a statement if at least one provenance row survives.
@@ -242,6 +300,8 @@ def run_ablation(
             "results_dir": str(result_paths["results_dir"]),
         },
         "ablation_name": ablation_name,
+        "llm_subsample_per_condition": llm_subsample_per_condition,
+        "random_seed": random_seed,
         "exclusion_rules": [
             {
                 "generator": rule.generator,
@@ -253,6 +313,7 @@ def run_ablation(
             "source_statements_total": int(len(statement_df)),
             "source_generated_rows": int(len(generation_df)),
             "source_unique_generated_statements": int(generation_df["statement_norm"].nunique()),
+            "excluded_by_llm_subsample_rows": int(generation_df["is_excluded_subsample"].sum()),
             "excluded_generation_rows": int(generation_df["is_excluded"].sum()),
             "filtered_statements_total": int(len(filtered_statement_df)),
             "filtered_generated_rows": int((~generation_df["is_excluded"]).sum()),
@@ -364,6 +425,21 @@ def main() -> None:
         action="store_true",
         help="List available generator contexts (name/scope/voter_ids) and exit.",
     )
+    parser.add_argument(
+        "--llm_subsample_per_condition",
+        type=int,
+        default=None,
+        help=(
+            "If provided, randomly keep only this many LLMGenerator statements per condition "
+            "(all voters and each cluster separately)."
+        ),
+    )
+    parser.add_argument(
+        "--random_seed",
+        type=int,
+        default=0,
+        help="Random seed used for LLM per-condition subsampling.",
+    )
 
     args = parser.parse_args()
 
@@ -382,6 +458,8 @@ def main() -> None:
             ablation_name=args.ablation_name,
             exclusion_rules=rules,
             list_contexts_only=args.list_contexts,
+            llm_subsample_per_condition=args.llm_subsample_per_condition,
+            random_seed=args.random_seed,
         )
 
 
