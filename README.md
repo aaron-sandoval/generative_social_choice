@@ -64,6 +64,23 @@ Notes:
 You can also convert the results from Fish et al. into our result format (including calling DISC on all their statements) by calling `python generative_social_choice/scripts/compute_baseline_results.py --model=gpt-4o-mini`.
 
 
+## Statement Ablation
+
+The new pipeline generates more statements by default than the original one. To compute assignments with a subset of statements, you can use the `run_statement_ablation.py` script.
+
+Command used for results in the paper:
+```python -m generative_social_choice.scripts.run_statement_ablation \
+  --run_ids 0,1,2,3,4,5,6,7,8,9 \
+  --generation_model 4o \
+  --embedding_type llm \
+  --labelling_model 4o-mini \
+  --ablation_name llm_subsample_3 \
+  --llm_subsample_per_condition 3 \
+  --random_seed 0 \
+  --ignore_initial
+  ```
+
+
 # Generating plots from paper 
 
 Each figure in the paper can be generated using a dedicated notebook:
