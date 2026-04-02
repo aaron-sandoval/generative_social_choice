@@ -34,10 +34,14 @@ def run(
         utility_matrix_file: Path,
         statement_id_file: Path,
         assignment_file: Optional[Path]=None,
-        ignore_initial_statements: bool=False,
-        verbose: bool=False,
+        include_seed: bool = False,
+        verbose: bool = False,
     ):
-    if not assignment_file.parent.exists():
+    # By default we exclude the first 6 (seed) statements. With include_seed, append "_with-seed" to filename.
+    ignore_initial_statements = None if include_seed else 6
+    if assignment_file is not None and include_seed:
+        assignment_file = assignment_file.parent / (assignment_file.stem + "_with-seed" + assignment_file.suffix)
+    if assignment_file is not None and not assignment_file.parent.exists():
         print(f"Creating directory {assignment_file.parent} ...")
         assignment_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -46,7 +50,7 @@ def run(
         utility_matrix_file=utility_matrix_file,
         statement_id_file=statement_id_file,
         slate_size=slate_size,
-        ignore_initial_statements=6 if ignore_initial_statements else None,
+        ignore_initial_statements=ignore_initial_statements,
     )
     if assignment_file is not None:
         if verbose:
@@ -105,10 +109,9 @@ if __name__=="__main__":
     )
 
     parser.add_argument(
-        "--ignore_initial",
-        type=bool,
-        default=False,
-        help="If True, the first 6 statements in the utility matrix will be ignored.",
+        "--include_seed",
+        action="store_true",
+        help="If set, the first 6 (seed) statements are included in the candidate set. By default only generated statements are considered. Results are saved with '_with-seed' in the filename.",
     )
 
     args = parser.parse_args()
@@ -130,6 +133,6 @@ if __name__=="__main__":
             utility_matrix_file=result_paths["utility_matrix_file"],
             statement_id_file=result_paths["statement_id_file"],
             assignment_file=result_paths["assignments"] / f"{name}.json",
-            ignore_initial_statements=args.ignore_initial,
+            include_seed=args.include_seed,
             verbose=True,
         )

@@ -1,3 +1,5 @@
+*.pdf
+
 # Pre-fork custom ignores
 OPENAI_API_KEY
 OPENAI_ORGANIZATION
