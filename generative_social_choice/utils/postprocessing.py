@@ -16,6 +16,10 @@ from generative_social_choice.slates.voting_utils import gini
 from generative_social_choice.ratings.utility_matrix import extract_voter_utilities_from_info_csv
 from generative_social_choice.utils.helper_functions import get_results_paths
 from generative_social_choice.ratings.utility_matrix import get_baseline_generate_slate_results
+from generative_social_choice.slates.voting_algorithms import (
+    StepwiseMonroe,
+    ExactTotalUtilityMaximization,
+)
 
 
 LIKERT_SCORES: dict[int, str] = {
@@ -62,6 +66,13 @@ METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
     "Baseline (LLM Embeddings)": 3,
     "Baseline (Their Embs.)": 2,
     "Baseline (LLM Embs.)": 3,
+    # Stepwise-Monroe ablation methods: keyed by each algorithm's `display_name` (the single
+    # source of truth) so renaming a series there propagates here automatically. Reuses the
+    # embedding-ablation palette so the leading colors match (purple, orange, pink, blue).
+    StepwiseMonroe(final_assignment="greedy_equal").display_name: 3,   # purple
+    StepwiseMonroe(final_assignment="optimal_equal").display_name: 2,  # orange
+    StepwiseMonroe(final_assignment="free").display_name: 6,           # pink
+    ExactTotalUtilityMaximization().display_name: 0,                   # blue
 }
 
 

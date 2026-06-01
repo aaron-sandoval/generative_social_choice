@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import cached_property
 from itertools import combinations
 import abc
+import math
 from dataclasses import dataclass
 from typing import Optional, Literal, override
 import warnings
@@ -764,6 +765,127 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
             assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
 
         #TODO If a utility transformation was applied, assignments["utilities"] won't match the original utilities
+        return slate, assignments
+
+
+@dataclass(frozen=True)
+class StepwiseMonroe(VotingAlgorithm):
+    """
+    Greedy stepwise Monroe rule applied to a complete, precomputed utility matrix.
+
+    This is a port of the greedy selection loop in
+    `slate_generation.generate_slate_ensemble_greedy`, which normally interleaves on-demand
+    statement generation and utility evaluation (querying only the currently-unmatched agents each
+    round) with slate selection. Here the complete utility matrix is available from the start, so
+    each round reads the relevant utilities directly instead of generating/evaluating them.
+
+    Each round selects one slate member: a candidate's score is the `coalition_size`-th highest
+    utility among the still-unmatched agents, the highest-scoring candidate is added to the slate,
+    and the top `coalition_size` unmatched agents (by their utility for it) are matched to it.
+
+    # Arguments
+    - `final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"`:
+      Controls only the final voter->candidate assignment; the slate selection above is identical
+      for all three modes.
+      - `"greedy_equal"` (default, true Monroe): each voter is assigned to the candidate of the
+        equal-sized coalition (~n/k voters) it was matched into during the greedy selection.
+      - `"free"` (relaxed): the equal-coalition-size constraint is dropped and each voter is
+        reassigned to its favorite member of the final slate (the same final assignment rule the
+        utility-maximizing algorithms use).
+      - `"optimal_equal"`: the equal-coalition-size constraint is *kept*, but instead of the
+        greedy per-round matching the assignment is recomputed optimally over the final slate via
+        `optimize_monroe_matching` -- an ILP that maximizes total utility subject to every slate
+        member receiving exactly n/k voters. Requires the voter count to be divisible by the slate
+        size.
+    """
+    final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"
+
+    @property
+    def name(self) -> str:
+        return f"StepwiseMonroe(final_assignment={self.final_assignment})"
+
+    @property
+    def display_name(self) -> str:
+        return {
+            "greedy_equal": "Monroe (equal)",
+            "free": "Monroe (unconstrained)",
+            "optimal_equal": "Monroe (equal, optimal)",
+        }[self.final_assignment]
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - `utility`: The utility of the voter for the assigned candidate
+        """
+        n = len(rated_votes.index)
+        k = slate_size
+        voters = list(rated_votes.index)
+
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = NULL_CANDIDATE_ID
+        assignments["utility"] = float(BASELINE_UTILITY)
+
+        matched: dict = {v: None for v in voters}
+        slate: list[str] = []
+
+        for round_num in range(k):
+            unmatched = [v for v in voters if matched[v] is None]
+            if not unmatched:
+                break
+
+            # Coalition size: identical formula to generate_slate_ensemble_greedy, ensuring that the
+            # per-round coalition sizes sum to exactly n over the k rounds.
+            j = round_num + 1
+            coalition_size = math.ceil(n / k) if j <= n - k * (n // k) else n // k
+            coalition_size = min(coalition_size, len(unmatched))
+
+            remaining_candidates = [c for c in rated_votes.columns if c not in slate]
+
+            # Score each remaining candidate by the coalition_size-th highest utility among the
+            # unmatched agents (sort each candidate's column descending, take row coalition_size-1).
+            sub = rated_votes.loc[unmatched, remaining_candidates].to_numpy()
+            sorted_desc = -np.sort(-sub, axis=0)
+            scores = sorted_desc[coalition_size - 1, :]
+            best = remaining_candidates[int(np.argmax(scores))]
+            slate.append(best)
+
+            # Match the top coalition_size unmatched agents (by utility for `best`) to `best`.
+            best_utils = rated_votes.loc[unmatched, best]
+            top_voters = best_utils.sort_values(ascending=False).index[:coalition_size]
+            assignments.loc[top_voters, "candidate_id"] = best
+            assignments.loc[top_voters, "utility"] = rated_votes.loc[top_voters, best].to_numpy()
+            for v in top_voters:
+                matched[v] = best
+
+        if self.final_assignment == "free":
+            # Drop the equal-coalition assignment; assign each voter to its favorite slate member.
+            best_in_slate = voter_max_utilities_from_slate(rated_votes, slate)
+            assignments["candidate_id"] = best_in_slate["candidate_id"]
+            assignments["utility"] = best_in_slate["utility"]
+        elif self.final_assignment == "optimal_equal":
+            # Keep equal-sized coalitions, but recompute the assignment optimally over the final
+            # slate: an ILP maximizing total utility subject to each slate member getting exactly
+            # n/k voters. Imported lazily so this module doesn't hard-depend on gurobipy.
+            from generative_social_choice.paper_replication.compute_matching import (
+                optimize_monroe_matching,
+            )
+
+            util_sub = rated_votes.loc[voters, slate]
+            matching_ix = optimize_monroe_matching(util_sub.to_numpy().tolist())
+            assigned = pd.Series([slate[ix] for ix in matching_ix], index=voters)
+            assignments["candidate_id"] = assigned
+            assignments["utility"] = pd.Series(
+                [rated_votes.loc[v, c] for v, c in zip(voters, assigned)], index=voters
+            )
+
         return slate, assignments
 
 
