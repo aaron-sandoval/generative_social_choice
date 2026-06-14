@@ -681,11 +681,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
                 prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
 
         # Now solve the problem using an existing integer programming solver
-        # options=['barrier'] is to use an interior point method, which has polynomial time complexity, other than the default simplex method
-        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-9, options=['barrier']))
-
-        #prob.solve(pulp.GLPK_CMD(options=['--interior'], msg=0))  # GLPK's interior point
-        #prob.solve(pulp.CPLEX_CMD())
+        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-9))
 
         # Extract slate and assignments from the solved problem
         # Here, take the k statements with maximum score
