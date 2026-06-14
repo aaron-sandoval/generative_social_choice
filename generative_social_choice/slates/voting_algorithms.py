@@ -791,8 +791,7 @@ class StepwiseMonroe(VotingAlgorithm):
       - `"optimal_equal"`: the equal-coalition-size constraint is *kept*, but instead of the
         greedy per-round matching the assignment is recomputed optimally over the final slate via
         `optimize_monroe_matching` -- an ILP that maximizes total utility subject to every slate
-        member receiving exactly n/k voters. Requires the voter count to be divisible by the slate
-        size.
+        member receiving floor(n/k) or ceil(n/k) voters (exactly n/k when k divides n).
     """
     final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"
 
