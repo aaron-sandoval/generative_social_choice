@@ -267,14 +267,14 @@ f(u)=\frac{1-(1/p)^u}{1-(1/p)}.
 \]
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias and also show a more aggressive setting in one result figure.
 
-\paragraph{Monroe (equal, greedy) \citep{skowron-2015}}
-The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner. We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile. The slate is built in \(k\) rounds. In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters. The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it. Identical to \citet{fish-v2}, the baseline.
+\paragraph{Monroe(equal, greedy) \citep{skowron-2015}}
+The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner. We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile. The slate is built in \(k\) rounds. In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters. The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it. This is a best-effort adaptation of the \citet{fish-v2} voting algorithm, made to operate on a full utility matrix.
 
-\paragraph{Monroe (equal, optimal)}
-Start with Monroe (equal, greedy). Then, the final assignment is recomputed to maximize the Monroe score: the total utility attainable when each selected statement represents an equal-sized constituency. We solve this assignment with an integer linear program.
+\paragraph{Monroe(equal, optimal)}
+Start with Monroe(equal, greedy). Then, holding the selected slate fixed, the final assignment is recomputed to maximize total utility subject to the constituency-size constraint: each winner must be assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters. We solve this assignment with an integer linear program.
 
-\paragraph{Monroe (free, greedy)}
-Start with Monroe (equal, greedy). Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
+\paragraph{Monroe(free, greedy)}
+Start with Monroe(equal, greedy). Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
@@ -315,7 +315,7 @@ We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotoni
 
 We evaluate voting rules against each axiom using a set of manually constructed adversarial ballot profiles. For cases where the voting rules pass all adversarial cases, we additionally look for counterexamples  manually and using LLMs (ChatGPT 5.3 and Opus 4.7).
 For Exact, we provide formal proofs of satisfaction in \Cref{app:exact-axiom-proofs}.
-As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but don't affect our main take-aways. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
+As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but don't affect our conclusions. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
 Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
 
 \begin{table*}[t]
@@ -332,7 +332,7 @@ Time Complexity
 & $O(kmn)$
 & $O(2^{nm})$\tablefootnote{Solver-dependent. The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$. See \Cref{app:lp-complexity}.}
 & $O(kmn)$
-& \makecell{$O(kmn)$\\$+$ assignment ILP\tablefootnote{The greedy selection is $O(kmn)$; the final balanced-constituency assignment is solved by an integer program whose constraint matrix is totally unimodular, so it is solved exactly in polynomial time.}}
+& \makecell{$O(kmn + 2^{nk})$\tablefootnote{Solver dependent. Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation. The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables. The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}}
 & $O(kmn)$ \\
 
 Independence of Common Scale
@@ -414,8 +414,8 @@ Non-radical Utilitarianism
 
 \begin{figure*}[t]
 \centering
-  \includegraphics[width=0.8\textwidth]{figures/voting_alg_scalar_metrics_with-Monroe.png}
-  \caption{Confidence intervals for mean voting algorithm performance on social welfare functions. Confidence intervals are bootstrapped across 20 ballot profiles generated from the chatbot personalization dataset. All algorithms select a slate of 3 candidates.}
+  \includegraphics[width=0.8\textwidth]{figures/voting_alg_scalar_metrics_with-Monroe_with-Baseline.png}
+  \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5. Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with our pipeline. The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference.}
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
@@ -643,6 +643,8 @@ prob.solve(pulp.CPLEX_CMD())
 We decided against using this solver in our experiments because it substantially increased the runtime, even way beyond that of the exact IP solver. It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the LP variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
+
+\paragraph{Monroe(equal, optimal) assignment} The final assignment step of Monroe(equal, optimal) solves an integer program over $nk$ variables (\Cref{sec:voting-algorithms}). Its constraint matrix is the incidence matrix of a bipartite graph and hence totally unimodular, so the LP relaxation has only integral vertices and solving the relaxation solves the integer program. The solver-dependence discussion above therefore applies with $nm$ replaced by $nk$: simplex-based solvers (including the branch-and-bound root solve in our Gurobi implementation) have an exponential worst case, while an interior-point method with crossover to a vertex yields $O((nk)^3)$.
 
 
 \section{Proofs of Axiom Satisfaction and Implications}
