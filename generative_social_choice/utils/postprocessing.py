@@ -40,8 +40,12 @@ DARK_COLORS = [
     '#0f766e',  # dark teal
     '#831843',  # dark pink
 ]
-# Hex codes for the first 8 colors in the default matplotlib colormap (tab10)
-DEFAULT_COLORS = [
+# The default matplotlib color cycle (tab10), in order:
+# blue, orange, green, red, purple, brown, pink, gray, olive, cyan
+DEFAULT_COLORS = list(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+# Shared palette for method/config names (e.g. Ours, Baseline) so line and scalar CI plots match.
+# Deliberately ordered (not the matplotlib cycle) to give the leading methods distinct hues.
+METHOD_COLORS = [
     '#1f77b4',  # blue
     '#2ca02c',  # green
     '#ff7f0e',  # orange
@@ -51,8 +55,6 @@ DEFAULT_COLORS = [
     '#e377c2',  # pink
     '#7f7f7f',  # gray
 ]
-# Shared palette for method/config names (e.g. Ours, Baseline) so line and scalar CI plots match
-METHOD_COLORS = DEFAULT_COLORS
 # Map method/config labels to a stable color index. Same key = same color across plots.
 # "Ours" and "Ours (LLM Embeddings)" share a color; "Ours (Their Embeddings)" is distinct; same idea for Baseline.
 METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
@@ -1904,6 +1906,7 @@ def plot_scalar_clustered_confidence_intervals(
         tertiary_axis_df: Optional[pd.DataFrame] = None,
         tertiary_y_label: Optional[str] = None,
         font_size: Optional[float] = None,
+        color_by_position: bool = False,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
@@ -1943,9 +1946,12 @@ def plot_scalar_clustered_confidence_intervals(
             plot on a third subplot. If provided, creates three subplots 
             horizontally arranged with widths proportional to the number of 
             clusters in each subplot to maintain consistent cluster spacing.
-        tertiary_y_label: Optional y-axis label for the third subplot. If None 
-            and tertiary_axis_df is provided, the third subplot will have no 
+        tertiary_y_label: Optional y-axis label for the third subplot. If None
+            and tertiary_axis_df is provided, the third subplot will have no
             y-axis label.
+        color_by_position: If True, color each series by its position in the
+            plotting order rather than by its method name. Use for series that
+            have no fixed color meaning, such as voting algorithms.
 
     Returns:
         plt.Figure: The generated matplotlib figure
@@ -1954,14 +1960,22 @@ def plot_scalar_clustered_confidence_intervals(
     assert tertiary_axis_df is None or secondary_axis_df is not None, \
         "tertiary_axis_df requires secondary_axis_df to be provided"
     if colors is None:
-        colors = METHOD_COLORS
+        colors = DEFAULT_COLORS if color_by_position else METHOD_COLORS
     if font_size is None:
         font_size = PLOT_FONT_SIZE
     # Use the helper function to preprocess the data
     bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
-        df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+        df, bar_index, error_bar_lower_index, error_bar_upper_index,
         bar_index_level
     )
+
+    # Color each series either by its semantic method name (so "Ours"/"Baseline" keep the
+    # same color across figures) or simply by its position in the plotting order.
+    label_positions = {str(label): i for i, label in enumerate(bar_labels)}
+
+    def _color_for(label: str) -> str:
+        idx = label_positions.get(label, 0) if color_by_position else _method_color_index(label)
+        return colors[idx % len(colors)]
     
     # Check if we need a secondary or tertiary axis
     has_secondary = secondary_axis_df is not None
@@ -2078,7 +2092,7 @@ def plot_scalar_clustered_confidence_intervals(
             show_label = (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends)
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
-                       fmt='o', color=colors[_method_color_index(str(label)) % len(colors)],
+                       fmt='o', color=_color_for(str(label)),
                        markersize=6, capsize=4, capthick=1,
                        label=label if show_label else None)
         
