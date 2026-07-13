@@ -18,9 +18,11 @@
 \usepackage[capitalize,noabbrev]{cleveref}
 \usepackage{xcolor}
 \usepackage{amssymb}
+\usepackage{makecell}
 
 \newcommand{\Pass}{\textcolor{green}{$\checkmark$}}
 \newcommand{\Fail}{\textcolor{red}{$\times$}}
+\newcommand{\Todo}{\textcolor{orange}{\textbf{?}}}  % placeholder: axiom result to be supplied
 
 \title{Opinion Condensation via Generative Fractional Social Choice}
 
@@ -76,7 +78,7 @@ The design objectives of our voting algorithms are most similar to those of dire
 
 Our voting problem could be framed as a constrained fractional social choice \citep{aziz-randomized-2015} election using range ballots where only up to $k$ candidates may receive non-zero weight. However, the key differences separating our opinion condensation system from most of the fractional social choice literature are that (i) our voting algorithms output a voter assignment mapping each voter to one winner; (ii) a winner’s weight is proportional to the number of voters assigned to them; (iii) we assume that voter utility is determined by their agreement with their assigned winner, while fractional social choice literature would typically measure voter preferences over the slate as a whole. See \Cref{sec:problem-formulation} for justification of our utility model.
 
-Much of the literature on range voting consists of manuscripts written by Warren D. Smith. \citet{rangevoting-range-voting} formally introduces single winner range voting, evaluating it against a set of axioms and demonstrating that it outperforms several common voting methods in terms of total Bayesian regret under both globally honest and strategic voting for a range of synthetic ballot profile distributions. \citet{rangevoting-rrv} introduces reweighted range voting (RRV) as a multiwinner extension of range voting and emphasizes its strengths relative to the single transferable vote. Even though RRV assumes a different definition of voter utility which considers their opinion of all winners rather than just their favorite, we include it as a baseline voting algorithm. \citet{rangevoting-optimal-pr} describes a broad family of optimal proportional representation multiwinner voting algorithms which select the set of winners that optimizes a scalar quality function. While this family contains two of the algorithms that we test, the document mostly focuses on a different subfamily of Psi voting algorithms that provides proportional representation for approval ballots. We leave testing of Psi voting in our system to future research.
+Much of the literature on range voting consists of manuscripts written by Warren D. Smith. \citet{rangevoting-range-voting} formally introduces single winner range voting, evaluating it against a set of axioms and demonstrating that it outperforms several common voting methods in terms of total Bayesian regret under both globally honest and strategic voting for a range of synthetic ballot profile distributions. \citet{rangevoting-rrv} introduces reweighted range voting (RRV) as a multiwinner extension of range voting and emphasizes its strengths relative to the single transferable vote. RRV assumes a different definition of voter utility, considering a voter's opinion of all winners rather than only their assigned representative. This makes it ill-suited to our assignment-based opinion condensation objective, so we do not evaluate it among our voting algorithms. \citet{rangevoting-optimal-pr} describes a broad family of optimal proportional representation multiwinner voting algorithms which select the set of winners that optimizes a scalar quality function. While this family contains two of the algorithms that we test, the document mostly focuses on a different subfamily of Psi voting algorithms that provides proportional representation for approval ballots. We leave testing of Psi voting in our system to future research.
 
 Every reasonable voting system incentivizes strategic voting \citep{gibbards-theorem}. With our system of range ballots, an additive voting algorithm, and a large electorate, \citet{preference-overstating} demonstrate that strategic voters treat the range ballots as approval ballots, eliminating their expressivity advantage. As suggested by \citet{rangevoting-range-voting, newberry-moral-parliaments}, using virtual voters may be able to mitigate this problem, depending on how they are trained. Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the voter opinions in the dataset of \citet{fish-v2} are honest.
 
@@ -241,7 +243,7 @@ evaluate them against a set of social choice axioms as well as the social welfar
 
 \subsection{Algorithms}
 
-We compare three assignment-based utility-maximization methods with and without a  geometric utility transformation that biases toward egalitarian outcomes. Since \citet{fish-v2} does not include a single step in which a voting algorithm is applied, we include reweighted range voting \citep{rangevoting-rrv} as a simple baseline.
+We compare three assignment-based utility-maximization methods with and without a  geometric utility transformation that biases toward egalitarian outcomes. As a baseline, we include the Greedy Monroe rule \citep{skowron-2015} used by \citet{fish-v2}, along with two ablation algorithms.
 
 \paragraph{Exact Total Utility Maximization (Exact).}
 This method selects the slate and assignment that maximize total utility exactly. In our experiments, we solve the corresponding integer program with PuLP/CBC. At the scale of our benchmark, the solver terminates quickly, but exact worst-case complexity remains exponential.
@@ -260,12 +262,17 @@ f(u)=\frac{1-(1/p)^u}{1-(1/p)}.
 \]
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias and also show a more aggressive setting in one result figure.
 
-\paragraph{Reweighted Range Voting (RRV) \citep{rangevoting-rrv}.}
-RRV is a greedy multiwinner range voting algorithm. All ballots initially have equal weight \(q_i=1\), and the highest-scoring candidate wins. After each selection, weights are updated according to
-\[
-q_i = \frac{K}{K + \frac{1}{u_{\max}}\sum_{j\in W_{\mathrm{partial}}} u_{ij}},
-\]
-where \(W_{\mathrm{partial}}\) is the set of already selected winners, \(u_{\max}\) is the maximum ballot utility, and \(K\in[0.5,1]\) is a hyperparameter.
+\paragraph{Monroe \citep{skowron-2015}.}
+The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner. We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile. The slate is built in \(k\) rounds. In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters. The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it.
+
+\paragraph{Monroe (equal, greedy).}
+Voters keep the equal-sized constituency assignment produced during the greedy selection. Identical to \citet{fish-v2}, the baseline.
+
+\paragraph{Monroe (equal, optimal).}
+After the provisional assignmen, the final assignment is recomputed to maximize the Monroe score: the total utility attainable when each selected statement represents an equal-sized constituency. We solve this assignment with an integer linear program. Because the constraint matrix of this fixed-slate balanced-assignment problem is totally unimodular, the program solves the assignment exactly in polynomial time. The slate itself is still chosen greedily, so the overall procedure is not guaranteed to find a globally optimal Monroe slate.
+
+\paragraph{Monroe (free, greedy).}
+The equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
@@ -295,75 +302,95 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 
 \begin{table*}[t]
 \centering
-\begin{tabular}{lccccc}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccccccc}
 \hline
- & Exact & Exact($p>1$) & Greedy & LP & RRV \\
+ & Exact & Exact($p>1$) & Greedy & LP & \makecell{Monroe\\(eq, greedy)} & \makecell{Monroe\\(eq, opt)} & \makecell{Monroe\\(free, greedy)} \\
 \hline
-Time Complexity 
-& $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity} 
+Time Complexity
+& $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}
 & $O(2^{nm})$\footnotemark[\value{footnote}]
-& $O(kmn)$ 
+& $O(kmn)$
 & $O(2^{nm})$\tablefootnote{Solver-dependent. The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$. See \Cref{app:lp-complexity}.}
+& $O(kmn)$
+& \makecell{$O(kmn)$\\$+$ assignment ILP\tablefootnote{The greedy selection is $O(kmn)$; the final balanced-constituency assignment is solved by an integer program whose constraint matrix is totally unimodular, so it is solved exactly in polynomial time.}}
 & $O(kmn)$ \\
 
-Independence of Common Scale 
-& \Pass 
-& \Fail 
-& \Pass 
-& \Pass 
-& \Fail \\
-
-Symmetry 
-& \Pass 
-& \Pass 
-& \Pass 
-& \Fail 
+Independence of Common Scale
+& \Pass
+& \Fail
+& \Pass
+& \Pass
+& \Pass
+& \Pass
 & \Pass \\
 
-Monotonicity 
-& \Pass 
-& \Pass 
-& \Pass 
-& \Fail 
+Symmetry
+& \Pass
+& \Pass
+& \Pass
+& \Fail
+& \Pass
+& \Pass
 & \Pass \\
 
-Individual Pareto Efficiency 
-& \Pass 
-& \Pass 
-& \Fail 
-& \Fail 
+Monotonicity
+& \Pass
+& \Pass
+& \Pass
+& \Fail
+& \Todo
+& \Todo
+& \Todo \\
+
+Individual Pareto Efficiency
+& \Pass
+& \Pass
+& \Fail
+& \Fail
+& \Fail
+& \Fail
 & \Fail \\
 
-Sorted Pareto Efficiency 
-& \Pass 
-& \Pass 
-& \Fail 
-& \Fail 
+Sorted Pareto Efficiency
+& \Pass
+& \Pass
+& \Fail
+& \Fail
+& \Fail
+& \Fail
 & \Fail \\
 
-Generalized Lorenz Efficiency 
-& \Pass 
-& \Pass 
-& \Fail 
-& \Fail 
+Generalized Lorenz Efficiency
+& \Pass
+& \Pass
+& \Fail
+& \Fail
+& \Fail
+& \Fail
 & \Fail \\
 
-Egalitarian--Utilitarian Efficiency 
-& \Pass 
-& \Fail 
-& \Fail 
-& \Fail 
-& \Fail \\
+Egalitarian--Utilitarian Efficiency
+& \Pass
+& \Fail
+& \Fail
+& \Fail
+& \Todo
+& \Todo
+& \Todo \\
 
 Non-radical Utilitarianism
-& \Fail 
-& \Fail %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.} 
-& \Fail 
-& \Fail 
-& \Fail \\
+& \Fail
+& \Fail %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.}
+& \Fail
+& \Fail
+& \Todo
+& \Todo
+& \Todo \\
 \hline
 \end{tabular}
-\caption{Time complexity and performance of voting algorithms against social choice axioms. Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.}
+\caption{Time complexity and performance of voting algorithms against social choice axioms. Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters. Cells marked \Todo{} are pending final determination of the Stepwise Monroe variants' axiom satisfaction.}
 \label{tab:voting-axioms}
 \end{table*}
 
@@ -374,7 +401,9 @@ Non-radical Utilitarianism
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
-We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. Exact with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. Exact, Greedy, and LP perform similarly. RRV performs poorly under our assignment-based utility because it rewards candidates with broad appeal across the whole slate rather than candidates that serve as especially good representatives for particular voters. When evaluating the resulting slates under RRV's whole slate utility model, RRV dominates.
+We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. Exact with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. Exact, Greedy, and LP perform similarly.
+
+% TODO(author): add discussion of the Stepwise Monroe variants' performance here.
 
 We use Exact in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, Greedy or LP appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to Exact leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
@@ -427,7 +456,7 @@ While this work remains exploratory and suffers from several limitations (see \C
 
 \section*{Author Contributions}
 
-AS produced the initial idea for the project, and both authors refined it. AS performed the literature review and contextualization of the project, as well as the selection, design, and testing of the axioms. PB developed and implemented all of the voting algorithms except for reweighted range voting, did initial design of some axioms, implemented the LLM embeddings, and ran the embedding and statement count ablation studies. Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
+AS produced the initial idea for the project, and both authors refined it. AS performed the literature review and contextualization of the project, as well as the selection, design, and testing of the axioms, and implemented the Stepwise Monroe voting algorithm. PB developed and implemented the other voting algorithms, did initial design of some axioms, implemented the LLM embeddings, and ran the embedding and statement count ablation studies. Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
 
 \bibliography{gen_social_choice}
 
@@ -600,7 +629,7 @@ Thus, while the LP variant we benchmark is formally subject to the $O(2^{nm})$ s
 
 \section{Proofs of Axiom Satisfaction}
 \label{app:axiom-proofs}
-We prove every axiom marked \Pass{} in \Cref{tab:voting-axioms}. Throughout, $U\in\mathbb{R}_{\ge 0}^{n\times m}$ is the ballot profile, a solution is a pair $(W,\omega)$ with $W\subseteq[m]$, $|W|=k$, and $\omega:N\to W$, and voter $i$'s realized utility is $U_{i,\omega(i)}$. As in \Cref{sec:axioms}, we work under the genericity assumption that no two distinct slates (and, for the greedy rules, no two candidates at any step) attain exactly equal objective values, so that each algorithm's output is unique; this is the same tie caveat used to define axiom failure.
+We prove every axiom marked \Pass{} in \Cref{tab:voting-axioms} (cells marked \Todo{} for the Stepwise Monroe variants are pending final determination). Throughout, $U\in\mathbb{R}_{\ge 0}^{n\times m}$ is the ballot profile, a solution is a pair $(W,\omega)$ with $W\subseteq[m]$, $|W|=k$, and $\omega:N\to W$, and voter $i$'s realized utility is $U_{i,\omega(i)}$. As in \Cref{sec:axioms}, we work under the genericity assumption that no two distinct slates (and, for the greedy rules, no two candidates at any step) attain exactly equal objective values, so that each algorithm's output is unique; this is the same tie caveat used to define axiom failure.
 
 For the utility-maximizing rules it is convenient to write, for a slate $W$,
 \[
@@ -664,35 +693,34 @@ LP solves the relaxation, selects the $k$ candidates with largest $x_j$, and ass
 
 \paragraph{Independence of Common Scale.} Scaling $U$ by $c>0$ scales the linear objective by $c$ while leaving the feasible polytope unchanged, so the set of optima—and, for a deterministic solver, the returned vertex—is unchanged. The top-$k$ selection and the preference-based assignment are likewise invariant under positive scaling.
 
-\subsection{RRV}
-RRV greedily selects $\arg\max_j \sum_i q_i U_{ij}$ with
-$q_i = K/\big(K+\tfrac{1}{u_{\max}}\sum_{j\in W_{\mathrm{partial}}} U_{ij}\big)$,
-where $u_{\max}$ is the fixed maximum of the rating scale, a constant independent of the profile. (Treating $u_{\max}$ as fixed rather than profile-dependent is precisely why RRV fails Independence of Common Scale; see \Cref{tab:failure-rrv-scale}.)
+\subsection{Stepwise Monroe}
+All three Stepwise Monroe variants select the same slate by the greedy procedure of
+\Cref{sec:voting-algorithms} and differ only in their final voter assignment. The selection scores
+each remaining candidate $c$ by an order statistic (the $\lceil n/k\rceil$-th highest utility) of the
+column $U_{\cdot c}$ restricted to the currently unassigned voters, adds the maximizer to the slate,
+and assigns its constituency by sorting those voters' utilities for $c$. Below we prove the axioms
+marked \Pass{} for all three variants.
 
-\paragraph{Symmetry.} $u_{\max}$ is a constant and the weighted scores depend only on utility values, so relabeling voters or candidates permutes the selection identically.
+\paragraph{Independence of Common Scale.} For $c>0$, replacing $U$ by $cU$ multiplies every utility
+entry by $c$. Order statistics, sorts, and $\arg\max$/$\arg\min$ are all invariant under a common
+positive rescaling, so the greedy selection makes identical choices and forms identical
+constituencies; hence the slate and the greedy ($\mathrm{equal,greedy}$) and favorite-member
+($\mathrm{free,greedy}$) assignments are unchanged. For $\mathrm{equal,optimal}$, the assignment
+objective $\sum_i U_{i,\omega(i)}$ is scaled by $c$ over the same feasible balanced assignments,
+preserving the maximizer. Within-constituency preference orders are likewise preserved, so $\omega$
+is unchanged in every variant.
 
-\paragraph{Monotonicity.} Because $u_{\max}$ is constant, the weights $q_i$ depend on the profile only through the utilities of already-selected winners. Hence for any partial slate with $c\notin W_{\mathrm{partial}}$, neither the weights nor the weighted score of any candidate $x\ne c$ depends on $U_{ic}$, while $c$'s own weighted score $\sum_i q_i U_{ic}$ is nondecreasing in $U_{ic}$. The lockstep argument from the Greedy proof then applies verbatim: raising a winner's rating makes $c$ be selected at the same step or earlier, and lowering a loser's rating leaves the run unchanged.
+\paragraph{Symmetry.} Every quantity used by the selection (order statistics of utility columns,
+sorts of utility values) and by each assignment rule depends only on utility values, not on voter or
+candidate labels. Relabeling the rows or columns of $U$ therefore permutes the selected slate and
+assignment identically, leaving $\omega$ unchanged as a map (unique under the genericity assumption).
 
 
 \section{Reasoning and Counterexample Ballot Profiles for Axiom Failures}
 \label{app:voting-failures}
 
-\Cref{tab:failure-exact-scale,tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-rrv-scale,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity}
+\Cref{tab:failure-exact-scale,tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity}
 provide representative counterexamples for the observed axiom failures discussed in the main text. Table~\ref{tab:egal-util-strict} illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
-
-\begin{table}[t]
-\centering
-\begin{tabular}{lcccc}
-\hline
- & $s_1$ & $s_2$ & $s_3$ \\
-\hline
-$u_1$ & 0.3 & 0.4 & 0 \\
-$u_2$ & 0.7 & 0 & 0.5 \\
-\hline
-\end{tabular}
-\caption{RRV fails Independence of Common Scale for $k=2$, \(K=1\), \(u_{\max}=1\), and scale factor \(0.5\). The resulting slate changes from \(\{s_1,s_2\}\) to \(\{s_1,s_3\}\) after scaling.}
-\label{tab:failure-rrv-scale}
-\end{table}
 
 \begin{table}[t]
 \centering
@@ -705,7 +733,7 @@ $u_2$ & 3 & 3 & 0 \\
 $u_3$ & 0 & 2 & 0 \\
 \hline
 \end{tabular}
-\caption{Greedy Total Utility Maximization and RRV fail Individual Pareto Efficiency for $k=2$. The selected slates include \(s_1\), while the only slate satisfying the axiom is \(\{s_2,s_3\}\).}
+\caption{Greedy Total Utility Maximization fails Individual Pareto Efficiency for $k=2$. The selected slates include \(s_1\), while the only slate satisfying the axiom is \(\{s_2,s_3\}\).}
 \label{tab:failure-greedy-indiv-pareto}
 \end{table}
 
