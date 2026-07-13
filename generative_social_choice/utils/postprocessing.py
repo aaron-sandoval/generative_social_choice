@@ -367,22 +367,26 @@ def bootstrap_df_rows(
     data: pd.DataFrame,
     confidence_level: float = 0.95,
     n_bootstrap: int = 400,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    sort_groups: bool = True
 ) -> pd.DataFrame:
     """
     Calculate bootstrap confidence intervals for the mean across rows grouped by MultiIndex.
-    
+
     All levels of the MultiIndex except the last are treated as grouping indices,
     where rows with the same grouping indices belong to a group. The last level is
     a sample ID. If there is no MultiIndex, then the DataFrame is treated as having
     1 group. The columns represent metrics and should be unchanged in the output.
-    
+
     Args:
         data: DataFrame with potentially MultiIndex rows. All levels except the last
               are grouping indices, the last level is sample ID.
-        confidence_level: Width of the confidence interval for the mean (default: 0.95). 
+        confidence_level: Width of the confidence interval for the mean (default: 0.95).
         n_bootstrap: Number of bootstrap samples to generate (default: 400).
-    
+        sort_groups: If True (default), groups come out in sorted order. If False,
+            they keep the order in which they first appear in `data`, which lets the
+            caller control the plotting order of the resulting series.
+
     Returns:
         DataFrame with same columns as input. Rows have MultiIndex with statistics
         as the innermost level: 'Mean', f'{confidence_level}% lower bound', 
@@ -409,7 +413,7 @@ def bootstrap_df_rows(
         grouping_levels = list(range(n_levels - 1))
         
         # Group by all levels except the last
-        groups = data.groupby(level=grouping_levels)
+        groups = data.groupby(level=grouping_levels, sort=sort_groups)
         group_names = list(groups.groups.keys())
     else:
         # Treat as single group
