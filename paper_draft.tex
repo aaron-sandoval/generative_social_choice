@@ -62,7 +62,7 @@ These changes let us separate statement generation from slate selection and test
     \item We formalize \emph{opinion condensation} as the task of producing a small weighted slate of representative statements together with a voter-to-representative assignment.
     \item We present an LLM-based \emph{opinion condensation pipeline} that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several social welfare functions (SWFs).
-    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs when a tunable egalitarian utility transformation is applied; (ii) while axiomatic guarantees are weaker for algorithms that compute a polynomial time approximation, these algorithms perform competitively with an exponential time exact solution on the SWFs. This suggests that, for practical purposes, scalability might be achievable using approximate algorithms.
+    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs when a tunable egalitarian utility transformation is applied; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) while axiomatic guarantees are weaker for algorithms that compute a polynomial time approximation, these algorithms perform competitively with an exponential time exact solution on the SWFs. This suggests that, for practical purposes, scalability might be achievable using approximate algorithms.
 \end{itemize}
 
 \section{Related Work}
@@ -96,7 +96,7 @@ p_j:=\frac{1}{n}\bigl|\{i\in N:\omega(i)=w_j\}\bigr|,
 \]
 The pipeline may generate \(m \ge k\) candidate statements before selecting the final slate.
 
-\paragraph{Objective.}
+\paragraph{Objective}
 Following \citet{fish-v2}, we model voter utility as their level of agreement with their assigned statement. Our pipeline seeks to optimize additive voter utility or small variations thereof. One natural alternative is to model voter utility as the weighted sum of that voter's ratings over all selected statements, as is typical in fractional social choice literature \citep{rangevoting-rrv, aziz-randomized-2015, brandt_rolling_2017}. Under that model, a voter's utility rises if their preferred statement receives more weight or if some other statement is replaced by a more attractive statement. While this whole slate utility model may be more accurate to a voter's subjective utility in the broader election context, it is less appropriate as an optimization objective for opinion condensation. Direct optimization of this objective collapses to selecting the single winner with the highest aggregate support, a poor starting point towards good representation. While mitigations for this are possible, the utility model based on assigned statement agreement that we inherit from \citet{fish-v2} better fits our task.
 
 \subsection{Algorithm}
@@ -128,19 +128,24 @@ Following \citet{fish-v2}, we model voter utility as their level of agreement wi
 
 We generate candidates in three stages: (i) compute embeddings for all voters, (ii) cluster voters, and (iii) generate statements for the whole population and for individual clusters.
 
-For embeddings, we consider two notions of similarity:
-\begin{itemize}
-    \item \textbf{LLM embeddings.} We embed each opinion summary with OpenAI's \texttt{text-embedding-3-small} and measure cosine similarity.
-    \item \textbf{Discriminative distances \citep{fish-v2}} We ask voter \(j\) to rate the summary statement of voter \(i\).
-\end{itemize}
+For embeddings, we consider two notions of similarity.
+
+\paragraph{LLM embeddings}
+We embed each opinion summary with OpenAI's \texttt{text-embedding-3-small} and measure cosine similarity.
+
+\paragraph{Discriminative distances \citep{fish-v2}}
+We ask voter \(j\) to rate the summary statement of voter \(i\).
 
 In our pipeline, we cluster voters with \(k\)-means on the LLM embeddings, using five clusters.
 
-Given a set of opinions, we then generate candidates in two ways:
-\begin{description}
-    \item[Single-statement generator] Generate one statement intended to represent the set of opinions; we run this generator twice.
-    \item[Batch generator] Generate five statements at once, prompted to jointly represent the set of opinions as well as possible.
-\end{description}
+Given a set of opinions, we then generate candidates in two ways.
+
+\paragraph{Single-statement generator}
+Generate one statement intended to represent the set of opinions; we run this generator twice.
+
+\paragraph{Batch generator}
+Generate five statements at once, prompted to jointly represent the set of opinions as well as possible.
+
 We apply both generators once to the set of all opinions and once to each of the five clusters. This yields
 \[
 \begin{aligned}
@@ -154,13 +159,13 @@ In our experiments, we use GPT-4o with temperature 1 for all generative queries.
 
 \subsection{Inference Costs and Runtime Complexity}
 
-\paragraph{Inference costs.}
+\paragraph{Inference costs}
 For a fixed number of generated candidates, our system uses roughly twice as many LLM calls as that of \citet{fish-v2} (see \Cref{tab:llm-call-comparison}).
 
-\paragraph{Runtime complexity.}
+\paragraph{Runtime complexity}
 In practice, runtime is dominated by LLM calls, which are comparable in cost per call across the baseline and our system. Beyond LLM inference, our approach performs \(k\)-means clustering on embeddings and then runs one of the voting algorithms from \Cref{sec:voting-algorithms}, which may have polynomial or exponential runtime. However, at the small scale of our experiments, our system is slower mostly due to the linear difference in required LLM inference rather than any difference in voting algorithm runtime.
 
-\paragraph{Number of generated statements.}
+\paragraph{Number of generated statements}
 For both approaches, the number \(m\) of generated candidates is a multiple of the number of statement-generation methods used. If \(g\) denotes the number of generators, the baseline produces \(m=k\cdot g\) candidates, while our pipeline produces \(m=(c+1)\cdot g\), where \(c\) is the number of clusters.
 
 \begin{table*}[t]
@@ -205,7 +210,7 @@ We produce multiple samples using each method and use bootstrapping to estimate 
 
 \section{Case Study Results}
 
-\paragraph{Overall performance.}
+\paragraph{Overall performance}
 Across the scalar metrics we consider, our pipeline outperforms the baseline of \citet{fish-v2} (\Cref{fig:swf-main}). Both distributions are similar in the top half, but a difference grows in the lower tail (\Cref{fig:mth-happiest-main}), indicating superior performance by both egalitarian and utilitarian standards.
 
 \begin{figure*}[t]
@@ -224,7 +229,7 @@ Across the scalar metrics we consider, our pipeline outperforms the baseline of 
   \end{center}
 \end{figure*}
 
-\paragraph{Ablation studies.}
+\paragraph{Ablation studies}
 To investigate the mechanisms behind the performance gap, we separately ablate our embeddings and the larger number of candidates generated by our pipeline. We find that these each account for a relatively small performance difference.
 
 First, we run a statement count ablation. Our pipeline generates 42 candidates while the baseline generates 30. In that ablated variant, we subsample the 5 statements output from the batch generator, retaining 3 at random. Since this generator is applied once to the full population and once to each of five clusters, the total number of candidates drops from 42 to 30, matching the baseline. As detailed in~\Cref{app:statement-ablation-details}, this has little effect on performance. The gap to the baseline remains nearly unchanged, suggesting that our gains are not driven primarily by a larger candidate pool.
@@ -233,7 +238,7 @@ Second, we ran an embedding ablation in both directions: we both substitute our 
 
 We do not run any study varying model selection, but we believe model selection unlikely to be a major contributor to the performance difference. While \citet{fish-v2} uses three variants of GPT-4, all of our experiments, including those on their pipeline, use GPT-4o mini and GPT-4o.  It's possible that this could account for a small difference, but only if either pipeline were overfit to the particular models used to test them.
 
-Removing the above factors, we conclude that the changes in the voting process and voting algorithm account for most of the improvement. More specifically, these changes are (i) computing the complete ballot profile $U$ and using voting algorithms that act on the full profile at once; (ii) using a utilitarian voting algorithm rather than an approximated egalitarian variant of the Greedy Monroe Rule \citep{skowron-2015}; (iii) lifting the constraint of approximately equal numbers of voters assigned to each winning statement. 
+Removing the above factors, we conclude that the changes in the voting process and voting algorithm account for most of the improvement. More specifically, these changes are (i) computing the complete ballot profile $U$ and using voting algorithms that act on the full profile at once; (ii) using a utilitarian voting algorithm rather than an approximated egalitarian variant of the Greedy Monroe rule \citep{skowron-2015}; (iii) lifting the constraint of approximately equal numbers of voters assigned to each winning statement. 
 
 \section{Voting Algorithms}
 \label{sec:voting-algorithms}
@@ -245,59 +250,72 @@ evaluate them against a set of social choice axioms as well as the social welfar
 
 We compare three assignment-based utility-maximization methods with and without a  geometric utility transformation that biases toward egalitarian outcomes. As a baseline, we include the Greedy Monroe rule \citep{skowron-2015} used by \citet{fish-v2}, along with two ablation algorithms.
 
-\paragraph{Exact Total Utility Maximization (Exact).}
+\paragraph{Exact Total Utility Maximization (Exact)}
 This method selects the slate and assignment that maximize total utility exactly. In our experiments, we solve the corresponding integer program with PuLP/CBC. At the scale of our benchmark, the solver terminates quickly, but exact worst-case complexity remains exponential.
 
-\paragraph{LP Relaxation of Total Utility Maximization (LP).}
+\paragraph{LP Relaxation of Total Utility Maximization (LP)}
 This approximation uses the same problem formulation for slate selection and voter assignment as Exact, %assignment-and-selection formulation as Exact,
 but relaxes binary constraints to the interval \([0,1]\). After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their most preferred selected candidate.
 
-\paragraph{Greedy Total Utility Maximization (Greedy).}
+\paragraph{Greedy Total Utility Maximization (Greedy)}
 This method builds the slate incrementally, repeatedly selecting the candidate with the largest marginal improvement in total assignment utility.
 
-\paragraph{Geometric Utility Transformation.}
+\paragraph{Geometric Utility Transformation}
 We also test transformed versions of Exact, LP, and Greedy that apply diminishing returns to higher utility values. For \(p>1\), we transform utilities via
 \[
 f(u)=\frac{1-(1/p)^u}{1-(1/p)}.
 \]
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias and also show a more aggressive setting in one result figure.
 
-\paragraph{Monroe \citep{skowron-2015}.}
-The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner. We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile. The slate is built in \(k\) rounds. In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters. The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it.
+\paragraph{Monroe (equal, greedy) \citep{skowron-2015}}
+The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner. We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile. The slate is built in \(k\) rounds. In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters. The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it. Identical to \citet{fish-v2}, the baseline.
 
-\paragraph{Monroe (equal, greedy).}
-Voters keep the equal-sized constituency assignment produced during the greedy selection. Identical to \citet{fish-v2}, the baseline.
+\paragraph{Monroe (equal, optimal)}
+Start with Monroe (equal, greedy). Then, the final assignment is recomputed to maximize the Monroe score: the total utility attainable when each selected statement represents an equal-sized constituency. We solve this assignment with an integer linear program.
 
-\paragraph{Monroe (equal, optimal).}
-After the provisional assignmen, the final assignment is recomputed to maximize the Monroe score: the total utility attainable when each selected statement represents an equal-sized constituency. We solve this assignment with an integer linear program. Because the constraint matrix of this fixed-slate balanced-assignment problem is totally unimodular, the program solves the assignment exactly in polynomial time. The slate itself is still chosen greedily, so the overall procedure is not guaranteed to find a globally optimal Monroe slate.
-
-\paragraph{Monroe (free, greedy).}
-The equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
+\paragraph{Monroe (free, greedy)}
+Start with Monroe (equal, greedy). Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
 
 In addition to the social welfare metrics used in the case study, we evaluate these voting algorithms against a set of social choice axioms. The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected. To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums. Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice. We consider an axiom to have failed only if a counterexample ballot profile that does not result in such a collision can be specified.
 
-\begin{description}
-    \item[Symmetry] Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
-    \item[Independence of Common Scale] Linearly scaling all utilities by a positive constant never changes $\omega$.
-    \item[Monotonicity] Increasing (decreasing) a voter’s rating for a winning (losing) candidate never causes that candidate to lose (win).
-    \item[Individual Pareto Efficiency] No $\omega'$ increases total utility without decreasing any individual voter's utility.
-    \item[Sorted Pareto Efficiency] \textbf{\citep{sorted-pareto}:} No $\omega'$ has a sorted utility vector that Pareto-dominates that of $\omega$.
-    \item[Generalized Lorenz Efficiency] \textbf{\citep{shorrocks-1983}:} No $\omega'$ has a dominating generalized Lorenz curve. Equivalently, let $u_{\omega}$ be the voter utility vector on the selected slate, and let $u_{\omega'}$ be the voter utility vector for some $\omega'$. When all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters.
-    \item[Egalitarian--Utilitarian Efficiency] No $\omega'$ has both greater total and minimum utility.
-    \item[Non-radical Utilitarianism] No $\omega'$ has marginally lower total utility and substantially higher minimum utility. More formally, with the selected slate $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
-\end{description}
+\paragraph{Symmetry}
+Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
 
-Generalized Lorenz Efficiency implies Sorted Pareto Efficiency, which in turn implies Individual Pareto Efficiency. 
+\paragraph{Independence of Common Scale}
+Linearly scaling all utilities by a positive constant never changes $\omega$.
+
+\paragraph{Monotonicity}
+Increasing (decreasing) a voter’s rating for a winning (losing) candidate never causes that candidate to lose (win).
+
+\paragraph{Individual Pareto Efficiency}
+No $\omega'$ increases total utility without decreasing any individual voter's utility.
+
+\paragraph{Sorted Pareto Efficiency \citep{sorted-pareto}}
+No $\omega'$ has a sorted utility vector that Pareto-dominates that of $\omega$.
+
+\paragraph{Generalized Lorenz Efficiency \citep{shorrocks-1983}}
+No $\omega'$ has a dominating generalized Lorenz curve. Equivalently, let $u_{\omega}$ be the voter utility vector on the selected slate, and let $u_{\omega'}$ be the voter utility vector for some $\omega'$. When all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters.
+
+\paragraph{Egalitarian--Utilitarian Efficiency}
+No $\omega'$ has both greater total and minimum utility.
+
+\paragraph{Non-radical Utilitarianism}
+No $\omega'$ has marginally lower total utility and substantially higher minimum utility. More formally, with the selected slate $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
+
+
+Generalized Lorenz Efficiency implies Sorted Pareto Efficiency, which in turn implies Individual Pareto Efficiency (for proof see \Cref{app:axiom-implications}). 
 
 We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}. Appendix \Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for opinion condensation.
 
 \subsection{Results}
 \label{sec:voting-results}
 
-We evaluate voting rules against each axiom using a set of manually constructed adversarial ballot profiles. For cases where the voting rules pass all adversarial cases, we additionally look for counterexamples  manually and using LLMs (ChatGPT 5.3 and Opus 4.7). Nevertheless, as we don't provide formal proofs of satisfaction, false positives remain possible. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
+We evaluate voting rules against each axiom using a set of manually constructed adversarial ballot profiles. For cases where the voting rules pass all adversarial cases, we additionally look for counterexamples  manually and using LLMs (ChatGPT 5.3 and Opus 4.7).
+For Exact, we provide formal proofs of satisfaction in \Cref{app:exact-axiom-proofs}.
+As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but don't affect our main take-aways. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
 Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
 
 \begin{table*}[t]
@@ -390,7 +408,7 @@ Non-radical Utilitarianism
 & \Todo \\
 \hline
 \end{tabular}
-\caption{Time complexity and performance of voting algorithms against social choice axioms. Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters. Cells marked \Todo{} are pending final determination of the Stepwise Monroe variants' axiom satisfaction.}
+\caption{Time complexity and performance of voting algorithms against social choice axioms. Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.}
 \label{tab:voting-axioms}
 \end{table*}
 
@@ -403,7 +421,7 @@ Non-radical Utilitarianism
 
 We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. Exact with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. Exact, Greedy, and LP perform similarly.
 
-% TODO(author): add discussion of the Stepwise Monroe variants' performance here.
+% TODO(author): add discussion of the Monroe variants' performance here.
 
 We use Exact in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, Greedy or LP appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to Exact leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
@@ -411,19 +429,19 @@ We use Exact in the main pipeline because it is feasible at the scale of our ben
 
 \subsection{Limitations} \label{sec:limitations}
 
-\paragraph{Limited scope of evaluation.}
+\paragraph{Limited scope of evaluation}
 Our case study uses a single benchmark dataset. While its realism is an advantage over synthetic opinion distributions, for example, those used by \citet{chandak-2023}, it remains unclear how well the observed gains generalize to other domains or other distributions of opinions. Additionally, the small sample sizes (10 runs of our pipeline and 15 of the baseline) may also underestimate the variance due to not sufficiently representing the population distribution of outputs for a fixed input set of opinions.
 
-\paragraph{LLM-based proxy judgments.}
+\paragraph{LLM-based proxy judgments}
 Due to limited budget, we use GPT-4o mini for discriminative queries. This likely introduces additional noise into the estimated ballot profile. Although that should not systematically favor our method over the baseline, we do not perform the kind of direct human validation reported by \citet{fish-v2}. It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here. In general, we make no claims about the absolute alignment with human voters of the range votes made by our LLM-based virtual voters. 
 
-\paragraph{Inherited limitations from prior work.}
+\paragraph{Inherited limitations from prior work}
 Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups. These issues remain significant obstacles to real-world deployment.
 
-\paragraph{Novel axioms.}
+\paragraph{Novel axioms}
 The non-radical utilitarianism axiom isolates a real weakness of pure total utility maximization, but it is also intentionally strict. There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds. Since no scalar-valued social welfare function fully captures the egalitarian intuition, this axiom's reliance on minimum utility as an egalitarian measure is too narrow. Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being introduced specifically to achieve more egalitarian outcomes. Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
 
-\paragraph{Strategic behavior.}
+\paragraph{Strategic behavior}
 Virtual voters may reduce some strategic pathologies of range voting, but they do not eliminate them. Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal still has an incentive to misrepresent their beliefs during training. Approval-style ballots may therefore remain attractive in real deployments.
 
 \begin{table}[t]
@@ -456,7 +474,7 @@ While this work remains exploratory and suffers from several limitations (see \C
 
 \section*{Author Contributions}
 
-AS produced the initial idea for the project, and both authors refined it. AS performed the literature review and contextualization of the project, as well as the selection, design, and testing of the axioms, and implemented the Stepwise Monroe voting algorithm. PB developed and implemented the other voting algorithms, did initial design of some axioms, implemented the LLM embeddings, and ran the embedding and statement count ablation studies. Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
+AS produced the initial idea for the project, and both authors refined it. AS performed the literature review and contextualization of the project, as well as the selection, design, and testing of the axioms, and implemented the Monroe voting algorithm. PB developed and implemented the other voting algorithms, did initial design of some axioms, implemented the LLM embeddings, added formal proofs, and ran the embedding and statement count ablation studies. Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
 
 \bibliography{gen_social_choice}
 
@@ -584,15 +602,15 @@ After solving the LP relaxation, we select the \(k\) candidates with highest fra
 \subsection{Runtime Complexity of Exact} \label{app:brute-force-vs-exact}
 The Exact method solves the integer program of \Cref{app:exact-lp-formulations}. Its complexity follows from three stages: formulating the program, solving it, and extracting the assignment from the solution.
 
-\paragraph{Problem size.} The formulation has $m$ selection variables $x_j$ and $nm$ assignment variables $y_{ij}$, for $O(nm)$ binary variables in total. The constraints are one slate-size constraint, $n$ assignment constraints (one per voter), and $nm$ coupling constraints $y_{ij}\le x_j$, for $O(nm)$ constraints in total. Writing out the objective and these constraints therefore takes $O(nm)$ time, and reading the $O(nm)$ variable values back out to recover the slate and assignment is likewise $O(nm)$.
+\paragraph{Problem size} The formulation has $m$ selection variables $x_j$ and $nm$ assignment variables $y_{ij}$, for $O(nm)$ binary variables in total. The constraints are one slate-size constraint, $n$ assignment constraints (one per voter), and $nm$ coupling constraints $y_{ij}\le x_j$, for $O(nm)$ constraints in total. Writing out the objective and these constraints therefore takes $O(nm)$ time, and reading the $O(nm)$ variable values back out to recover the slate and assignment is likewise $O(nm)$.
 
-\paragraph{Solving.} The solve step dominates. A general integer program is solved by branch-and-bound over the binary variables, which in the worst case explores a search tree whose size is exponential in the number of binary variables. With $O(nm)$ binary variables, this is $O(2^{nm})$ nodes, and the polynomial per-node work (a linear relaxation solve) does not change the exponential order. Combining the three stages,
+\paragraph{Solving} The solve step dominates. A general integer program is solved by branch-and-bound over the binary variables, which in the worst case explores a search tree whose size is exponential in the number of binary variables. With $O(nm)$ binary variables, this is $O(2^{nm})$ nodes, and the polynomial per-node work (a linear relaxation solve) does not change the exponential order. Combining the three stages,
 \[
 \underbrace{O(nm)}_{\text{formulate}} \;+\; \underbrace{O(2^{nm})}_{\text{solve}} \;+\; \underbrace{O(nm)}_{\text{extract}} \;=\; O(2^{nm}),
 \]
 which is the worst-case bound reported in \Cref{tab:voting-axioms}.
 
-\paragraph{Comparison with brute force.} An alternative exact baseline is to enumerate all \(\binom{m}{k}\) possible slates and compute the optimal assignment for each slate directly. That brute-force procedure has complexity
+\paragraph{Comparison with brute force} An alternative exact baseline is to enumerate all \(\binom{m}{k}\) possible slates and compute the optimal assignment for each slate directly. That brute-force procedure has complexity
 \[
 O\!\left(k n \binom{m}{k}\right)
 =
@@ -607,9 +625,9 @@ We do not treat this as the worst-case complexity of the IP-based implementation
 \label{app:lp-complexity}
 LP uses the same formulation as Exact, with the integrality constraints relaxed to $[0,1]$, so it has the same $O(nm)$ variables and $O(nm)$ constraints. Its worst-case complexity depends entirely on which linear-programming method the solver applies.
 
-\paragraph{Simplex (as run).} Our experiments use PuLP/CBC, which solves the relaxation with the simplex method. Simplex runs in polynomial time on virtually every practical instance, but its worst-case complexity is exponential: adversarial constructions (e.g.\ Klee--Minty cubes) force it to visit a number of vertices exponential in the problem size, giving the $O(2^{nm})$ worst-case bound reported in \Cref{tab:voting-axioms}. As we run it, LP therefore shares the same exponential worst case as Exact, even though it is fast in practice.
+\paragraph{Simplex (as run)} Our experiments use PuLP/CBC, which solves the relaxation with the simplex method. Simplex runs in polynomial time on virtually every practical instance, but its worst-case complexity is exponential: adversarial constructions (e.g.\ Klee--Minty cubes) force it to visit a number of vertices exponential in the problem size, giving the $O(2^{nm})$ worst-case bound reported in \Cref{tab:voting-axioms}. As we run it, LP therefore shares the same exponential worst case as Exact, even though it is fast in practice.
 
-\paragraph{Interior-point (polynomial alternative).} This exponential worst case is not inherent to the LP and can be removed by switching to an interior-point method, which runs in time polynomial in the problem size; the standard bound is cubic in the number of variables, i.e.\ $O((nm)^3)$ for our $O(nm)$ variables. This requires only a change of solver, for example
+\paragraph{Interior-point (polynomial alternative)} This exponential worst case is not inherent to the LP and can be removed by switching to an interior-point method, which runs in time polynomial in the problem size; the standard bound is cubic in the number of variables, i.e.\ $O((nm)^3)$ for our $O(nm)$ variables. This requires only a change of solver, for example
 \begin{verbatim}
 # instead of the default simplex solver:
 prob.solve(pulp.PULP_CBC_CMD(msg=0))
@@ -627,93 +645,60 @@ We decided against using this solver in our experiments because it substantially
 Thus, while the LP variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
 
 
-\section{Proofs of Axiom Satisfaction}
+\section{Proofs of Axiom Satisfaction and Implications}
 \label{app:axiom-proofs}
-We prove every axiom marked \Pass{} in \Cref{tab:voting-axioms} (cells marked \Todo{} for the Stepwise Monroe variants are pending final determination). Throughout, $U\in\mathbb{R}_{\ge 0}^{n\times m}$ is the ballot profile, a solution is a pair $(W,\omega)$ with $W\subseteq[m]$, $|W|=k$, and $\omega:N\to W$, and voter $i$'s realized utility is $U_{i,\omega(i)}$. As in \Cref{sec:axioms}, we work under the genericity assumption that no two distinct slates (and, for the greedy rules, no two candidates at any step) attain exactly equal objective values, so that each algorithm's output is unique; this is the same tie caveat used to define axiom failure.
+We first prove the implications among efficiency axioms stated in \Cref{sec:axioms}, then prove the axioms satisfied by Exact. Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, voter $i$'s realized utility is $U_{i,\omega(i)}$, and we write $u(\omega)\in\mathbb{R}_{\ge0}^n$ for the resulting utility vector. As in \Cref{sec:axioms}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
 
-For the utility-maximizing rules it is convenient to write, for a slate $W$,
-\[
-T(W)=\sum_i \max_{j\in W} U_{ij},
-\]
-\[
-F(W)=\sum_i \max_{j\in W} f(U_{ij})=\sum_i f\!\Big(\max_{j\in W} U_{ij}\Big),
-\]
-where $f(u)=\frac{1-(1/p)^u}{1-1/p}$ is strictly increasing and, for $p>1$, strictly concave. The optimal assignment for a fixed slate sends each voter to a most-preferred member of the slate; Exact maximizes $T$, Exact$(p>1)$ maximizes $F$.
+\subsection{Axiom implications} \label{app:axiom-implications}
+Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector of an outcome $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ be its ascending sort. We say $u_{\omega'}$:
+\begin{itemize}
+\item \emph{Pareto-dominates} $u_\omega$ if $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$ with one strict inequality;
+\item \emph{sorted-Pareto-dominates} $u_\omega$ if $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$ with one strict inequality;
+\item \emph{generalized-Lorenz-dominates} $u_\omega$ if, up to anonymization, $u_{\omega'}$ can be obtained from $u_\omega$ by a non-empty series of operations, each either granting a positive amount of utility to one voter or transferring utility from a higher-utility voter to a lower-utility voter without reversing their order (\Cref{sec:axioms}).
+\end{itemize}
+An outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
 
-\subsection{Exact}
-\paragraph{Independence of Common Scale.} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
+\paragraph{Lemma (monotone order statistics)} If $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, then $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$. Using the minimax form $u_{\omega,(\ell)}=\min_{|S|=\ell}\max_{i\in S}U_{i,\omega(i)}$, every set $S$ satisfies $\max_{i\in S}U_{i,\omega'(i)}\ge\max_{i\in S}U_{i,\omega(i)}$, so the minimum over $S$ inherits the inequality.
 
-\paragraph{Symmetry.} $T$ is built from sums and maxima of utility entries and is invariant under relabeling voters or candidates. Permuting the rows or columns of $U$ therefore permutes the optimal slate and assignment identically, leaving $\omega$ unchanged as a map.
+\paragraph{Proposition 1 (Generalized Lorenz Efficiency $\Rightarrow$ Sorted Pareto Efficiency)} Suppose, for contradiction, that $\omega$ satisfies Generalized Lorenz Efficiency but violates Sorted Pareto Efficiency. Then some $\omega'$ sorted-Pareto-dominates $u_\omega$, i.e.\ $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$, with $u_{\omega',(\ell_0)}>u_{\omega,(\ell_0)}$ for some $\ell_0$. Grant the anonymized voter in each sorted position $\ell$ the amount $u_{\omega',(\ell)}-u_{\omega,(\ell)}\ge0$; these grants turn $u_\omega$ into $u_{\omega'}$, and the grant at $\ell_0$ is positive, so the series is non-empty. Hence $u_{\omega'}$ generalized-Lorenz-dominates $u_\omega$, contradicting Generalized Lorenz Efficiency.
 
-\paragraph{Monotonicity.} \emph{(Winner.)} Let $c\in W^\star$ and raise $U_{ic}$ by $\Delta>0$, giving $U'$. For every slate $W\not\ni c$ the changed entry is unused, so $T'(W)=T(W)$; for $W^\star\ni c$, $T'(W^\star)\ge T(W^\star)$. Hence for every $c$-free slate $W'$,
-\[
-T'(W^\star)\ge T(W^\star)>T(W')=T'(W'),
-\]
-so $W^\star$ still beats every slate omitting $c$, and any slate beating $W^\star$ contains $c$. The new optimum therefore contains $c$. \emph{(Loser.)} Let $c\notin W^\star$ and lower $U_{ic}$. Then $T'(W^\star)=T(W^\star)$, while every $W'\ni c$ has $T'(W')\le T(W')<T(W^\star)$, so the optimum still omits $c$.
+\paragraph{Proposition 2 (Sorted Pareto Efficiency $\Rightarrow$ Individual Pareto Efficiency)} Suppose, for contradiction, that $\omega$ satisfies Sorted Pareto Efficiency but violates Individual Pareto Efficiency. Then some $\omega'$ Pareto-dominates $u_\omega$: $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, with at least one strict inequality and hence strictly greater total utility. By the Lemma, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$; since sorting preserves the sum, the strictly greater total forces $u_{\omega',(\ell)}>u_{\omega,(\ell)}$ for some $\ell$. Hence $u_{\omega'}$ sorted-Pareto-dominates $u_\omega$, contradicting Sorted Pareto Efficiency.
 
-\paragraph{Individual Pareto Efficiency.} Exact attains the maximum total utility $T^\star$ over all feasible solutions, so no $\omega'$ has strictly greater total utility; a fortiori none raises total utility without lowering some voter.
+\subsection{Exact} \label{app:exact-axiom-proofs}
+Exact returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, assigning each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
 
-\paragraph{Sorted Pareto Efficiency.} Sorting permutes a vector and preserves its sum. If some $\omega'$ had a sorted utility vector Pareto-dominating that of $\omega$, its sum—hence its total utility—would exceed $T^\star$, contradicting maximality.
+\paragraph{Independence of Common Scale} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
 
-\paragraph{Generalized Lorenz Efficiency.} The final ordinate of the generalized Lorenz curve equals total utility. If $\omega'$ generalized-Lorenz-dominates $\omega$, its final ordinate is $\ge T^\star$. If strictly greater, then $T(\omega')>T^\star$, impossible; if equal, then $T(\omega')=T^\star$, so $\omega'$ is also total-optimal, a tie excluded by genericity. Hence no $\omega'$ dominates.
+\paragraph{Symmetry} $T$ is built from sums and maxima of utility entries, so relabeling voters or candidates permutes the set of optimal solutions identically. Under genericity this set is a singleton: the optimal slate is unique, as is each voter's best candidate within it (assumption in \Cref{sec:axioms}). Any correct exact solver returns this unique optimum, and with no alternative optima the result cannot depend on the solver's internal ordering of variables or constraints; only the same tie cases already excluded by the axiom could introduce such dependence. Hence permuting $U$ permutes the output identically, leaving $\omega$ unchanged as a map.
 
-\paragraph{Egalitarian--Utilitarian Efficiency.} Since no $\omega'$ exceeds $T^\star$ in total utility, none has both greater total and greater minimum utility.
+\paragraph{Monotonicity} If $c\in W^\star$ and we raise $U_{ic}$, then $T$ is unchanged on slates omitting $c$ and weakly increased on $W^\star$, so $W^\star$ still beats every $c$-free slate and any slate beating it contains $c$; thus $c$ stays a winner. If $c\notin W^\star$ and we lower $U_{ic}$, then $T(W^\star)$ is unchanged while every slate containing $c$ weakly decreases, so $c$ stays a loser.
 
-\subsection{Exact$(p>1)$}
-Exact$(p>1)$ is Exact applied to the transformed utilities $f(U_{ij})$, i.e.\ it maximizes $F$.
+\paragraph{Egalitarian--Utilitarian Efficiency} No solution exceeds $T^\star$ in total utility, so none has both greater total and greater minimum utility.
 
-\paragraph{Symmetry.} $F$ is invariant under relabeling, exactly as for Exact.
+\paragraph{Generalized Lorenz Efficiency} The final Lorenz ordinate $L_n$ equals total utility. A solution generalized-Lorenz-dominating $\omega^\star$ would have $L_n\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility which is impossible by assumption (\Cref{sec:axioms}). Hence no dominator exists. By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficiency follow.
 
-\paragraph{Monotonicity.} Raising $U_{ic}$ raises $f(U_{ic})$ since $f$ is strictly increasing, so $F'(W)\ge F(W)$ for $W\ni c$ and $F'(W)=F(W)$ for $W\not\ni c$; the winner argument for Exact applies verbatim to $F$. Lowering a loser's $U_{ic}$ lowers $f(U_{ic})$, and the loser argument applies likewise.
 
-\paragraph{Individual Pareto Efficiency.} Suppose $\omega'$ raises total raw utility without lowering any voter's raw utility. Then $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, with strict inequality for at least one $i$. Since $f$ is strictly increasing, $f(U_{i,\omega'(i)})\ge f(U_{i,\omega(i)})$ for all $i$ with at least one strict inequality, so $F(\omega')>F(\omega)$, contradicting optimality of $\omega$.
+%\subsection{Monroe}
+%All three Monroe variants select the same slate by the greedy procedure of
+%\Cref{sec:voting-algorithms} and differ only in their final voter assignment. The selection scores
+%each remaining candidate $c$ by an order statistic (the $\lceil n/k\rceil$-th highest utility) of the
+%column $U_{\cdot c}$ restricted to the currently unassigned voters, adds the maximizer to the slate,
+%and assigns its constituency by sorting those voters' utilities for $c$. Below we prove the axioms
+%marked \Pass{} for all three variants.
 
-\paragraph{Sorted Pareto Efficiency.} Because $f$ is applied pointwise and sums are permutation-invariant, $F(\omega)=\sum_\ell f(s_\ell)$, where $s$ is the sorted raw utility vector. If $\omega'$ sorted-dominates $\omega$, then $s'_\ell\ge s_\ell$ for all $\ell$ with one strict inequality, so $F(\omega')=\sum_\ell f(s'_\ell)>\sum_\ell f(s_\ell)=F(\omega)$: contradiction.
+%\paragraph{Independence of Common Scale.} For $c>0$, replacing $U$ by $cU$ multiplies every utility
+%entry by $c$. Order statistics, sorts, and $\arg\max$/$\arg\min$ are all invariant under a common
+%positive rescaling, so the greedy selection makes identical choices and forms identical
+%constituencies; hence the slate and the greedy ($\mathrm{equal,greedy}$) and favorite-member
+%($\mathrm{free,greedy}$) assignments are unchanged. For $\mathrm{equal,optimal}$, the assignment
+%objective $\sum_i U_{i,\omega(i)}$ is scaled by $c$ over the same feasible balanced assignments,
+%preserving the maximizer. Within-constituency preference orders are likewise preserved, so $\omega$
+%is unchanged in every variant.
 
-\paragraph{Generalized Lorenz Efficiency.} By the Hardy--Littlewood--P\'olya / Shorrocks characterization \citep{shorrocks-1983}, $x$ generalized-Lorenz-dominates $y$ iff $\sum_i g(x_i)\ge\sum_i g(y_i)$ for every increasing concave $g$. Strict dominance can be written as a finite sequence of nonnegative increments and Pigou--Dalton progressive transfers, at least one of them nontrivial; each strictly increases $\sum_i f(\cdot)$ because $f$ is strictly increasing and strictly concave. Hence a feasible $\omega'$ dominating $\omega$ would satisfy $F(\omega')>F(\omega)$, contradicting optimality.
-
-\subsection{Greedy}
-Greedy builds $W$ by repeatedly adding the candidate of largest marginal gain
-\[
-\Delta(x\mid S)=\sum_i\big[\max(U_{ix},M_i(S))-M_i(S)\big],
-\]
-\[
-M_i(S)=\max_{j\in S}U_{ij},
-\]
-and assigns each voter to a most-preferred member of the final slate.
-
-\paragraph{Independence of Common Scale.} Scaling $U$ by $c>0$ scales every $\Delta(x\mid S)$ by $c$, preserving each greedy choice; positive scaling preserves the assignment preferences.
-
-\paragraph{Symmetry.} Each marginal gain depends only on utility values, not labels, so relabeling permutes the selected sequence identically.
-
-\paragraph{Monotonicity.} The key fact is that for any partial slate $S$ with $c\notin S$, the marginal gain $\Delta(x\mid S)$ of every candidate $x\ne c$ is independent of $U_{ic}$. \emph{(Winner.)} Raise $U_{ic}$ for $c\in W$; then $\Delta(c\mid S)$ is nondecreasing in $U_{ic}$ for all $S\not\ni c$, while all other gains are unchanged. Run greedy on $U$ and on the modified $U'$ in lockstep: until $c$ is chosen, the partial slate contains no $c$, so each non-$c$ candidate has identical gain in both runs and $c$'s gain is weakly larger under $U'$. At each step either the same non-$c$ candidate is chosen as under $U$, or $c$ overtakes and is chosen earlier; at the step where $U$ chose $c$, its $U'$-gain is at least its (maximal) $U$-gain, so $c$ is chosen. In every case $c\in W'$. \emph{(Loser.)} Lowering $U_{ic}$ for $c\notin W$ only decreases $c$'s gains and leaves all others unchanged, so the lockstep run is identical and never selects $c$.
-
-\subsection{LP}
-LP solves the relaxation, selects the $k$ candidates with largest $x_j$, and assigns each voter to a most-preferred selected candidate.
-
-\paragraph{Independence of Common Scale.} Scaling $U$ by $c>0$ scales the linear objective by $c$ while leaving the feasible polytope unchanged, so the set of optima—and, for a deterministic solver, the returned vertex—is unchanged. The top-$k$ selection and the preference-based assignment are likewise invariant under positive scaling.
-
-\subsection{Stepwise Monroe}
-All three Stepwise Monroe variants select the same slate by the greedy procedure of
-\Cref{sec:voting-algorithms} and differ only in their final voter assignment. The selection scores
-each remaining candidate $c$ by an order statistic (the $\lceil n/k\rceil$-th highest utility) of the
-column $U_{\cdot c}$ restricted to the currently unassigned voters, adds the maximizer to the slate,
-and assigns its constituency by sorting those voters' utilities for $c$. Below we prove the axioms
-marked \Pass{} for all three variants.
-
-\paragraph{Independence of Common Scale.} For $c>0$, replacing $U$ by $cU$ multiplies every utility
-entry by $c$. Order statistics, sorts, and $\arg\max$/$\arg\min$ are all invariant under a common
-positive rescaling, so the greedy selection makes identical choices and forms identical
-constituencies; hence the slate and the greedy ($\mathrm{equal,greedy}$) and favorite-member
-($\mathrm{free,greedy}$) assignments are unchanged. For $\mathrm{equal,optimal}$, the assignment
-objective $\sum_i U_{i,\omega(i)}$ is scaled by $c$ over the same feasible balanced assignments,
-preserving the maximizer. Within-constituency preference orders are likewise preserved, so $\omega$
-is unchanged in every variant.
-
-\paragraph{Symmetry.} Every quantity used by the selection (order statistics of utility columns,
-sorts of utility values) and by each assignment rule depends only on utility values, not on voter or
-candidate labels. Relabeling the rows or columns of $U$ therefore permutes the selected slate and
-assignment identically, leaving $\omega$ unchanged as a map (unique under the genericity assumption).
+%\paragraph{Symmetry.} Every quantity used by the selection (order statistics of utility columns,
+%sorts of utility values) and by each assignment rule depends only on utility values, not on voter or
+%candidate labels. Relabeling the rows or columns of $U$ therefore permutes the selected slate and
+%assignment identically, leaving $\omega$ unchanged as a map (unique under the genericity assumption).
 
 
 \section{Reasoning and Counterexample Ballot Profiles for Axiom Failures}
