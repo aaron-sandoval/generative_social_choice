@@ -801,10 +801,11 @@ class StepwiseMonroe(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
+        # These names match the \paragraph headings in paper_draft.tex.
         return {
-            "greedy_equal": "Monroe (equal)",
-            "free": "Monroe (unconstrained)",
-            "optimal_equal": "Monroe (equal, optimal)",
+            "greedy_equal": "Monroe(equal, greedy)",
+            "free": "Monroe(free, greedy)",
+            "optimal_equal": "Monroe(equal, optimal)",
         }[self.final_assignment]
 
     @override
@@ -845,16 +846,17 @@ class StepwiseMonroe(VotingAlgorithm):
             remaining_candidates = [c for c in rated_votes.columns if c not in slate]
 
             # Score each remaining candidate by the coalition_size-th highest utility among the
-            # unmatched agents (sort each candidate's column descending, take row coalition_size-1).
+            # unmatched agents. Selection via np.partition keeps each round O(mn), giving O(kmn)
+            # overall; a full sort would add an unnecessary log factor.
             sub = rated_votes.loc[unmatched, remaining_candidates].to_numpy()
-            sorted_desc = -np.sort(-sub, axis=0)
-            scores = sorted_desc[coalition_size - 1, :]
+            scores = -np.partition(-sub, coalition_size - 1, axis=0)[coalition_size - 1, :]
             best = remaining_candidates[int(np.argmax(scores))]
             slate.append(best)
 
             # Match the top coalition_size unmatched agents (by utility for `best`) to `best`.
             best_utils = rated_votes.loc[unmatched, best]
-            top_voters = best_utils.sort_values(ascending=False).index[:coalition_size]
+            top_idx = np.argpartition(-best_utils.to_numpy(), coalition_size - 1)[:coalition_size]
+            top_voters = best_utils.index[top_idx]
             assignments.loc[top_voters, "candidate_id"] = best
             assignments.loc[top_voters, "utility"] = rated_votes.loc[top_voters, best].to_numpy()
             for v in top_voters:
