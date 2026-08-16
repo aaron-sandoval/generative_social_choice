@@ -24,6 +24,13 @@
 \newcommand{\Fail}{\textcolor{red}{$\times$}}
 \newcommand{\Todo}{\textcolor{orange}{\textbf{?}}}  % placeholder: axiom result to be supplied
 
+% Voting algorithm names are set in small caps.
+\newcommand{\Exact}{\textsc{Exact}}
+\newcommand{\ExactP}{\textsc{Exact}$(p>1)$}
+\newcommand{\Greedy}{\textsc{Greedy}}
+\newcommand{\LP}{\textsc{LP}}
+\newcommand{\Monroe}{\textsc{Monroe}}
+
 \title{Opinion Condensation via Generative Fractional Social Choice}
 
 \author{Aaron Sandoval \\
@@ -244,37 +251,37 @@ Removing the above factors, we conclude that the changes in the voting process a
 \label{sec:voting-algorithms}
 
 The opinion condensation pipeline separates statement generation from final slate selection. This allows us to compare several voting algorithms independently of the rest of the pipeline. In our system, a voting algorithm selects candidates in a multiwinner election and maps each voter to exactly one winner. We implement voting algorithms for range ballots and
-evaluate them against a set of social choice axioms as well as the social welfare functions in \Cref{sec:metrics}.
+evaluate them against a set of social choice axioms as well as the social welfare functions in \Cref{sec:metrics}. Throughout, the names of voting algorithms are set in small caps.
 
 \subsection{Algorithms}
 
 We compare three assignment-based utility-maximization methods with and without a  geometric utility transformation that biases toward egalitarian outcomes. As a baseline, we include the Greedy Monroe rule \citep{skowron-2015} used by \citet{fish-v2}, along with two ablation algorithms.
 
-\paragraph{Exact Total Utility Maximization (Exact)}
+\paragraph{Exact Total Utility Maximization (\Exact{})}
 This method selects the slate and assignment that maximize total utility exactly. In our experiments, we solve the corresponding integer program with PuLP/CBC. At the scale of our benchmark, the solver terminates quickly, but exact worst-case complexity remains exponential.
 
-\paragraph{LP Relaxation of Total Utility Maximization (LP)}
-This approximation uses the same problem formulation for slate selection and voter assignment as Exact, %assignment-and-selection formulation as Exact,
+\paragraph{LP Relaxation of Total Utility Maximization (\LP{})}
+This approximation uses the same problem formulation for slate selection and voter assignment as \Exact{}, %assignment-and-selection formulation as Exact,
 but relaxes binary constraints to the interval \([0,1]\). After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their most preferred selected candidate.
 
-\paragraph{Greedy Total Utility Maximization (Greedy)}
+\paragraph{Greedy Total Utility Maximization (\Greedy{})}
 This method builds the slate incrementally, repeatedly selecting the candidate with the largest marginal improvement in total assignment utility.
 
 \paragraph{Geometric Utility Transformation}
-We also test transformed versions of Exact, LP, and Greedy that apply diminishing returns to higher utility values. For \(p>1\), we transform utilities via
+We also test transformed versions of \Exact{}, \LP{}, and \Greedy{} that apply diminishing returns to higher utility values. For \(p>1\), we transform utilities via
 \[
 f(u)=\frac{1-(1/p)^u}{1-(1/p)}.
 \]
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias and also show a more aggressive setting in one result figure.
 
-\paragraph{Monroe(equal, greedy) \citep{skowron-2015}}
+\paragraph{\Monroe(equal, greedy) \citep{skowron-2015}}
 The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner. We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile. The slate is built in \(k\) rounds. In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters. The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it. This is a best-effort adaptation of the \citet{fish-v2} voting algorithm, made to operate on a full utility matrix.
 
-\paragraph{Monroe(equal, optimal)}
-Start with Monroe(equal, greedy). Then, holding the selected slate fixed, the final assignment is recomputed to maximize total utility subject to the constituency-size constraint: each winner must be assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters. We solve this assignment with an integer linear program.
+\paragraph{\Monroe(equal, optimal)}
+Start with \Monroe(equal, greedy). Then, holding the selected slate fixed, the final assignment is recomputed to maximize total utility subject to the constituency-size constraint: each winner must be assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters. We solve this assignment with an integer linear program.
 
-\paragraph{Monroe(free, greedy)}
-Start with Monroe(equal, greedy). Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
+\paragraph{\Monroe(free, greedy)}
+Start with \Monroe(equal, greedy). Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
@@ -314,8 +321,8 @@ We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotoni
 \label{sec:voting-results}
 
 We evaluate voting rules against each axiom using a set of manually constructed adversarial ballot profiles. For cases where the voting rules pass all adversarial cases, we additionally look for counterexamples  manually and using LLMs (ChatGPT 5.3 and Opus 4.7).
-For Exact, we provide formal proofs of satisfaction in \Cref{app:exact-axiom-proofs}.
-As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but don't affect our conclusions. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
+For \Exact{}, we provide formal proofs of satisfaction in \Cref{app:exact-axiom-proofs}.
+As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
 Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
 
 \begin{table*}[t]
@@ -324,7 +331,7 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccccccc}
 \hline
- & Exact & Exact($p>1$) & Greedy & LP & \makecell{Monroe\\(eq, greedy)} & \makecell{Monroe\\(eq, opt)} & \makecell{Monroe\\(free, greedy)} \\
+ & \Exact{} & \ExactP{} & \Greedy{} & \LP{} & \makecell{\Monroe\\(eq, greedy)} & \makecell{\Monroe\\(eq, opt)} & \makecell{\Monroe\\(free, greedy)} \\
 \hline
 Time Complexity
 & $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}
@@ -332,7 +339,7 @@ Time Complexity
 & $O(kmn)$
 & $O(2^{nm})$\tablefootnote{Solver-dependent. The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$. See \Cref{app:lp-complexity}.}
 & $O(kmn)$
-& \makecell{$O(kmn + 2^{nk})$\tablefootnote{Solver dependent. Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation. The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables. The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}}
+& \makecell{$O(2^{nk})$\tablefootnote{Solver dependent. Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation. The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables. The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}}
 & $O(kmn)$ \\
 
 Independence of Common Scale
@@ -419,11 +426,11 @@ Non-radical Utilitarianism
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
-We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. Exact with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. Exact, Greedy, and LP perform similarly.
+We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly.
 
 % TODO(author): add discussion of the Monroe variants' performance here.
 
-We use Exact in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, Greedy or LP appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to Exact leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
+We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
 \section{Discussion}
 
@@ -442,7 +449,7 @@ Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democra
 The non-radical utilitarianism axiom isolates a real weakness of pure total utility maximization, but it is also intentionally strict. There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds. Since no scalar-valued social welfare function fully captures the egalitarian intuition, this axiom's reliance on minimum utility as an egalitarian measure is too narrow. Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being introduced specifically to achieve more egalitarian outcomes. Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
 
 \paragraph{Strategic behavior}
-Virtual voters may reduce some strategic pathologies of range voting, but they do not eliminate them. Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal still has an incentive to misrepresent their beliefs during training. Approval-style ballots may therefore remain attractive in real deployments.
+Virtual voters may reduce some strategic pathologies of range voting, but they do not eliminate them. Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal is still incentivized to misrepresent their beliefs in the training data. Approval-style ballots may therefore remain attractive in real deployments.
 
 \begin{table}[t]
 \centering
@@ -552,6 +559,7 @@ In the ablated variant, we subsample the output of the generator that proposes f
   \begin{center}
   \includegraphics[width=0.8\textwidth]{figures/statement_ablation_comparison.pdf}
   \caption{Reducing our pipeline to the same number of generated statements as the baseline has little effect on performance.}
+  % Note: Embeddings are LLM for our pipeline and their original one for their pipeline
   \label{fig:statement-ablation-comparison}
   \end{center}
 \end{figure*}
@@ -563,10 +571,10 @@ We also tested several additional voting-rule variants that did not materially c
 
 \section{Voting Algorithm Details}
 
-\subsection{Exact and LP Optimization Problems}
+\subsection{\Exact{} and \LP{} Optimization Problems}
 \label{app:exact-lp-formulations}
 
-Both Exact and LP are based on the same assignment-and-selection optimization problem. Let \(x_j\) indicate whether candidate \(j\) is selected, and let \(y_{ij}\) indicate whether voter \(i\) is assigned to candidate \(j\). Exact solves
+Both \Exact{} and \LP{} are based on the same assignment-and-selection optimization problem. Let \(x_j\) indicate whether candidate \(j\) is selected, and let \(y_{ij}\) indicate whether voter \(i\) is assigned to candidate \(j\). \Exact{} solves
 \[
 \begin{aligned}
 \text{maximize} \quad & \sum_i \sum_j U_{ij}\cdot y_{ij} \\
@@ -579,7 +587,7 @@ Both Exact and LP are based on the same assignment-and-selection optimization pr
 \end{aligned}
 \]
 
-LP uses the same objective and constraints, but relaxes the integrality conditions to
+\LP{} uses the same objective and constraints, but relaxes the integrality conditions to
 \[
 x_j \in [0,1] \quad \forall j,
 \qquad
@@ -599,8 +607,8 @@ After solving the LP relaxation, we select the \(k\) candidates with highest fra
 
 %We do not treat this as the worst-case complexity of the IP-based implementation. Rather, it is a useful comparison point: both approaches are exact, but they expose different computational bottlenecks. In practice, the IP solver's better average-case performance makes it far faster than exhaustive enumeration on our benchmark.
 
-\subsection{Runtime Complexity of Exact} \label{app:brute-force-vs-exact}
-The Exact method solves the integer program of \Cref{app:exact-lp-formulations}. Its complexity follows from three stages: formulating the program, solving it, and extracting the assignment from the solution.
+\subsection{Runtime Complexity of \Exact{}} \label{app:brute-force-vs-exact}
+The \Exact{} method solves the integer program of \Cref{app:exact-lp-formulations}. Its complexity follows from three stages: formulating the program, solving it, and extracting the assignment from the solution.
 
 \paragraph{Problem size} The formulation has $m$ selection variables $x_j$ and $nm$ assignment variables $y_{ij}$, for $O(nm)$ binary variables in total. The constraints are one slate-size constraint, $n$ assignment constraints (one per voter), and $nm$ coupling constraints $y_{ij}\le x_j$, for $O(nm)$ constraints in total. Writing out the objective and these constraints therefore takes $O(nm)$ time, and reading the $O(nm)$ variable values back out to recover the slate and assignment is likewise $O(nm)$.
 
@@ -621,11 +629,11 @@ We do not treat this as the worst-case complexity of the IP-based implementation
 %\subsection{LP Solver Dependence on Optimization Method}
 %The practical runtime of LP depends on the solver. Standard choices include simplex and interior-point methods. If one uses an interior-point method on a formulation with \(O(nm)\) variables and constraints, a standard worst-case bound is \(O((nm)^3)\). Our experiments use PuLP/CBC, so in the main text we describe the LP row as solver-dependent and report the interior-point bound only as a conventional reference point.
 
-\subsection{Runtime Complexity of LP}
+\subsection{Runtime Complexity of \LP{}}
 \label{app:lp-complexity}
-LP uses the same formulation as Exact, with the integrality constraints relaxed to $[0,1]$, so it has the same $O(nm)$ variables and $O(nm)$ constraints. Its worst-case complexity depends entirely on which linear-programming method the solver applies.
+\LP{} uses the same formulation as \Exact{}, with the integrality constraints relaxed to $[0,1]$, so it has the same $O(nm)$ variables and $O(nm)$ constraints. Its worst-case complexity depends entirely on which linear-programming method the solver applies.
 
-\paragraph{Simplex (as run)} Our experiments use PuLP/CBC, which solves the relaxation with the simplex method. Simplex runs in polynomial time on virtually every practical instance, but its worst-case complexity is exponential: adversarial constructions (e.g.\ Klee--Minty cubes) force it to visit a number of vertices exponential in the problem size, giving the $O(2^{nm})$ worst-case bound reported in \Cref{tab:voting-axioms}. As we run it, LP therefore shares the same exponential worst case as Exact, even though it is fast in practice.
+\paragraph{Simplex (as run)} Our experiments use PuLP/CBC, which solves the relaxation with the simplex method. Simplex runs in polynomial time on virtually every practical instance, but its worst-case complexity is exponential: adversarial constructions (e.g.\ Klee--Minty cubes) force it to visit a number of vertices exponential in the problem size, giving the $O(2^{nm})$ worst-case bound reported in \Cref{tab:voting-axioms}. As we run it, \LP{} therefore shares the same exponential worst case as \Exact{}, even though it is fast in practice.
 
 \paragraph{Interior-point (polynomial alternative)} This exponential worst case is not inherent to the LP and can be removed by switching to an interior-point method, which runs in time polynomial in the problem size; the standard bound is cubic in the number of variables, i.e.\ $O((nm)^3)$ for our $O(nm)$ variables. This requires only a change of solver, for example
 \begin{verbatim}
@@ -642,14 +650,14 @@ prob.solve(pulp.CPLEX_CMD())
 \end{verbatim}
 We decided against using this solver in our experiments because it substantially increased the runtime, even way beyond that of the exact IP solver. It seems likely that commercial solvers lead to faster runtime.
 
-Thus, while the LP variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
+Thus, while the \LP{} variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
 
-\paragraph{Monroe(equal, optimal) assignment} The final assignment step of Monroe(equal, optimal) solves an integer program over $nk$ variables (\Cref{sec:voting-algorithms}). Its constraint matrix is the incidence matrix of a bipartite graph and hence totally unimodular, so the LP relaxation has only integral vertices and solving the relaxation solves the integer program. The solver-dependence discussion above therefore applies with $nm$ replaced by $nk$: simplex-based solvers (including the branch-and-bound root solve in our Gurobi implementation) have an exponential worst case, while an interior-point method with crossover to a vertex yields $O((nk)^3)$.
+\paragraph{\Monroe(equal, optimal) assignment} The final assignment step of \Monroe(equal, optimal) solves an integer program over $nk$ variables (\Cref{sec:voting-algorithms}). Its constraint matrix is the incidence matrix of a bipartite graph and hence totally unimodular, so the LP relaxation has only integral vertices and solving the relaxation solves the integer program. The solver-dependence discussion above therefore applies with $nm$ replaced by $nk$: simplex-based solvers (including the branch-and-bound root solve in our Gurobi implementation) have an exponential worst case, while an interior-point method with crossover to a vertex yields $O((nk)^3)$.
 
 
 \section{Proofs of Axiom Satisfaction and Implications}
 \label{app:axiom-proofs}
-We first prove the implications among efficiency axioms stated in \Cref{sec:axioms}, then prove the axioms satisfied by Exact. Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, voter $i$'s realized utility is $U_{i,\omega(i)}$, and we write $u(\omega)\in\mathbb{R}_{\ge0}^n$ for the resulting utility vector. As in \Cref{sec:axioms}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
+We first prove the implications among efficiency axioms stated in \Cref{sec:axioms}, then prove the axioms satisfied by \Exact{}. Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, voter $i$'s realized utility is $U_{i,\omega(i)}$, and we write $u(\omega)\in\mathbb{R}_{\ge0}^n$ for the resulting utility vector. As in \Cref{sec:axioms}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
 
 \subsection{Axiom implications} \label{app:axiom-implications}
 Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector of an outcome $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ be its ascending sort. We say $u_{\omega'}$:
@@ -666,8 +674,8 @@ An outcome satisfies the corresponding efficiency axiom when no $\omega'$ domina
 
 \paragraph{Proposition 2 (Sorted Pareto Efficiency $\Rightarrow$ Individual Pareto Efficiency)} Suppose, for contradiction, that $\omega$ satisfies Sorted Pareto Efficiency but violates Individual Pareto Efficiency. Then some $\omega'$ Pareto-dominates $u_\omega$: $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, with at least one strict inequality and hence strictly greater total utility. By the Lemma, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$; since sorting preserves the sum, the strictly greater total forces $u_{\omega',(\ell)}>u_{\omega,(\ell)}$ for some $\ell$. Hence $u_{\omega'}$ sorted-Pareto-dominates $u_\omega$, contradicting Sorted Pareto Efficiency.
 
-\subsection{Exact} \label{app:exact-axiom-proofs}
-Exact returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, assigning each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
+\subsection{\Exact{}} \label{app:exact-axiom-proofs}
+\Exact{} returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, assigning each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
 
 \paragraph{Independence of Common Scale} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
 
@@ -724,9 +732,9 @@ $u_3$ & 0 & 2 & 0 \\
 \label{tab:failure-greedy-indiv-pareto}
 \end{table}
 
-\subsection{Exact fails Non-radical Utilitarianism}
+\subsection{\Exact{} fails Non-radical Utilitarianism}
 
-Because Exact maximizes total utility alone, it can prefer a slate with only slightly higher total utility even when an alternative offers a much larger improvement in minimum utility. \Cref{tab:failure-exact-nru} gives a simple counterexample for \(k=1\).
+Because \Exact{} maximizes total utility alone, it can prefer a slate with only slightly higher total utility even when an alternative offers a much larger improvement in minimum utility. \Cref{tab:failure-exact-nru} gives a simple counterexample for \(k=1\).
 
 \begin{table}[t]
 \centering
@@ -739,11 +747,11 @@ $u_2$ & $4$ & $8/3-\eta$ \\
 $u_3$ & $0$ & $8/3-\eta$ \\
 \hline
 \end{tabular}
-\caption{Exact fails Non-radical Utilitarianism for \(k=1\), for any sufficiently small \(\eta>0\).}
+\caption{\Exact{} fails Non-radical Utilitarianism for \(k=1\), for any sufficiently small \(\eta>0\).}
 \label{tab:failure-exact-nru}
 \end{table}
 
-Exact selects \(s_1\) because its total utility is
+\Exact{} selects \(s_1\) because its total utility is
 \[
 4+4+0=8,
 \]
@@ -769,13 +777,13 @@ The ratio
 =
 \frac{\frac{8}{3}-\eta}{3\eta}
 \]
-can be made arbitrarily large by taking \(\eta\) arbitrarily small. Therefore, Exact violates Non-radical Utilitarianism.
+can be made arbitrarily large by taking \(\eta\) arbitrarily small. Therefore, \Exact{} violates Non-radical Utilitarianism.
 
-\subsection{Exact$(p>1)$ fails Non-radical Utilitarianism}
+\subsection{\ExactP{} fails Non-radical Utilitarianism}
 \label{app:exactp-nru}
 % Example found by Claude Opus 4.7
 
-The geometric transformation does not repair this failure. Exact$(p>1)$
+The geometric transformation does not repair this failure. \ExactP{}
 maximizes the \emph{transformed} total $\sum_i f(u_i)$, and because $f$ is
 concave it can still reject an alternative slate that is essentially tied in
 raw total utility but substantially better in raw minimum utility.
@@ -792,7 +800,7 @@ $u_2$ & $5/2$ & $1/2$ \\
 $u_3$ & $5/2$ & $4-\delta$ \\
 \hline
 \end{tabular}
-\caption{Counterexample showing that Exact$(p>1)$ fails Non-radical
+\caption{Counterexample showing that \ExactP{} fails Non-radical
 Utilitarianism for \(k=1\) and \(p=1.5\), for any sufficiently small
 \(\delta>0\).}
 \label{tab:failure-exactp-nru}
@@ -804,7 +812,7 @@ f(0)=0,\quad f(\tfrac12)\approx0.55,
 \[
 f(\tfrac52)\approx1.91,\quad f(4)\approx2.41
 \]
-Exact$(p>1)$ selects the slate with the larger transformed total. For \(s_1\),
+\ExactP{} selects the slate with the larger transformed total. For \(s_1\),
 \[
 f(0)+2f(\tfrac52)\approx3.83,
 \]
@@ -812,7 +820,7 @@ while for \(s_2\), using \(f(4-\delta)\le f(4)\) since \(f\) is increasing,
 \[
 2f(\tfrac12)+f(4-\delta)\;\le\;2f(\tfrac12)+f(4)\approx3.51
 \]
-The bound holds for every \(\delta\ge 0\), so Exact$(p>1)$ selects \(s_1\).
+The bound holds for every \(\delta\ge 0\), so \ExactP{} selects \(s_1\).
 
 The raw total utilities are
 \[
@@ -825,16 +833,16 @@ in total utility while improving the minimum utility by
 \( \epsilon=\tfrac12 .\)
 The ratio \(\epsilon/\delta = 1/(2\delta)\)
 can be made arbitrarily large by taking \(\delta\) arbitrarily small. Therefore
-Exact$(p>1)$ violates Non-radical Utilitarianism.
+\ExactP{} violates Non-radical Utilitarianism.
 
-The same profile is a counterexample for every \(p>1\), hence Exact$(p>1)$ fails Non-radical Utilitarianism for all \(p>1\).
+The same profile is a counterexample for every \(p>1\), hence \ExactP{} fails Non-radical Utilitarianism for all \(p>1\).
 %, and in particular in the limit \(p\to1^{+}\).
 %counterexamples for larger \(p\) follow from the
 %same mechanism (a steep region of \(f\) amplifying several small per-voter
 %losses) and can be located by adversarial search. Hence Exact$(p>1)$ fails
 %Non-radical Utilitarianism for all \(p>1\).
 
-\subsection{Exact$(p>1)$ fails Independence of Common Scale}
+\subsection{\ExactP{} fails Independence of Common Scale}
 
 Because the geometric transformation
 \[
@@ -852,7 +860,7 @@ $u_1$ & 3 & 1 \\
 $u_2$ & 0 & 1 \\
 \hline
 \end{tabular}
-\caption{Counterexample showing that Exact$(p=1.5)$ fails Independence of Common Scale for \(k=1\). Before scaling, the transformed objective prefers \(s_1\); after multiplying all utilities by 2, it prefers \(s_2\).}
+\caption{Counterexample showing that \textsc{Exact}$(p=1.5)$ fails Independence of Common Scale for \(k=1\). Before scaling, the transformed objective prefers \(s_1\); after multiplying all utilities by 2, it prefers \(s_2\).}
 \label{tab:failure-exact-scale}
 \end{table}
 
@@ -868,17 +876,17 @@ with transformed totals
 \[
 f(6)+f(0)\approx 2.737, \qquad f(2)+f(2)\approx 3.333,
 \]
-so the algorithm instead selects \(s_2\). Hence Exact$(p>1)$ violates Independence of Common Scale.
+so the algorithm instead selects \(s_2\). Hence \ExactP{} violates Independence of Common Scale.
 
-\subsection{Worst-Case Behavior of LP}
+\subsection{Worst-Case Behavior of \LP{}}
 \label{app:lp-worst}
 
-Unlike Exact, the LP relaxation can have a \emph{strictly fractional}
+Unlike \Exact{}, the LP relaxation can have a \emph{strictly fractional}
 optimum. The subsequent rounding step of selecting the $k$ candidates with
 the largest $x_j$ is then sensitive both to the tie-breaking rule and to
 small perturbations of the ballot profile.
 Importantly, if the fractional optimum assigns equal weights to all statements,
-LP does not provide any useful information and can end up selecting the worst possible slate.
+\LP{} does not provide any useful information and can end up selecting the worst possible slate.
 
 \begin{table}[t]
 \centering
@@ -893,7 +901,7 @@ $u_4$ & 1.09 & 0.39 & 3.97 & 2.19 \\
 \hline
 \end{tabular}
 \caption{Profile with $k=2$ whose LP relaxation has a strictly fractional
-optimum. LP selects $\{s_1,s_2\}$, which is Pareto-dominated by
+optimum. \LP{} selects $\{s_1,s_2\}$, which is Pareto-dominated by
 $\{s_1,s_4\}$.}
 \label{tab:lp-fractional}
 \end{table}
@@ -910,23 +918,23 @@ $\{s_1,s_2\}$, with utility vector $(3.61,2.32,3.06,1.09)$.
 
 This slate is Pareto-dominated by $\{s_1,s_4\}$, whose utility vector
 $(3.61,2.32,3.37,2.19)$ is weakly larger for every voter and strictly
-larger for $u_3$ and $u_4$. Hence LP violates Individual Pareto
+larger for $u_3$ and $u_4$. Hence \LP{} violates Individual Pareto
 Efficiency, and therefore also Sorted Pareto Efficiency and Generalized
 Lorenz Efficiency (and Egalitarian--Utilitarian Efficiency, since
 $\{s_1,s_4\}$ has both higher total and higher minimum utility). The same
-example shows why LP violates Symmetry: the optimal $x$ is invariant under
+example shows why \LP{} violates Symmetry: the optimal $x$ is invariant under
 relabeling the candidates, so the selected slate is fixed entirely by the
 tie-breaking rule, and relabeling the candidates changes the outcome.
 
-LP also fails Monotonicity. \Cref{tab:lp-monotonicity} gives a profile,
+\LP{} also fails Monotonicity. \Cref{tab:lp-monotonicity} gives a profile,
 again with $k=2$, for which the LP optimum is initially integral,
-$x=(0,1,1,0)$, so LP selects $\{s_2,s_3\}$. Now increase voter $u_1$'s
+$x=(0,1,1,0)$, so \LP{} selects $\{s_2,s_3\}$. Now increase voter $u_1$'s
 rating of the winning candidate $s_3$ from $0.04$ to $1.5$. This lifts the
 value of the symmetric fractional point above that of every integral slate
 ($11.46$ versus $11.33$), so the LP optimum becomes
 $x=(\tfrac12,\tfrac12,\tfrac12,\tfrac12)$ and rounding returns
 $\{s_1,s_2\}$. The candidate $s_3$ is dropped from the winning slate even
-though a voter's rating of it \emph{increased}; hence LP violates
+though a voter's rating of it \emph{increased}; hence \LP{} violates
 Monotonicity.
 
 \begin{table}[t]
@@ -941,10 +949,10 @@ $u_3$ & 3.68 & 0.11 & 3.60 & 0.17 \\
 $u_4$ & 0.05 & 1.02 & 2.23 & 3.32 \\
 \hline
 \end{tabular}
-\caption{Profile with $k=2$ showing that LP fails Monotonicity. As shown,
-the LP optimum is integral and LP selects $\{s_2,s_3\}$. Raising
+\caption{Profile with $k=2$ showing that \LP{} fails Monotonicity. As shown,
+the LP optimum is integral and \LP{} selects $\{s_2,s_3\}$. Raising
 $u_{1,s_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional point
-$x_j=\tfrac12$, after which LP selects $\{s_1,s_2\}$: the winning candidate
+$x_j=\tfrac12$, after which \LP{} selects $\{s_1,s_2\}$: the winning candidate
 $s_3$ is dropped despite an increase in its rating.}
 \label{tab:lp-monotonicity}
 \end{table}
