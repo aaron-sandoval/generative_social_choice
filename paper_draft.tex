@@ -280,7 +280,7 @@ The Monroe rule selects a slate together with an assignment of an equal-sized co
 \paragraph{\Monroe(equal, optimal)}
 Start with \Monroe(equal, greedy). Then, holding the selected slate fixed, the final assignment is recomputed to maximize total utility subject to the constituency-size constraint: each winner must be assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters. We solve this assignment with an integer linear program.
 
-\paragraph{\Monroe(free, greedy)}
+\paragraph{\Monroe(free)}
 Start with \Monroe(equal, greedy). Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
 
 \subsection{Axioms}
@@ -331,7 +331,7 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccccccc}
 \hline
- & \Exact{} & \ExactP{} & \Greedy{} & \LP{} & \makecell{\Monroe\\(eq, greedy)} & \makecell{\Monroe\\(eq, opt)} & \makecell{\Monroe\\(free, greedy)} \\
+ & \Exact{} & \ExactP{} & \Greedy{} & \LP{} & \makecell{\Monroe\\(eq, greedy)} & \makecell{\Monroe\\(eq, opt)} & \makecell{\Monroe\\(free)} \\
 \hline
 Time Complexity
 & $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}

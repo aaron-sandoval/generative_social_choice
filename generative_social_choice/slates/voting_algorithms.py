@@ -804,7 +804,7 @@ class StepwiseMonroe(VotingAlgorithm):
         # These names match the \paragraph headings in paper_draft.tex.
         return {
             "greedy_equal": "Monroe(equal, greedy)",
-            "free": "Monroe(free, greedy)",
+            "free": "Monroe(free)",
             "optimal_equal": "Monroe(equal, optimal)",
         }[self.final_assignment]
 
