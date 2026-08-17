@@ -422,13 +422,11 @@ Non-radical Utilitarianism
 \begin{figure*}[t]
 \centering
   \includegraphics[width=0.8\textwidth]{figures/voting_alg_scalar_metrics_with-Monroe_with-Baseline.png}
-  \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5. Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with our pipeline. The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference.}
+  \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5. Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with our pipeline. The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference only. Its results are not directly comparable as there are other pipeline elements besides the voting algorithm which differentiate it.}
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
-We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly.
-
-% TODO(author): add discussion of the Monroe variants' performance here.
+We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics. \Monroe(equal, greedy), our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others. However, most of this loss is recovered by both of the other \Monroe variants. 
 
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
