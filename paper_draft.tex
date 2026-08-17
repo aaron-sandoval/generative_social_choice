@@ -426,7 +426,7 @@ Non-radical Utilitarianism
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
-We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics. \Monroe(equal, greedy), our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others. However, most of this loss is recovered by both of the other \Monroe variants. 
+We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics. \Monroe(equal, greedy), our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others. However, most of this loss is recovered by both of the other \Monroe{} variants. 
 
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
@@ -712,7 +712,7 @@ An outcome satisfies the corresponding efficiency axiom when no $\omega'$ domina
 \section{Reasoning and Counterexample Ballot Profiles for Axiom Failures}
 \label{app:voting-failures}
 
-\Cref{tab:failure-exact-scale,tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity}
+\Cref{tab:failure-exact-scale,tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity,tab:failure-monroe-egal-util,tab:failure-monroe-nru}
 provide representative counterexamples for the observed axiom failures discussed in the main text. Table~\ref{tab:egal-util-strict} illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
 
 \begin{table}[t]
@@ -980,6 +980,73 @@ $s_3$ is dropped despite an increase in its rating.}
 %\end{table}
 
 %For the profile in \Cref{tab:lp-worst-case}, an optimal solution to the LP relaxation assigns \(x_j=0.5\) to every candidate. Our rounding scheme then breaks ties by candidate order and picks the first two statements, yielding \(\{s_1,s_2\}\). But that slate is Pareto-dominated by \(\{s_1,s_4\}\), so Individual Pareto Efficiency fails. This example also shows why LP can violate symmetry with respect to candidate order: once the relaxation has flattened distinctions between candidates, the final outcome depends on the tie-breaking rule.
+
+\subsection{\Monroe{} fails Egalitarian--Utilitarian Efficiency}
+\label{app:monroe-egal-util}
+
+All three \Monroe{} variants share the greedy selection procedure of
+\Monroe(equal, greedy) described in \Cref{sec:voting-algorithms}. \Cref{tab:failure-monroe-egal-util} demonstrates a failure to select an efficient slate, producing a failing voter assignment for all \Monroe{} variants.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lccc}
+\hline
+ & $s_1$ & $s_2$ & $s_3$ \\
+\hline
+$u_1$ & 7 & 1 & 4 \\
+$u_2$ & 4 & 9 & 2 \\
+$u_3$ & 0 & 5 & 1 \\
+$u_4$ & 2 & 6 & 3 \\
+\hline
+\end{tabular}
+\caption{Profile with $k=2$ for which all three \Monroe{} variants fail
+Egalitarian--Utilitarian Efficiency. Every variant selects $\{s_2,s_3\}$, which
+is dominated on both total and minimum utility by $\{s_1,s_2\}$.}
+\label{tab:failure-monroe-egal-util}
+\end{table}
+
+\subsection{\Monroe{} fails Non-radical Utilitarianism}
+\label{app:monroe-nru}
+
+\Cref{tab:failure-monroe-nru} gives a profile with \(k=2\), parameterized by a
+free parameter \(\delta>0\), for which all three \Monroe{} variants sacrifice an
+arbitrarily large amount of minimum utility to gain an arbitrarily small amount
+of total utility.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lcccc}
+\hline
+ & $s_1$ & $s_2$ & $s_3$ & $s_4$ \\
+\hline
+$u_1$ & $9$   & $0.1$ & $7$   & $0.2$ \\
+$u_2$ & $8$   & $0.3$ & $0.4$ & $6.2$ \\
+$u_3$ & $0.5$ & $6$   & $5.8$ & $0.6$ \\
+$u_4$ & $0.7$ & $1$   & $0.8$ & $5-\delta$ \\
+\hline
+\end{tabular}
+\caption{Profile with $k=2$ for which all three \Monroe{} variants fail
+Non-radical Utilitarianism, for any sufficiently small \(\delta>0\).}
+\label{tab:failure-monroe-nru}
+\end{table}
+
+Given the ballot profile in \Cref{tab:failure-monroe-nru}, all \Monroe{} variants select \(s_1, s_2\) with utility vector
+\((9,8,6,1)\). This results in 
+\[
+u_{\mathrm{tot}}=24,\qquad u_{\mathrm{min}}=1 .
+\]
+
+The slate \(\{s_3,s_4\}\) gives \((7,6.2,5.8,5-\delta)\), so
+\[
+u_{\mathrm{tot}}=24-\delta,\qquad u_{\mathrm{min}}=5-\delta .
+\]
+Moving to it sacrifices \(\delta\) in total utility while improving the minimum
+utility by \(\epsilon=4-\delta\). The ratio
+\[
+\frac{\epsilon}{\delta}=\frac{4-\delta}{\delta}
+\]
+is arbitrarily large by taking \(\delta\) arbitrarily small, so all
+three \Monroe{} variants violate Non-radical Utilitarianism.
 
 \section{Contributions of Generators}
 \label{app:statement-origin}
