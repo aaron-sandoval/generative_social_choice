@@ -315,7 +315,37 @@ No $\omega'$ has marginally lower total utility and substantially higher minimum
 
 Generalized Lorenz Efficiency implies Sorted Pareto Efficiency, which in turn implies Individual Pareto Efficiency (for proof see \Cref{app:axiom-implications}). 
 
-We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}. Appendix \Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for opinion condensation.
+We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}. \Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for opinion condensation.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lccc}
+\hline
+ & $s_1$ & $s_2$ & $s_3$ \\
+\hline
+$u_1$ & 2 & 3 & 0 \\
+$u_2$ & 2 & 0 & 3 \\
+\hline
+\end{tabular}
+\caption{Example ballot profile where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
+\label{tab:committee-monotonicity-example}
+\end{table}
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lcc}
+\hline
+ & $s_1$ & $s_2$ \\
+\hline
+$u_1$ & 1 & 0 \\
+$u_2$ & 1 & 0 \\
+$u_3$ & 1 & 0 \\
+$u_4$ & 0 & 1 \\
+\hline
+\end{tabular}
+\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of \(u_1,u_2,u_3\). Under BJR, \(s_1\) and \(s_2\) must have equal numbers of voters assigned.}
+\label{tab:bjr-example}
+\end{table}
 
 \subsection{Results}
 \label{sec:voting-results}
@@ -488,43 +518,6 @@ AS produced the initial idea for the project, and both authors refined it. AS pe
 \newpage
 \appendix
 
-\section{Voting Algorithm Test Methods and Axiom Definitions}
-\label{app:voting-test-methods}
-
-We evaluate voting rules against the axioms in \Cref{sec:axioms}. These are empirical checks on small adversarial ballot profiles, not formal proofs of satisfaction.
-
-For each algorithm and axiom, we search for violations using small adversarial ballot profiles. When we observe no violation, this should be read only as ``no counterexample found'' rather than as a proof of correctness.
-
-\begin{table}[t]
-\centering
-\begin{tabular}{lccc}
-\hline
- & $s_1$ & $s_2$ & $s_3$ \\
-\hline
-$u_1$ & 2 & 3 & 0 \\
-$u_2$ & 2 & 0 & 3 \\
-\hline
-\end{tabular}
-\caption{Example ballot profile where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
-\label{tab:committee-monotonicity-example}
-\end{table}
-
-\begin{table}[t]
-\centering
-\begin{tabular}{lcc}
-\hline
- & $s_1$ & $s_2$ \\
-\hline
-$u_1$ & 1 & 0 \\
-$u_2$ & 1 & 0 \\
-$u_3$ & 1 & 0 \\
-$u_4$ & 0 & 1 \\
-\hline
-\end{tabular}
-\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of \(u_1,u_2,u_3\). Under BJR, \(s_1\) and \(s_2\) must have equal numbers of voters assigned.}
-\label{tab:bjr-example}
-\end{table}
-
 \section{Embedding Ablation Study Details}
 \label{app:embedding-ablation-details}
 
@@ -563,11 +556,6 @@ In the ablated variant, we subsample the output of the generator that proposes f
   \label{fig:statement-ablation-comparison}
   \end{center}
 \end{figure*}
-
-\section{Additional Voting Algorithms}
-\label{app:additional-voting}
-
-We also tested several additional voting-rule variants that did not materially change the empirical picture relative to the main algorithms discussed in the paper. We include them here for completeness.
 
 \section{Voting Algorithm Details}
 
