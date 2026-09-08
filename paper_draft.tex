@@ -286,7 +286,7 @@ Start with \Monroe(equal, greedy). Then, the equal-sized-constituency constraint
 \subsection{Axioms}
 \label{sec:axioms}
 
-In addition to the social welfare metrics used in the case study, we evaluate these voting algorithms against a set of social choice axioms. The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected. To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums. Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice. We consider an axiom to have failed only if a counterexample ballot profile that does not result in such a collision can be specified.
+In addition to the social welfare metrics used in the case study, we evaluate these voting algorithms against a set of social choice axioms. The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected. To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums. Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice. We consider an axiom to have failed only if a counterexample ballot profile that does not contain such a collision can be specified.
 
 \paragraph{Symmetry}
 Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
@@ -320,8 +320,8 @@ We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotoni
 \subsection{Results}
 \label{sec:voting-results}
 
-We evaluate voting rules against each axiom using a set of manually constructed adversarial ballot profiles. For cases where the voting rules pass all adversarial cases, we additionally look for counterexamples  manually and using LLMs (ChatGPT 5.3 and Opus 4.7).
-For \Exact{}, we provide formal proofs of satisfaction in \Cref{app:exact-axiom-proofs}.
+We evaluate voting rules against each axiom using a set of adversarial ballot profiles. These profiles are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
+For \Exact{}, we provide formal proofs of satisfaction of some axioms in \Cref{app:exact-axiom-proofs}.
 As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions. Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
 Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
 
@@ -426,9 +426,9 @@ Non-radical Utilitarianism
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
-We also evaluate each voting rule on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics. \Monroe(equal, greedy), our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others. However, most of this loss is recovered by both of the other \Monroe{} variants. 
+We also evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}. Using the 20 ballot profiles generated from our pipeline in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}. \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast. \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics. \Monroe(equal, greedy), our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others. However, most of this loss is recovered by both of the other \Monroe{} variants. 
 
-We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
+The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees. We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria. When scaling opinion condensation to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes. A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes. While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
 \section{Discussion}
 
@@ -437,14 +437,16 @@ We use \Exact{} in the main pipeline because it is feasible at the scale of our 
 \paragraph{Limited scope of evaluation}
 Our case study uses a single benchmark dataset. While its realism is an advantage over synthetic opinion distributions, for example, those used by \citet{chandak-2023}, it remains unclear how well the observed gains generalize to other domains or other distributions of opinions. Additionally, the small sample sizes (10 runs of our pipeline and 15 of the baseline) may also underestimate the variance due to not sufficiently representing the population distribution of outputs for a fixed input set of opinions.
 
-\paragraph{LLM-based proxy judgments}
+\paragraph{Virtual voters use weak LLMs}
 Due to limited budget, we use GPT-4o mini for discriminative queries. This likely introduces additional noise into the estimated ballot profile. Although that should not systematically favor our method over the baseline, we do not perform the kind of direct human validation reported by \citet{fish-v2}. It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here. In general, we make no claims about the absolute alignment with human voters of the range votes made by our LLM-based virtual voters. 
 
 \paragraph{Inherited limitations from prior work}
 Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups. These issues remain significant obstacles to real-world deployment.
 
-\paragraph{Novel axioms}
-The non-radical utilitarianism axiom isolates a real weakness of pure total utility maximization, but it is also intentionally strict. There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds. Since no scalar-valued social welfare function fully captures the egalitarian intuition, this axiom's reliance on minimum utility as an egalitarian measure is too narrow. Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being introduced specifically to achieve more egalitarian outcomes. Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
+\paragraph{Non-radical Utilitarianism}
+This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function. However, the choice of minimum utility as the measure of egalitarianism imposes a subjective judgment incompatible with other measures of egalitarianism \citep{atkinson-1970}. There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds. Since no scalar-valued social welfare function can fully capture the idea of fairness, this axiom's reliance on minimum utility as an egalitarian measure is overly constraining.
+
+Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being introduced specifically to achieve more egalitarian outcomes. Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
 
 \paragraph{Strategic behavior}
 Virtual voters may reduce some strategic pathologies of range voting, but they do not eliminate them. Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal is still incentivized to misrepresent their beliefs in the training data. Approval-style ballots may therefore remain attractive in real deployments.
@@ -456,8 +458,8 @@ Virtual voters may reduce some strategic pathologies of range voting, but they d
  & $s_1$ & $s_2$ \\
 \hline
 $u_1$ & 0.01 & 0 \\
-$u_2$ & 0.01 & 0.5 \\
-$u_3$ & 1 & 0.5 \\
+$u_2$ & 0.01 & 1 \\
+$u_3$ & 2 & 1 \\
 \hline
 \end{tabular}
 \caption{Example ballot profile demonstrating the strictness of Egalitarian--Utilitarian Efficiency. For \(k=1\), only \(s_1\) satisfies the axiom, while \(s_2\) may nevertheless be judged more egalitarian and preferred.}
