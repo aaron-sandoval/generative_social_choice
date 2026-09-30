@@ -191,3 +191,16 @@ claude_sandbox/
 CLAUDE.md
 
 generative_social_choice/data/_debug
+
+# LaTeX build output in paper/ (latexmk + pdflatex + bibtex + SyncTeX)
+paper/*.pdf
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.synctex.gz
+paper/*.synctex(busy)
+paper/*.synctex.gz(busy)
