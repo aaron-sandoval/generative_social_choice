@@ -44,13 +44,14 @@
 \maketitle
 
 \begin{abstract}
-We introduce \emph{opinion condensation} as a specific fractional choice problem: compressing many free-form voter opinions into a small weighted slate of representative statements.
-This problem arises in some virtual democracy systems that require a description of voter opinions that is concise but more detailed than a single consensus statement.
-We present an LLM-based pipeline that (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a weighted slate using a multiwinner range voting algorithm.
-On a dataset of 100 opinions, our pipeline outperforms the baseline generative social choice pipeline across a set of social welfare functions.
-Ablation studies suggest that the design features primarily driving improved performance are evaluating all voters against all candidate statements, optimizing globally for a utilitarian objective, and allowing the slate to be weighted rather than enforcing equal-sized constituencies.
+Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent the complex opinions of a constituency.
+However, prior systems have limitations such as losing diversity by selecting a single statement, using less expressive ranked ballots, or enforcing excessive constraints that limit the representativeness of outputs.
+We build an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
+The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a weighted slate using a multiwinner range voting algorithm.
+On a dataset of 100 opinions, our pipeline outperforms the baseline across all egalitarian and utilitarian social welfare functions.
+Ablation studies indicate that the design features primarily driving improved performance are evaluating all voters against all candidate statements, optimizing globally for a utilitarian objective, and allowing the slate to be weighted rather than enforcing equal-sized constituencies.
 %While the pipeline runs in exponential time, multiple polynomial time alternatives are presented that achieve similar performance.
-This pipeline is a starting point for practitioners to address the problem of opinion condensation.
+Our system is a practical starting point for virtual democracy systems that represent diverse opinions.
 \end{abstract}
 
 \section{Introduction}
