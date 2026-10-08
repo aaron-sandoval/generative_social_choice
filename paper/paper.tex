@@ -118,6 +118,7 @@ Our system could be applied to select the members in an LLM-based implementation
 \subsection{Voting Systems}
 \citet{chamberlin-courant} introduce a system for fully proportional representation in multi-winner elections, where each voter is assigned to one representative, each representative holds a weight proportional to their number of assigned voters, and winners are selected to maximize an objective function.
 Our voting algorithms follow this design, but we use range ballots and cardinal utilities instead of their ranked ballots.
+Selecting the optimal CC slate is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative. Building the slate greedily, as in our \Greedy{} algorithm, achieves at least $1-1/e$ of the optimal total utility \citep{nemhauser-1978, lu-boutilier-2011}.
 We do not evaluate other common multiwinner rules such as proportional approval voting, Phragm\'{e}n's sequential method \citep{janson_phragmens_2016}, and the method of equal shares \citep{peters_proportional_2022}, since they consider a voter's satisfaction with all winners rather than only with their assigned representative.
 
 \section{Pipeline}
