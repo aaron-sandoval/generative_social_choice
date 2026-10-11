@@ -127,16 +127,15 @@ We do not evaluate other common multiwinner rules such as proportional approval 
 \subsection{Problem Formulation}
 \label{sec:problem-formulation}
 
-We study the task of compressing a large set of opinions into a small weighted slate of representative statements.
+We solve the task of compressing a large set of opinions into a small weighted slate of representative statements.
 Let \(N=\{1,\ldots,n\}\) be a set of voters, let \(O=(o_1,\ldots,o_n)\) be their free-form opinions on a topic, and let \(k \ll n\) be the desired slate size.
 The pipeline generates a set \(A=\{a_1,\ldots,a_m\}\) of \(m \ge k\) candidate statements from \(O\).
 As in \citet{fish-v2}, it then selects a slate \(W\subseteq A\) of \(k\) statements together with an assignment \(\omega:N\to W\) mapping each voter to one statement on the slate.
-Unlike \citet{fish-v2}, we do not require \(\omega\) to assign equally many voters to each statement.
-Instead, as in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
+As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
 
 \paragraph{Objective}
 Following \citet{fish-v2}, we model voter utility as their level of agreement with their assigned statement.
-Our pipeline seeks to maximize total voter utility, or small variations thereof.
+Our pipeline seeks to maximize total voter utility, or variations thereof.
 One natural alternative is to model voter utility as the weighted sum of that voter's ratings over all selected statements, as is typical in fractional social choice literature \citep{rangevoting-rrv, aziz-randomized-2015, brandt_rolling_2017}.
 Under that model, a voter's utility rises if their preferred statement receives more weight or if some other statement is replaced by a more attractive statement.
 While this whole slate utility model may be more accurate to a voter's subjective utility in the broader election context, it is less appropriate as an optimization objective for opinion condensation.
