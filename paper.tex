@@ -98,22 +98,20 @@ Our system has applications in virtual democracy, automated deliberation systems
 \subsection{AI Systems for Virtual Democracy}
 Our system builds directly on that of \citet{fish-v2}.
 Their generative social choice system uses virtual voters to both evaluate and generate candidate statements.
-We improve their LLM-based implementation, relax some constraints unnecessary for opinion condensation, and focus on social welfare functions to measure performance.
+We relax from their Monroe election \citep{monroe-1995} with equal-sized constituencies to a CC election \citep{chamberlin-courant} with no such constraint, improve their LLM-based implementation, and use a suite of social welfare functions to measure performance.
 In parallel work, \citet{gsc-next-gen} also extends the work of \citet{fish-v2} to build a similar LLM system with theoretical guarantees under more realistic assumptions.
 Among their improvements, they apply the same embedding model for clustering statements as our system.
 \citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
-While their system uses ranked ballots and selects a single winning statement, ours is more expressive, using range ballots and selecting a mixture of winners.
-While we know of no prior work characterizing the distortion inherent in the use of ranked ballots for our particular voting problem, the best fractional ranked algorithms have considerable worst-case distortion \citep{anshelevich-2017}, motivating our use of range ballots.
-\citet{polis} describe Polis, a digital democracy system that has been deployed at the scale of thousands of voters to provide a suite of summaries and analyses of voter opinion using iterative voter feedback on each others’ statements.
+While their system uses ranked ballots, selects a single winning statement,and is tested in small groups of up to 6 voters, ours uses more expressive range ballots, selects a weighted slate of winners, and is tested on a single group of 100 voters.
+\citet{polis} describe Polis, a digital democracy system that has been deployed at the scale of thousands of voters to provide a suite of summaries and analyses of voter opinion using iterative voter feedback on each others' statements.
 Our system generates new statements and requires voter input only once, eliminating the bias in Polis related to varying levels and timing of voter participation.
 \citet{bakker-consensus} build a generative social choice system using an opinion-conditioned reward model and statement generation model, each fine tuned using data from over 3000 human participants.
-While both our system and their system select consensus statements using a utilitarian social welfare function, our system uses only in-context learning, not fine-tuning, to produce virtual voters.
+Our system uses more scalable in-context learning instead of fine-tuning, and uses a multi-winner rather than a single winner election.
 \citet{noothigattu-2018} and \citet{freedman-kidney-exchange} are the first to apply machine learning and social choice theory to automate ethical decision-making.
 
 \citet{newberry-moral-parliaments} — and earlier, \citet{bostrom-moral-parliaments-2009} — propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
 In their approach, representatives of different ethical systems are proportionally represented in a simulated parliament, where they bargain, compromise, and vote on decisions.
-Our opinion condensation system could be applied to select the members of such a parliament.
-
+Our system could be applied to select the members in an LLM-based implementation of such a parliament.
 \citet{conitzer-2017-moral-ai} envision implementing a similar parliamentary system for moral decisions using AI, though theirs would be trained using a hypothetical labeled dataset of moral dilemmas.
 \citet{grandi-agent-mediated} envisions a virtual direct democracy system and discusses open problems towards realizing such a system, including virtual voter training and expression.
 \citet{ouwerx-parliaments} partially implement a simple parliamentary decision system, prompting LLM representatives in an automated moral parliament to make compromises to their stances.
@@ -123,13 +121,9 @@ The design objectives of our voting algorithms are most similar to those of dire
 All three systems select multiple winners with the voting power of each winner proportional to the quantity of voters who rate them as their favorite winner.
 While direct representation allows for a plurality ballot, requires multiple rounds of voting, and only loosely constrains the slate size, our system uses a single round of range voting and a fixed slate size.
 
-Our voting problem could be framed as a constrained fractional social choice \citep{aziz-randomized-2015} election using range ballots where only up to $k$ candidates may receive non-zero weight.
-However, the key differences separating our opinion condensation system from most of the fractional social choice literature are that (i) our voting algorithms output a voter assignment mapping each voter to one winner; (ii) a winner’s weight is proportional to the number of voters assigned to them; (iii) we assume that voter utility is determined by their agreement with their assigned winner, while fractional social choice literature would typically measure voter preferences over the slate as a whole.
-See \Cref{sec:problem-formulation} for justification of our utility model.
-
-Much of the literature on range voting consists of manuscripts written by Warren D. Smith.
-\citet{rangevoting-range-voting} formally introduces single winner range voting, evaluating it against a set of axioms and demonstrating that it outperforms several common voting methods in terms of total Bayesian regret under both globally honest and strategic voting for a range of synthetic ballot profile distributions.
-\citet{rangevoting-rrv} introduces reweighted range voting (RRV) as a multiwinner extension of range voting and emphasizes its strengths relative to the single transferable vote.
+Warren D. Smith has written several manuscripts on range voting.
+\citet{rangevoting-range-voting} formally introduces single winner range voting, evaluating it against a set of axioms and demonstrating that it outperforms several common voting methods in terms of total Bayesian regret under both honest and strategic voting for a range of synthetic ballot profile distributions.
+\citet{rangevoting-rrv} introduces reweighted range voting (RRV) as a voting algorithm for multiwinner elections using range ballots and emphasizes its strengths relative to the single transferable vote.
 RRV assumes a different definition of voter utility, considering a voter's opinion of all winners rather than only their assigned representative.
 This makes it ill-suited to our assignment-based opinion condensation objective, so we do not evaluate it among our voting algorithms.
 \citet{rangevoting-optimal-pr} describes a broad family of optimal proportional representation multiwinner voting algorithms which select the set of winners that optimizes a scalar quality function.
