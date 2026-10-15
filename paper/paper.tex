@@ -160,8 +160,8 @@ This model suits the goal of representing diverse views, rather than selecting s
     \begin{enumerate}
         \item Model each voter's utility function with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
         The prompt includes \(o_i\) and ends with candidate statement \(a_j\), requesting a 0--4 Likert score.
-        \item For each pair \((i,j)\), compute the expected Likert score \(u_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the average weighted by token-probability over the responses 0--4.
-        We treat this expected score as voter \(i\)'s utility of being assigned to statement \(a_j\).
+        \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the average weighted by token-probability over the responses 0--4.
+        We treat this expected score as voter \(i\)'s agreement with \(a_j\).
         \item Repeat steps (a) and (b) for all \(i\in N\) and \(j\in[m]\).
     \end{enumerate}
 
@@ -344,12 +344,12 @@ This method builds the slate incrementally, repeatedly selecting the candidate w
 
 \paragraph{Geometric Utility Transformation (\ExactP{})}
 We also test a variant of \Exact{} that maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} instead of total utility.
-For a parameter \(p>1\), \ExactP{} replaces each utility \(u_{ij}\) in the ballot profile with \(f(u_{ij})\), where
+For a parameter \(p>1\), \ExactP{} replaces each utility \(U_{ij}\) in the ballot profile with \(f(U_{ij})\), where
 \[
 f(u)=\frac{1-(1/p)^u}{1-(1/p)},
 \]
 and then runs \Exact{} on the transformed ballot profile.
-The total transformed utility \(\sum_i f(u_i)\) is a strictly increasing function of the Kolm--Pollak EDE of the original utilities, so the two objectives select the same slate and assignment.
+The total transformed utility \(\sum_i f(U_{i,\omega(i)})\) is a strictly increasing function of the Kolm--Pollak EDE of the original utilities, so the two objectives select the same slate and assignment.
 The parameter \(p\) interpolates between utilitarian social welfare (total utility) as \(p\to1\) and egalitarian social welfare (minimum utility) as \(p\to\infty\).
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias for most results.
 
@@ -414,12 +414,12 @@ We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotoni
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lccc}
+\begin{tabular}{l|ccc}
 \hline
  & $a_1$ & $a_2$ & $a_3$ \\
 \hline
-$u_1$ & 2 & 3 & 0 \\
-$u_2$ & 2 & 0 & 3 \\
+Voter 1 & 2 & 3 & 0 \\
+Voter 2 & 2 & 0 & 3 \\
 \hline
 \end{tabular}
 \caption{Example ballot profile where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
@@ -428,17 +428,17 @@ $u_2$ & 2 & 0 & 3 \\
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{l|cc}
 \hline
  & $a_1$ & $a_2$ \\
 \hline
-$u_1$ & 1 & 0 \\
-$u_2$ & 1 & 0 \\
-$u_3$ & 1 & 0 \\
-$u_4$ & 0 & 1 \\
+Voter 1 & 1 & 0 \\
+Voter 2 & 1 & 0 \\
+Voter 3 & 1 & 0 \\
+Voter 4 & 0 & 1 \\
 \hline
 \end{tabular}
-\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of \(u_1,u_2,u_3\).
+\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of voters 1, 2, and 3.
 Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
 \label{tab:bjr-example}
 \end{table}
@@ -617,13 +617,13 @@ Approval-style ballots may therefore remain attractive in real deployments.
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{l|cc}
 \hline
  & $a_1$ & $a_2$ \\
 \hline
-$u_1$ & 0.01 & 0 \\
-$u_2$ & 0.01 & 1 \\
-$u_3$ & 2 & 1 \\
+Voter 1 & 0.01 & 0 \\
+Voter 2 & 0.01 & 1 \\
+Voter 3 & 2 & 1 \\
 \hline
 \end{tabular}
 \caption{Example ballot profile demonstrating the strictness of Egalitarian--Utilitarian Efficiency.
@@ -824,7 +824,7 @@ The solver-dependence discussion above therefore applies with $nm$ replaced by $
 \section{Proofs of Axiom Satisfaction and Implications}
 \label{app:axiom-proofs}
 We first prove the implications among efficiency axioms stated in \Cref{sec:axioms}, then prove the axioms satisfied by \Exact{}.
-Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, voter $i$'s realized utility is $U_{i,\omega(i)}$, and we write $u(\omega)\in\mathbb{R}_{\ge0}^n$ for the resulting utility vector.
+Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, voter $i$'s realized utility is $U_{i,\omega(i)}$, and we write $u_\omega\in\mathbb{R}_{\ge0}^n$ for the resulting utility vector.
 As in \Cref{sec:axioms}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
 
 \subsection{Axiom implications} \label{app:axiom-implications}
@@ -893,13 +893,13 @@ Table~\ref{tab:egal-util-strict} illustrates that Egalitarian--Utilitarian Effic
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lccc}
+\begin{tabular}{l|ccc}
 \hline
  & $a_1$ & $a_2$ & $a_3$ \\
 \hline
-$u_1$ & 3 & 0 & 4 \\
-$u_2$ & 3 & 3 & 0 \\
-$u_3$ & 0 & 2 & 0 \\
+Voter 1 & 3 & 0 & 4 \\
+Voter 2 & 3 & 3 & 0 \\
+Voter 3 & 0 & 2 & 0 \\
 \hline
 \end{tabular}
 \caption{Greedy Total Utility Maximization fails Individual Pareto Efficiency for $k=2$.
@@ -914,13 +914,13 @@ Because \Exact{} maximizes total utility alone, it can prefer a slate with only 
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{l|cc}
 \hline
  & $a_1$ & $a_2$ \\
 \hline
-$u_1$ & $4$ & $8/3-\eta$ \\
-$u_2$ & $4$ & $8/3-\eta$ \\
-$u_3$ & $0$ & $8/3-\eta$ \\
+Voter 1 & $4$ & $8/3-\eta$ \\
+Voter 2 & $4$ & $8/3-\eta$ \\
+Voter 3 & $0$ & $8/3-\eta$ \\
 \hline
 \end{tabular}
 \caption{\Exact{} fails Non-radical Utilitarianism for \(k=1\), for any sufficiently small \(\eta>0\).}
@@ -961,17 +961,17 @@ Therefore, \Exact{} violates Non-radical Utilitarianism.
 % Example found by Claude Opus 4.7
 
 The geometric transformation does not repair this failure.
-\ExactP{} maximizes the \emph{transformed} total $\sum_i f(u_i)$, and because $f$ is concave it can still reject an alternative slate that is essentially tied in raw total utility but substantially better in raw minimum utility.
+\ExactP{} maximizes the \emph{transformed} total $\sum_i f(U_{i,\omega(i)})$, and because $f$ is concave it can still reject an alternative slate that is essentially tied in raw total utility but substantially better in raw minimum utility.
 \Cref{tab:failure-exactp-nru} gives a counterexample for $k=1$ and $p=1.5$, where $\delta>0$ is a free parameter.
 \begin{table}[t]
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{l|cc}
 \hline
  & $a_1$ & $a_2$ \\
 \hline
-$u_1$ & $0$   & $1/2$ \\
-$u_2$ & $5/2$ & $1/2$ \\
-$u_3$ & $5/2$ & $4-\delta$ \\
+Voter 1 & $0$   & $1/2$ \\
+Voter 2 & $5/2$ & $1/2$ \\
+Voter 3 & $5/2$ & $4-\delta$ \\
 \hline
 \end{tabular}
 \caption{Counterexample showing that \ExactP{} fails Non-radical Utilitarianism for \(k=1\) and \(p=1.5\), for any sufficiently small \(\delta>0\).}
@@ -1021,12 +1021,12 @@ is nonlinear, scaling all utilities by a positive constant need not preserve the
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcc}
+\begin{tabular}{l|cc}
 \hline
  & $a_1$ & $a_2$ \\
 \hline
-$u_1$ & 3 & 1 \\
-$u_2$ & 0 & 1 \\
+Voter 1 & 3 & 1 \\
+Voter 2 & 0 & 1 \\
 \hline
 \end{tabular}
 \caption{Counterexample showing that \textsc{Exact}$(p=1.5)$ fails Independence of Common Scale for \(k=1\).
@@ -1059,14 +1059,14 @@ Importantly, if the fractional optimum assigns equal weights to all statements, 
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcccc}
+\begin{tabular}{l|cccc}
 \hline
  & $a_1$ & $a_2$ & $a_3$ & $a_4$ \\
 \hline
-$u_1$ & 3.61 & 3.45 & 0.47 & 1.78 \\
-$u_2$ & 2.32 & 0.53 & 0.38 & 1.74 \\
-$u_3$ & 0.37 & 3.06 & 1.72 & 3.37 \\
-$u_4$ & 1.09 & 0.39 & 3.97 & 2.19 \\
+Voter 1 & 3.61 & 3.45 & 0.47 & 1.78 \\
+Voter 2 & 2.32 & 0.53 & 0.38 & 1.74 \\
+Voter 3 & 0.37 & 3.06 & 1.72 & 3.37 \\
+Voter 4 & 1.09 & 0.39 & 3.97 & 2.19 \\
 \hline
 \end{tabular}
 \caption{Profile with $k=2$ whose LP relaxation has a strictly fractional optimum.
@@ -1079,31 +1079,31 @@ For this profile every integral $2$-slate has total utility at most $11.62$ (att
 The LP optimum is therefore this fully symmetric fractional point.
 Because all $x_j$ are equal, the rounding step breaks ties by candidate order and returns $\{a_1,a_2\}$, with utility vector $(3.61,2.32,3.06,1.09)$.
 
-This slate is Pareto-dominated by $\{a_1,a_4\}$, whose utility vector $(3.61,2.32,3.37,2.19)$ is weakly larger for every voter and strictly larger for $u_3$ and $u_4$.
+This slate is Pareto-dominated by $\{a_1,a_4\}$, whose utility vector $(3.61,2.32,3.37,2.19)$ is weakly larger for every voter and strictly larger for voters 3 and 4.
 Hence \LP{} violates Individual Pareto Efficiency, and therefore also Sorted Pareto Efficiency and Generalized Lorenz Efficiency (and Egalitarian--Utilitarian Efficiency, since $\{a_1,a_4\}$ has both higher total and higher minimum utility).
 The same example shows why \LP{} violates Symmetry: the optimal $x$ is invariant under relabeling the candidates, so the selected slate is fixed entirely by the tie-breaking rule, and relabeling the candidates changes the outcome.
 
 \LP{} also fails Monotonicity.
 \Cref{tab:lp-monotonicity} gives a profile, again with $k=2$, for which the LP optimum is initially integral, $x=(0,1,1,0)$, so \LP{} selects $\{a_2,a_3\}$.
-Now increase voter $u_1$'s rating of the winning candidate $a_3$ from $0.04$ to $1.5$.
+Now increase voter 1's rating of the winning candidate $a_3$ from $0.04$ to $1.5$.
 This lifts the value of the symmetric fractional point above that of every integral slate ($11.46$ versus $11.33$), so the LP optimum becomes $x=(\tfrac12,\tfrac12,\tfrac12,\tfrac12)$ and rounding returns $\{a_1,a_2\}$.
 The candidate $a_3$ is dropped from the winning slate even though a voter's rating of it \emph{increased}; hence \LP{} violates Monotonicity.
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcccc}
+\begin{tabular}{l|cccc}
 \hline
  & $a_1$ & $a_2$ & $a_3$ & $a_4$ \\
 \hline
-$u_1$ & 1.14 & 2.05 & 0.04 & 0.68 \\
-$u_2$ & 3.09 & 3.45 & 0.72 & 0.71 \\
-$u_3$ & 3.68 & 0.11 & 3.60 & 0.17 \\
-$u_4$ & 0.05 & 1.02 & 2.23 & 3.32 \\
+Voter 1 & 1.14 & 2.05 & 0.04 & 0.68 \\
+Voter 2 & 3.09 & 3.45 & 0.72 & 0.71 \\
+Voter 3 & 3.68 & 0.11 & 3.60 & 0.17 \\
+Voter 4 & 0.05 & 1.02 & 2.23 & 3.32 \\
 \hline
 \end{tabular}
 \caption{Profile with $k=2$ showing that \LP{} fails Monotonicity.
 As shown, the LP optimum is integral and \LP{} selects $\{a_2,a_3\}$.
-Raising $u_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional point $x_j=\tfrac12$, after which \LP{} selects $\{a_1,a_2\}$: the winning candidate $a_3$ is dropped despite an increase in its rating.}
+Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional point $x_j=\tfrac12$, after which \LP{} selects $\{a_1,a_2\}$: the winning candidate $a_3$ is dropped despite an increase in its rating.}
 \label{tab:lp-monotonicity}
 \end{table}
 
@@ -1113,14 +1113,14 @@ Raising $u_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional poi
 
 %\begin{table}[t]
 %\centering
-%\begin{tabular}{lcccc}
+%\begin{tabular}{l|cccc}
 %\hline
 % & $a_1$ & $a_2$ & $a_3$ & $a_4$ \\
 %\hline
-%$u_1$ & 0.1003 & 0.2004 & 4.1001 & 2.0002 \\
-%$u_2$ & 9.0005 & 8.9006 & 1.0007 & 1.1008 \\
-%$u_3$ & 6.0011 & 7.0009 & 1.2002 & 7.1001 \\
-%$u_4$ & 8.0013 & 7.9014 & 1.3005 & 1.4006 \\
+%Voter 1 & 0.1003 & 0.2004 & 4.1001 & 2.0002 \\
+%Voter 2 & 9.0005 & 8.9006 & 1.0007 & 1.1008 \\
+%Voter 3 & 6.0011 & 7.0009 & 1.2002 & 7.1001 \\
+%Voter 4 & 8.0013 & 7.9014 & 1.3005 & 1.4006 \\
 %\hline
 %\end{tabular}
 %\caption{Example where the LP relaxation treats all four candidates symmetrically when \(k=2\).}
@@ -1140,14 +1140,14 @@ All three \Monroe{} variants share the greedy selection procedure of \Monroe(equ
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lccc}
+\begin{tabular}{l|ccc}
 \hline
  & $a_1$ & $a_2$ & $a_3$ \\
 \hline
-$u_1$ & 7 & 1 & 4 \\
-$u_2$ & 4 & 9 & 2 \\
-$u_3$ & 0 & 5 & 1 \\
-$u_4$ & 2 & 6 & 3 \\
+Voter 1 & 7 & 1 & 4 \\
+Voter 2 & 4 & 9 & 2 \\
+Voter 3 & 0 & 5 & 1 \\
+Voter 4 & 2 & 6 & 3 \\
 \hline
 \end{tabular}
 \caption{Profile with $k=2$ for which all three \Monroe{} variants fail Egalitarian--Utilitarian Efficiency.
@@ -1162,14 +1162,14 @@ Every variant selects $\{a_2,a_3\}$, which is dominated on both total and minimu
 
 \begin{table}[t]
 \centering
-\begin{tabular}{lcccc}
+\begin{tabular}{l|cccc}
 \hline
  & $a_1$ & $a_2$ & $a_3$ & $a_4$ \\
 \hline
-$u_1$ & $9$   & $0.1$ & $7$   & $0.2$ \\
-$u_2$ & $8$   & $0.3$ & $0.4$ & $6.2$ \\
-$u_3$ & $0.5$ & $6$   & $5.8$ & $0.6$ \\
-$u_4$ & $0.7$ & $1$   & $0.8$ & $5-\delta$ \\
+Voter 1 & $9$   & $0.1$ & $7$   & $0.2$ \\
+Voter 2 & $8$   & $0.3$ & $0.4$ & $6.2$ \\
+Voter 3 & $0.5$ & $6$   & $5.8$ & $0.6$ \\
+Voter 4 & $0.7$ & $1$   & $0.8$ & $5-\delta$ \\
 \hline
 \end{tabular}
 \caption{Profile with $k=2$ for which all three \Monroe{} variants fail Non-radical Utilitarianism, for any sufficiently small \(\delta>0\).}
