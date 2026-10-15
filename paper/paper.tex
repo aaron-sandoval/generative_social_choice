@@ -120,6 +120,8 @@ Our system could be applied to select the members in an LLM-based implementation
 Our voting algorithms follow this design, but we use range ballots and cardinal utilities instead of their ranked ballots.
 The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
 However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative. Building the slate greedily, as in our \Greedy{} algorithm, achieves at least $1-1/e$ of the optimal total utility \citep{nemhauser-1978, lu-boutilier-2011}.
+Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by rounding a linear programming relaxation, using pipage rounding to obtain approximation guarantees.
+Our \LP{} algorithm instead selects the $k$ candidates with the largest fractional selection values and assigns each voter to their most preferred selected candidate. This selection method has precedent in participatory budgeting \citep{sreedurga-2022}.
 
 The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citep{horton-2025} do for the problem of facility location.
 
