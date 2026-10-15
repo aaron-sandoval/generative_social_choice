@@ -360,11 +360,10 @@ In our experiments, we use \(p=1.5\) as a modest egalitarian bias for most resul
 
 \paragraph{\Monroe(equal, greedy) \citep{skowron-2015}}
 The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
-We adapt the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile.
+We make a best-effort adaptation of the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile.
 The slate is built in \(k\) rounds.
 In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters.
 The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it.
-This is a best-effort adaptation of the \citet{fish-v2} voting algorithm, made to operate on a full utility matrix.
 
 \paragraph{\Monroe(equal, optimal)}
 Start with \Monroe(equal, greedy).
