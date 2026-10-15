@@ -120,6 +120,9 @@ Our system could be applied to select the members in an LLM-based implementation
 Our voting algorithms follow this design, but we use range ballots and cardinal utilities instead of their ranked ballots.
 The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
 However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative. Building the slate greedily, as in our \Greedy{} algorithm, achieves at least $1-1/e$ of the optimal total utility \citep{nemhauser-1978, lu-boutilier-2011}.
+
+The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citep{horton-2025} do for the problem of facility location.
+
 We do not evaluate other common multiwinner rules such as proportional approval voting, Phragm\'{e}n's sequential method \citep{janson_phragmens_2016}, and the method of equal shares \citep{peters_proportional_2022}, since they consider a voter's satisfaction with all winners rather than only with their assigned representative.
 
 \section{Pipeline}
@@ -134,13 +137,9 @@ As in \citet{fish-v2}, it then selects a slate \(W\subseteq A\) of \(k\) stateme
 As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
 
 \paragraph{Objective}
-Following \citet{fish-v2}, we model voter utility as their level of agreement with their assigned statement.
-Our pipeline seeks to maximize total voter utility, or variations thereof.
-One natural alternative is to model voter utility as the weighted sum of that voter's ratings over all selected statements, as is typical in fractional social choice literature \citep{rangevoting-rrv, aziz-randomized-2015, brandt_rolling_2017}.
-Under that model, a voter's utility rises if their preferred statement receives more weight or if some other statement is replaced by a more attractive statement.
-While this whole slate utility model may be more accurate to a voter's subjective utility in the broader election context, it is less appropriate as an optimization objective for opinion condensation.
-Direct optimization of this objective collapses to selecting the single winner with the highest aggregate support, a poor starting point towards good representation.
-While mitigations for this are possible, the utility model based on assigned statement agreement that we inherit from \citet{fish-v2} better fits our task.
+Following \citet{chamberlin-courant,fish-v2}, we model voter utility as their level of agreement with their assigned statement.
+Our pipeline seeks to maximize total voter utility, or related quantities.
+This model suits the goal of representing diverse views, rather than selecting statements with the broadest appeal \citep{faliszewski-multiwinner-2017, lu-boutilier-2011}.
 
 \subsection{Algorithm}
 
@@ -327,8 +326,8 @@ Throughout, the names of voting algorithms are set in small caps.
 
 \subsection{Algorithms}
 
-We compare three assignment-based utility-maximization methods with and without a  geometric utility transformation that biases toward egalitarian outcomes.
-As a baseline, we include the Greedy Monroe rule \citep{skowron-2015} used by \citet{fish-v2}, along with two ablation algorithms.
+We compare four utility maximization algorithms.
+As a baseline, we include an approximation of the Greedy Monroe rule \citep{skowron-2015} used by \citet{fish-v2}, along with two additional algorithms as ablations.
 
 \paragraph{Exact Total Utility Maximization (\Exact{})}
 This method selects the slate and assignment that maximize total utility exactly.
@@ -343,13 +342,16 @@ After solving the relaxed program, it selects the \(k\) candidates with largest 
 \paragraph{Greedy Total Utility Maximization (\Greedy{})}
 This method builds the slate incrementally, repeatedly selecting the candidate with the largest marginal improvement in total assignment utility.
 
-\paragraph{Geometric Utility Transformation}
-We also test transformed versions of \Exact{}, \LP{}, and \Greedy{} that apply diminishing returns to higher utility values.
-For \(p>1\), we transform utilities via
+\paragraph{Geometric Utility Transformation (\ExactP{})}
+We also test a variant of \Exact{} that maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} instead of total utility.
+For a parameter \(p>1\), \ExactP{} replaces each utility \(u_{ij}\) in the ballot profile with \(f(u_{ij})\), where
 \[
-f(u)=\frac{1-(1/p)^u}{1-(1/p)}.
+f(u)=\frac{1-(1/p)^u}{1-(1/p)},
 \]
-In our experiments, we use \(p=1.5\) as a modest egalitarian bias and also show a more aggressive setting in one result figure.
+and then runs \Exact{} on the transformed ballot profile.
+The total transformed utility \(\sum_i f(u_i)\) is a strictly increasing function of the Kolm--Pollak EDE of the original utilities, so the two objectives select the same slate and assignment.
+The parameter \(p\) interpolates between utilitarian social welfare (total utility) as \(p\to1\) and egalitarian social welfare (minimum utility) as \(p\to\infty\).
+In our experiments, we use \(p=1.5\) as a modest egalitarian bias for most results.
 
 \paragraph{\Monroe(equal, greedy) \citep{skowron-2015}}
 The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
