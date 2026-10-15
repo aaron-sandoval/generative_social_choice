@@ -68,21 +68,25 @@ Our system is a practical starting point for virtual democracy systems that repr
 
 Recent progress in AI creates both risks and opportunities for collective decision-making \citep{landemore}.
 One promising direction is \emph{virtual democracy}, in which multiple AIs representing a constituency help aggregate opinions and support decision-making \citep{noothigattu-2018, kahng-virtual-democracy, freedman-kidney-exchange}.
-Recent work has extended this paradigm from fixed decision spaces to natural language spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}.
+Recent work has extended this paradigm beyond fixed decision spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}. However, no generative system exists whose  performance has been evaluated on a variety of social welfare functions (SWFs) at a scale of 100+ voters using a realistic dataset of voter opinions.
 
-We design such a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
+We design and evaluate such a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
 The system functionality is illustrated in \Cref{fig:functionality}.
-Under the CC rule, voter utility is defined as the voter's level of agreement with their assigned representative.
-A slate of \(k\) candidates is selected that maximizes total voter utility for their most-preferred winner, who is assigned as that voter's representative.
-Each member of the slate is weighted, holding voting power proportional to the number of voters assigned.
-We take the generative social choice system of \citet{fish-v2} as our starting point.
+Under the CC rule, a slate of \(k\) winners is selected, where each voter is assigned to their favorite winner as their representative.
+Each voter fills out a \emph{range ballot}, scoring every candidate statement by their level of agreement.
+A voter's utility is their score for their representative.
+For downstream applications, each winner is weighted proportionally to their number of assigned voters.
+The CC rule selects the slate and assignment that maximize total utility.
+Because each voter counts only their favorite winner, this rule suits our goal of representing diverse views, rather than selecting statements with the broadest appeal \citep{faliszewski-multiwinner-2017, lu-boutilier-2011}.
+
+We use the generative social choice system of \citet{fish-v2} as our baseline.
 Relative to their work, our pipeline makes two main changes.
 First, we allow slate members to represent unequal fractions of the population, rather than enforcing equal constituency sizes as does \citet{monroe-1995}.
-Second, we evaluate all voters against all generated candidate statements, yielding a full ballot profile and enabling global slate optimization.
-These changes allow for separation of statement generation from slate selection and testing of a broader family of voting rules.
+Second, we evaluate all voters against all generated candidate statements, yielding a full \emph{ballot profile} and enabling global slate optimization.
+These changes allow for separation of statement generation from slate selection and testing of a broader set of voting rules.
 
-We find that our system improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian social welfare functions (SWFs).
-Polynomial-time approximations of the utiltarian CC rule show only slightly worse performance on this dataset.
+We find that our system significantly improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
+Polynomial-time approximations of the utilitarian CC rule show only slightly worse performance on this dataset.
 We perform ablation studies which indicate that the improved performance is primarily due to the two main changes listed above, with other changes having a smaller impact.
 Our system has applications in virtual democracy, automated deliberation systems, or simply as a tool to fairly summarize large collections of free-form opinions.
 
@@ -91,7 +95,7 @@ Our system has applications in virtual democracy, automated deliberation systems
     \item We present an LLM-based \emph{opinion condensation pipeline} that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
     \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs when a tunable egalitarian utility transformation is applied; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) while axiomatic guarantees are weaker for algorithms that compute a polynomial time approximation, these algorithms perform competitively with an exponential time exact solution on the SWFs.
-    This suggests that, for practical purposes, scalability might be achievable using approximate algorithms.
+    This suggests that these approximate solutions are practical alternatives in terms of solution quality, though testing on more datasets is necessary.
 \end{itemize}
 
 \section{Related Work}
@@ -116,7 +120,7 @@ Our system could be applied to select the members in an LLM-based implementation
 \citet{ouwerx-parliaments} partially implement a simple automated moral parliament, prompting LLM representatives to make compromises to their stances.
 
 \subsection{Voting Systems}
-\citet{chamberlin-courant} introduce a system for fully proportional representation in multi-winner elections, where each voter is assigned to one representative, each representative holds a weight proportional to their number of assigned voters, and winners are selected to maximize an objective function.
+\citet{chamberlin-courant} introduce a system for fully proportional representation in multiwinner elections, where each voter is assigned to one representative, each representative holds a weight proportional to their number of assigned voters, and winners are selected to maximize an objective function.
 Our voting algorithms follow this design, but we use range ballots and cardinal utilities instead of their ranked ballots.
 The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
 However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative. Building the slate greedily, as in our \Greedy{} algorithm, achieves at least $1-1/e$ of the optimal total utility \citep{nemhauser-1978, lu-boutilier-2011}.
@@ -141,7 +145,6 @@ As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, eac
 \paragraph{Objective}
 Following \citet{chamberlin-courant,fish-v2}, we model voter utility as their level of agreement with their assigned statement.
 Our pipeline seeks to maximize total voter utility, or related quantities.
-This model suits the goal of representing diverse views, rather than selecting statements with the broadest appeal \citep{faliszewski-multiwinner-2017, lu-boutilier-2011}.
 
 \subsection{Algorithm}
 
