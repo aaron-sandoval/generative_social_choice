@@ -127,7 +127,7 @@ However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so p
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by rounding a linear programming relaxation, using pipage rounding to obtain approximation guarantees.
 Our \LP{} algorithm instead selects the $k$ candidates with the largest fractional selection values and assigns each voter to their most preferred selected candidate. This selection method has precedent in participatory budgeting \citep{sreedurga-2022}.
 
-The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citep{horton-2025} do for the problem of facility location.
+The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
 
 We do not evaluate other common multiwinner rules such as proportional approval voting, Phragm\'{e}n's sequential method \citep{janson_phragmens_2016}, and the method of equal shares \citep{peters_proportional_2022}, since they consider a voter's satisfaction with all winners rather than only with their assigned representative.
 
@@ -382,6 +382,7 @@ The axioms are criteria expressed in terms of the algorithm's selected voter ass
 To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums.
 Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice.
 We consider an axiom to have failed only if a counterexample ballot profile that does not contain such a collision can be specified.
+Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector realized by an assignment $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ denote its ascending sort.
 
 \paragraph{Symmetry}
 Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
@@ -393,15 +394,19 @@ Linearly scaling all utilities by a positive constant never changes $\omega$.
 Increasing (decreasing) a voter’s rating for a winning (losing) candidate never causes that candidate to lose (win).
 
 \paragraph{Individual Pareto Efficiency}
-No $\omega'$ increases total utility without decreasing any individual voter's utility.
+No $\omega'$ \emph{Pareto-dominates} $\omega$, meaning no $\omega'$ increases total utility without decreasing any individual voter's utility.
+Formally, $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$ with at least one strict inequality.
 
 \paragraph{Sorted Pareto Efficiency \citep{sorted-pareto}}
-No $\omega'$ has a sorted utility vector that Pareto-dominates that of $\omega$.
+No $\omega'$ \emph{sorted-Pareto-dominates} $\omega$, meaning no $\omega'$ has a sorted utility vector that Pareto-dominates that of $\omega$.
+Formally, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$ with at least one strict inequality.
+Sorted Pareto Efficiency implies Individual Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
 
 \paragraph{Generalized Lorenz Efficiency \citep{shorrocks-1983}}
-No $\omega'$ has a dominating generalized Lorenz curve.
-Equivalently, let $u_{\omega}$ be the voter utility vector on the selected slate, and let $u_{\omega'}$ be the voter utility vector for some $\omega'$.
-When all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters.
+No $\omega'$ \emph{generalized-Lorenz-dominates} $\omega$, meaning no $\omega'$ has a generalized Lorenz curve that dominates that of $\omega$.
+Formally, $\sum_{\ell=1}^{j}u_{\omega',(\ell)}\ge\sum_{\ell=1}^{j}u_{\omega,(\ell)}$ for all $j$ with at least one strict inequality.
+Equivalently, when all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters without reversing their order \citep[Thm.~1]{kostreva-ogryczak-wierzbicki-2004}.
+Generalized Lorenz Efficiency implies Sorted Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
 
 \paragraph{Egalitarian--Utilitarian Efficiency}
 No $\omega'$ has both greater total and minimum utility.
@@ -409,9 +414,6 @@ No $\omega'$ has both greater total and minimum utility.
 \paragraph{Non-radical Utilitarianism}
 No $\omega'$ has marginally lower total utility and substantially higher minimum utility.
 More formally, with the selected slate $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
-
-
-Generalized Lorenz Efficiency implies Sorted Pareto Efficiency, which in turn implies Individual Pareto Efficiency (for proof see \Cref{app:axiom-implications}).
 
 We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}.
 \Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for opinion condensation.
@@ -481,7 +483,7 @@ The simplex solver we use has an exponential worst case; an interior-point metho
 
 Independence of Common Scale
 & \Pass
-& \Fail
+& \Fail\tablefootnote{The Kolm--Pollak EDE is invariant to a common additive shift of utilities rather than to a common scaling \citep{blackorby-donaldson-1980}; see \Cref{app:exactp-ics}.}
 & \Pass
 & \Pass
 & \Pass
@@ -525,8 +527,8 @@ Sorted Pareto Efficiency
 & \Fail \\
 
 Generalized Lorenz Efficiency
-& \Pass
-& \Pass
+& \Pass\tablefootnote{Total utility is only weakly Schur-convex \citep{kostreva-ogryczak-wierzbicki-2004}, so satisfaction depends on the no-ties condition of \Cref{sec:axioms}.}
+& \Pass\tablefootnote{Shown by \citet[Cor.~2]{kostreva-ogryczak-wierzbicki-2004} for any strictly concave, increasing utility transformation, and without need for the no-ties condition.}
 & \Fail
 & \Fail
 & \Fail
@@ -602,11 +604,12 @@ These issues remain significant obstacles to real-world deployment.
 
 \paragraph{Non-radical Utilitarianism}
 This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function.
-However, the choice of minimum utility as the measure of egalitarianism imposes a subjective judgment incompatible with other measures of egalitarianism \citep{atkinson-1970}.
+A voting rule should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
+However, the choice of minimum utility as the egalitarianism SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
 There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
-Since no scalar-valued social welfare function can fully capture the idea of fairness, this axiom's reliance on minimum utility as an egalitarian measure is overly constraining.
+This axiom is overly constraining.
 
-Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being introduced specifically to achieve more egalitarian outcomes.
+Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being implemented specifically to achieve more egalitarian outcomes.
 Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
 
 \paragraph{Strategic voting}
@@ -828,18 +831,11 @@ The solver-dependence discussion above therefore applies with $nm$ replaced by $
 \section{Proofs of Axiom Satisfaction and Implications}
 \label{app:axiom-proofs}
 We first prove the implications among efficiency axioms stated in \Cref{sec:axioms}, then prove the axioms satisfied by \Exact{}.
-Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, voter $i$'s realized utility is $U_{i,\omega(i)}$, and we write $u_\omega\in\mathbb{R}_{\ge0}^n$ for the resulting utility vector.
+Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, and $u_\omega\in\mathbb{R}_{\ge0}^n$ is the utility vector of \Cref{sec:axioms}.
 As in \Cref{sec:axioms}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
 
 \subsection{Axiom implications} \label{app:axiom-implications}
-Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector of an outcome $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ be its ascending sort.
-We say $u_{\omega'}$:
-\begin{itemize}
-\item \emph{Pareto-dominates} $u_\omega$ if $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$ with one strict inequality;
-\item \emph{sorted-Pareto-dominates} $u_\omega$ if $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$ with one strict inequality;
-\item \emph{generalized-Lorenz-dominates} $u_\omega$ if, up to anonymization, $u_{\omega'}$ can be obtained from $u_\omega$ by a non-empty series of operations, each either granting a positive amount of utility to one voter or transferring utility from a higher-utility voter to a lower-utility voter without reversing their order (\Cref{sec:axioms}).
-\end{itemize}
-An outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
+We use the dominance relations defined in \Cref{sec:axioms}, and say that an outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
 
 \paragraph{Lemma (monotone order statistics)} If $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, then $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$.
 Using the minimax form $u_{\omega,(\ell)}=\min_{|S|=\ell}\max_{i\in S}U_{i,\omega(i)}$, every set $S$ satisfies $\max_{i\in S}U_{i,\omega'(i)}\ge\max_{i\in S}U_{i,\omega(i)}$, so the minimum over $S$ inherits the inequality.
@@ -892,7 +888,7 @@ By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficien
 \section{Reasoning and Counterexample Ballot Profiles for Axiom Failures}
 \label{app:voting-failures}
 
-\Cref{tab:failure-exact-scale,tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity,tab:failure-monroe-egal-util,tab:failure-monroe-nru} provide representative counterexamples for the observed axiom failures discussed in the main text.
+\Cref{tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity,tab:failure-monroe-egal-util,tab:failure-monroe-nru} provide representative counterexamples for the observed axiom failures discussed in the main text.
 Table~\ref{tab:egal-util-strict} illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
 
 \begin{table}[t]
@@ -1010,49 +1006,17 @@ The ratio \(\epsilon/\delta = 1/(2\delta)\) can be made arbitrarily large by tak
 Therefore \ExactP{} violates Non-radical Utilitarianism.
 
 The same profile is a counterexample for every \(p>1\), hence \ExactP{} fails Non-radical Utilitarianism for all \(p>1\).
+This is expected of any scalar inequality-averse objective: an arbitrarily large \(\epsilon/\delta\) tradeoff amounts to lexicographic priority for the worst-off voter, which is instead obtained by lexicographic maximin optimization \citep{luss-1999, kostreva-ogryczak-wierzbicki-2004}.
 %, and in particular in the limit \(p\to1^{+}\).
 %counterexamples for larger \(p\) follow from the same mechanism (a steep region of \(f\) amplifying several small per-voter losses) and can be located by adversarial search.
 %Hence Exact$(p>1)$ fails Non-radical Utilitarianism for all \(p>1\).
 
 \subsection{\ExactP{} fails Independence of Common Scale}
+\label{app:exactp-ics}
 
-Because the geometric transformation
-\[
-f(u)=\frac{1-(1/p)^u}{1-(1/p)}
-\]
-is nonlinear, scaling all utilities by a positive constant need not preserve the ordering of slates under the transformed objective.
-\Cref{tab:failure-exact-scale} gives a simple counterexample for \(k=1\) with \(p=1.5\).
-
-\begin{table}[t]
-\centering
-\begin{tabular}{l|cc}
-\hline
- & $a_1$ & $a_2$ \\
-\hline
-Voter 1 & 3 & 1 \\
-Voter 2 & 0 & 1 \\
-\hline
-\end{tabular}
-\caption{Counterexample showing that \textsc{Exact}$(p=1.5)$ fails Independence of Common Scale for \(k=1\).
-Before scaling, the transformed objective prefers \(a_1\); after multiplying all utilities by 2, it prefers \(a_2\).}
-\label{tab:failure-exact-scale}
-\end{table}
-
-Before scaling, the transformed totals are
-\[
-f(3)+f(0)=2.111\ldots, \qquad f(1)+f(1)=2,
-\]
-so the algorithm selects \(a_1\).
-After scaling all utilities by 2, the profile becomes
-\[
-(6,0)\text{ for } a_1, \qquad (2,2)\text{ for } a_2,
-\]
-with transformed totals
-\[
-f(6)+f(0)\approx 2.737, \qquad f(2)+f(2)\approx 3.333,
-\]
-so the algorithm instead selects \(a_2\).
-Hence \ExactP{} violates Independence of Common Scale.
+This failure is a known property of the Kolm--Pollak EDE \citep{kolm-1976, blackorby-donaldson-1980}.
+A counterpart to this EDE is the Atkinson family \citep{atkinson-1970}, which satisfies Independence of Common Scale, but fails a similar axiom of Independence of Common Shift: adding a constant to all utilities never changes $\omega$.
+\ExactP{} satisfies this axiom \citep{blackorby-donaldson-1980}.
 
 \subsection{Worst-Case Behavior of \LP{}}
 \label{app:lp-worst}
