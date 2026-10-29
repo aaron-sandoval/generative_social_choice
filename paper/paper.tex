@@ -95,7 +95,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
 \begin{itemize}
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
-    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs when a tunable egalitarian utility transformation is applied; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) while axiomatic guarantees are weaker for algorithms that compute a polynomial time approximation, these algorithms perform competitively with an exponential time exact solution on the SWFs.
+    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs than baselines that directly optimize minimum utility; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) while axiomatic guarantees are weaker for algorithms that compute a polynomial time approximation, these algorithms perform competitively with an exponential time exact solution on the SWFs.
     This suggests that these approximate solutions could be practical alternatives in terms of solution quality, though testing on more datasets is necessary.
 \end{itemize}
 
@@ -512,7 +512,7 @@ Monotonicity
 Individual Pareto Efficiency
 & \Pass
 & \Pass
-& \Fail
+& \Fail\tablefootnote{Shown by \citet{lackner-skowron-2020} Example 4 for approval ballots, a special case of range ballots for which \Greedy{} is equivalent to sequential Chamberlin--Courant.}
 & \Fail
 & \Fail
 & \Fail
