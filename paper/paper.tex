@@ -30,6 +30,7 @@
 \newcommand{\Greedy}{\textsc{Greedy}}
 \newcommand{\LP}{\textsc{LP}}
 \newcommand{\Monroe}{\textsc{Monroe}}
+\newcommand{\GreedyMonroe}{\textsc{GreedyMonroe}}
 
 \title{Chamberlin-Courant Elections with Generative Social Choice}
 
@@ -359,20 +360,20 @@ The total transformed utility \(\sum_i f(U_{i,\omega(i)})\) is a strictly increa
 The parameter \(p\) interpolates between utilitarian social welfare (total utility) as \(p\to1\) and egalitarian social welfare (minimum utility) as \(p\to\infty\).
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias for most results.
 
-\paragraph{\Monroe(equal, greedy) \citep{skowron-2015}}
+\paragraph{\GreedyMonroe{} \citep{skowron-2015}}
 The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
 We make a best-effort adaptation of the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile.
 The slate is built in \(k\) rounds.
 In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters.
 The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it.
 
-\paragraph{\Monroe(equal, optimal)}
-Start with \Monroe(equal, greedy).
+\paragraph{\GreedyMonroe(reassign)}
+Start with \GreedyMonroe{}.
 Then, holding the selected slate fixed, the final assignment is recomputed to maximize total utility subject to the constituency-size constraint: each winner must be assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters.
 We solve this assignment with an integer linear program.
 
-\paragraph{\Monroe(free)}
-Start with \Monroe(equal, greedy).
+\paragraph{\GreedyMonroe(CC reassign)}
+Start with \GreedyMonroe{}.
 Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
 
 \subsection{Axioms}
@@ -466,7 +467,7 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccccccc}
 \hline
- & \Exact{} & \ExactP{} & \Greedy{} & \LP{} & \makecell{\Monroe\\(eq, greedy)} & \makecell{\Monroe\\(eq, opt)} & \makecell{\Monroe\\(free)} \\
+ & \Exact{} & \ExactP{} & \Greedy{} & \LP{} & \GreedyMonroe{} & \makecell{\GreedyMonroe\\(reassign)} & \makecell{\GreedyMonroe\\(CC reassign)} \\
 \hline
 Time Complexity
 & $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}
@@ -574,7 +575,7 @@ We also evaluate each voting algorithm on the social welfare functions from \Cre
 Using the 20 ballot profiles generated from GenerativeCC in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
-\Monroe(equal, greedy), our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others.
+\GreedyMonroe{}, our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others.
 However, most of this loss is recovered by both of the other \Monroe{} variants.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
@@ -824,7 +825,7 @@ It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the \LP{} variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
 
-\paragraph{\Monroe(equal, optimal) assignment} The final assignment step of \Monroe(equal, optimal) solves an integer program over $nk$ variables (\Cref{sec:voting-algorithms}).
+\paragraph{\GreedyMonroe(reassign)} The final assignment step of \GreedyMonroe(reassign) solves an integer program over $nk$ variables (\Cref{sec:voting-algorithms}).
 Its constraint matrix is the incidence matrix of a bipartite graph and hence totally unimodular, so the LP relaxation has only integral vertices and solving the relaxation solves the integer program.
 The solver-dependence discussion above therefore applies with $nm$ replaced by $nk$: simplex-based solvers (including the branch-and-bound root solve in our Gurobi implementation) have an exponential worst case, while an interior-point method with crossover to a vertex yields $O((nk)^3)$.
 
@@ -1104,7 +1105,7 @@ Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional poi
 \subsection{\Monroe{} fails Egalitarian--Utilitarian Efficiency}
 \label{app:monroe-egal-util}
 
-All three \Monroe{} variants share the greedy selection procedure of \Monroe(equal, greedy) described in \Cref{sec:voting-algorithms}.
+All three \Monroe{} variants share the greedy selection procedure of \GreedyMonroe{} described in \Cref{sec:voting-algorithms}.
 \Cref{tab:failure-monroe-egal-util} demonstrates a failure to select an efficient slate, producing a failing voter assignment for all \Monroe{} variants.
 
 \begin{table}[t]
