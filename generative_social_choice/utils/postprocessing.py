@@ -91,6 +91,25 @@ def _method_color_index(label: str) -> int:
     return min(6 + (abs(hash(s)) % max(1, len(METHOD_COLORS) - 6)), len(METHOD_COLORS) - 1)
 
 
+def _figure_layout(legend_loc: str) -> Optional[str]:
+    """Figure layout engine to use with `legend_loc`. "outside ..." legend locations need constrained layout."""
+    return "constrained" if legend_loc.startswith("outside") else None
+
+
+def _add_legend(fig: plt.Figure, ax: plt.Axes, legend_loc: str, font_size: float, ncol: int = 1) -> None:
+    """
+    Add a legend for the labeled artists of `ax`.
+
+    Locations prefixed with "outside" (e.g. "outside lower center", "outside right upper") place the legend
+    outside the axes in space reserved by constrained layout, so it never overlaps the data. These require the
+    figure to have been created with `layout=_figure_layout(legend_loc)`.
+    """
+    if legend_loc.startswith("outside"):
+        fig.legend(*ax.get_legend_handles_labels(), loc=legend_loc, fontsize=font_size, ncol=ncol)
+    else:
+        ax.legend(loc=legend_loc, fontsize=font_size, ncol=ncol)
+
+
 # Default font size for collect_results_and_plot figures (labels, ticks, legend)
 PLOT_FONT_SIZE = 16
 # Supported figure file formats for saving
@@ -1904,13 +1923,16 @@ def plot_scalar_clustered_confidence_intervals(
         bar_index_level: Literal[0, 1] = 0,
         y_label: str = "",
         fig_size: Optional[tuple[float, float]] = None,
-        legend_loc: Literal["best", "upper left", "upper right", "lower left", "lower right", "center left", "center right", "lower center", "upper center", "center"] = "best",
+        legend_loc: str = "best",
         secondary_axis_df: Optional[pd.DataFrame] = None,
         secondary_y_label: Optional[str] = None,
         tertiary_axis_df: Optional[pd.DataFrame] = None,
         tertiary_y_label: Optional[str] = None,
         font_size: Optional[float] = None,
         color_by_position: bool = False,
+        cluster_width: float = 0.8,
+        cluster_gap: float = 1.0,
+        legend_ncol: int = 1,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
@@ -1956,6 +1978,11 @@ def plot_scalar_clustered_confidence_intervals(
         color_by_position: If True, color each series by its position in the
             plotting order rather than by its method name. Use for series that
             have no fixed color meaning, such as voting algorithms.
+        cluster_width: Horizontal span of the points within each cluster.
+        cluster_gap: Horizontal space between the outermost points of adjacent clusters.
+        legend_ncol: Number of legend columns. Legend locations prefixed with "outside"
+            (e.g. "outside lower center") place the legend outside the axes so it never
+            overlaps the data.
 
     Returns:
         plt.Figure: The generated matplotlib figure
@@ -2038,10 +2065,11 @@ def plot_scalar_clustered_confidence_intervals(
         
         # Create width ratios for gridspec
         width_ratios = [primary_width / total_width, secondary_width / total_width, tertiary_width / total_width]
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=fig_size, 
-                                          gridspec_kw={'width_ratios': width_ratios})
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=fig_size,
+                                          gridspec_kw={'width_ratios': width_ratios},
+                                          layout=_figure_layout(legend_loc))
         axes = [ax1, ax2, ax3]
-        datasets = [(bar_labels, metrics, processed_data), 
+        datasets = [(bar_labels, metrics, processed_data),
                    (secondary_bar_labels, secondary_metrics, secondary_processed_data),
                    (tertiary_bar_labels, tertiary_metrics, tertiary_processed_data)]
     elif has_secondary:
@@ -2049,26 +2077,29 @@ def plot_scalar_clustered_confidence_intervals(
         primary_width = len(metrics)
         secondary_width = len(secondary_metrics)
         total_width = primary_width + secondary_width
-        
+
         # Create width ratios for gridspec
         width_ratios = [primary_width / total_width, secondary_width / total_width]
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=fig_size, 
-                                      gridspec_kw={'width_ratios': width_ratios})
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=fig_size,
+                                      gridspec_kw={'width_ratios': width_ratios},
+                                      layout=_figure_layout(legend_loc))
         axes = [ax1, ax2]
-        datasets = [(bar_labels, metrics, processed_data), 
+        datasets = [(bar_labels, metrics, processed_data),
                    (secondary_bar_labels, secondary_metrics, secondary_processed_data)]
     else:
-        fig, ax = plt.subplots(figsize=fig_size)
+        fig, ax = plt.subplots(figsize=fig_size, layout=_figure_layout(legend_loc))
         axes = [ax]
         datasets = [(bar_labels, metrics, processed_data)]
-    
+
+    # Margin between the outermost points and the axis edge
+    x_margin = cluster_width / 2 + 0.2
+
     # Plot data on each axis
     for ax_idx, (current_ax, (current_bar_labels, current_metrics, current_processed_data)) in enumerate(zip(axes, datasets)):
         # Set up the x positions for each cluster
-        cluster_width = 0.8
-        x = np.arange(len(current_metrics)) * (1.0 + cluster_width)
-        
+        x = np.arange(len(current_metrics)) * (cluster_gap + cluster_width)
+
         # Calculate offset spacing for points within each cluster
         point_spacing = cluster_width / max(1, len(current_bar_labels) - 1) if len(current_bar_labels) > 1 else 0
         
@@ -2086,7 +2117,7 @@ def plot_scalar_clustered_confidence_intervals(
                 offset = point_spacing * (i - (len(current_bar_labels)-1)/2)
             
             x_positions = x + offset
-            
+
             # Calculate error bar deltas (errorbar expects deltas, not absolute values)
             yerr_lower = [means[j] - lower_bounds[j] for j in range(len(means))]
             yerr_upper = [upper_bounds[j] - means[j] for j in range(len(means))]
@@ -2115,14 +2146,9 @@ def plot_scalar_clustered_confidence_intervals(
         current_ax.set_xticks(x)
         current_ax.set_xticklabels(current_metrics, rotation=0, fontsize=font_size)
         current_ax.tick_params(axis='y', labelsize=font_size)
-        
-        # Adjust x-axis limits for better appearance, especially with single clusters
-        if len(current_metrics) == 1:
-            # For single cluster, center it with reasonable margins
-            current_ax.set_xlim(-0.6, 0.6)
-        else:
-            # For multiple clusters, use default behavior with small margins
-            current_ax.set_xlim(x[0] - 0.6, x[-1] + 0.6)
+
+        # Fit the x-axis to the clusters with small margins
+        current_ax.set_xlim(x[0] - x_margin, x[-1] + x_margin)
         
         # Let y-axis limits float freely to bound the data (including CIs)
         all_lower = []
@@ -2143,11 +2169,12 @@ def plot_scalar_clustered_confidence_intervals(
         # Add legend with automatic positioning to minimize data overlap
         # Only add legend if it's the first subplot or if legends are different
         if (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends):
-            current_ax.legend(loc=legend_loc, fontsize=font_size)
-    
+            _add_legend(fig, current_ax, legend_loc, font_size, ncol=legend_ncol)
+
     # Adjust layout
-    plt.tight_layout()
-    
+    if _figure_layout(legend_loc) is None:
+        plt.tight_layout()
+
     return fig
 
 

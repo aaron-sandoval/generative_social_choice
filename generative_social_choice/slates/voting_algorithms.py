@@ -555,6 +555,105 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
 
 
 @dataclass(frozen=True)
+class ExactMinimumUtilityMaximization(VotingAlgorithm):
+    """
+    Egalitarian Chamberlin-Courant: select the slate maximizing the minimum utility of any voter,
+    where each voter is assigned to their favorite candidate in the slate.
+
+    Solved exactly as an integer program. Many slates typically achieve the optimal minimum utility, and
+    the solver would return an arbitrary one of them. So with `utilitarian_tiebreak`, a second integer
+    program selects the slate with the highest total utility among those achieving the optimal minimum.
+
+    # Arguments
+    - `utilitarian_tiebreak: bool = True`: Whether to break ties in minimum utility by total utility
+    """
+    utilitarian_tiebreak: bool = True
+
+    @property
+    def display_name(self) -> str:
+        return f"Exact(egalitarian{'' if self.utilitarian_tiebreak else ', no tiebreak'})"
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        def solve(objective: Literal["minimum", "total"], min_utility: Optional[float] = None) -> list[str]:
+            """Solve the integer program and return the selected slate.
+
+            If `min_utility` is given, agents may only be assigned to statements giving them at least that utility."""
+            prob = pulp.LpProblem(f"Maximize_{objective}_Utility", pulp.LpMaximize)
+
+            # Decision variables
+            x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+            y = [
+                [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+                for i in range(num_agents)
+            ]
+            agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
+
+            if objective == "minimum":
+                z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on every agent's utility
+                prob += z, "MinimumUtility"
+                for i in range(num_agents):
+                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
+            else:
+                prob += pulp.lpSum(agent_utility), "TotalUtility"
+
+            # Select exactly k statements
+            prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+            # Each agent is assigned to exactly one statement
+            for i in range(num_agents):
+                prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+            # An agent can only be assigned to a selected statement
+            for i in range(num_agents):
+                for j in range(num_statements):
+                    prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+            # Forbid assignments below the minimum utility. Comparing against the data directly, rather than
+            # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
+            if min_utility is not None:
+                for i in range(num_agents):
+                    for j in range(num_statements):
+                        if U[i][j] < min_utility:
+                            y[i][j].upBound = 0
+
+            prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+            if pulp.LpStatus[prob.status] != "Optimal":
+                raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
+
+            return [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+
+        slate = solve("minimum")
+        if self.utilitarian_tiebreak:
+            # The optimal minimum utility, read from the data rather than the solver's objective value
+            optimal_min_utility = rated_votes.loc[:, slate].max(axis=1).min()
+            slate = solve("total", min_utility=optimal_min_utility)
+
+        # Assign each agent to their favorite statement in the slate
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(rated_votes.loc[:, slate].idxmax(axis=1), index=assignments.index, dtype=str)
+        assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
+
+        return slate, assignments
+
+
+@dataclass(frozen=True)
 class ExactTotalUtilityMaximizationBruteSearch(VotingAlgorithm):
     """Brute-force search over all slates of size k to maximize total utility."""
 
@@ -801,11 +900,11 @@ class StepwiseMonroe(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        # These names match the \paragraph headings in paper_draft.tex.
+        # These names match the \paragraph headings in paper/paper.tex.
         return {
-            "greedy_equal": "Monroe(equal, greedy)",
-            "free": "Monroe(free)",
-            "optimal_equal": "Monroe(equal, optimal)",
+            "greedy_equal": "GreedyMonroe",
+            "free": "GreedyMonroe(CC reassign)",
+            "optimal_equal": "GreedyMonroe(reassign)",
         }[self.final_assignment]
 
     @override
