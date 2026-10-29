@@ -96,18 +96,21 @@ def _figure_layout(legend_loc: str) -> Optional[str]:
     return "constrained" if legend_loc.startswith("outside") else None
 
 
-def _add_legend(fig: plt.Figure, ax: plt.Axes, legend_loc: str, font_size: float, ncol: int = 1) -> None:
+def _add_legend(
+    fig: plt.Figure, ax: plt.Axes, legend_loc: str, font_size: float, ncol: int = 1, frameon: bool = True
+) -> None:
     """
     Add a legend for the labeled artists of `ax`.
 
     Locations prefixed with "outside" (e.g. "outside lower center", "outside right upper") place the legend
     outside the axes in space reserved by constrained layout, so it never overlaps the data. These require the
     figure to have been created with `layout=_figure_layout(legend_loc)`.
+    `frameon=False` removes the legend's outline and background.
     """
     if legend_loc.startswith("outside"):
-        fig.legend(*ax.get_legend_handles_labels(), loc=legend_loc, fontsize=font_size, ncol=ncol)
+        fig.legend(*ax.get_legend_handles_labels(), loc=legend_loc, fontsize=font_size, ncol=ncol, frameon=frameon)
     else:
-        ax.legend(loc=legend_loc, fontsize=font_size, ncol=ncol)
+        ax.legend(loc=legend_loc, fontsize=font_size, ncol=ncol, frameon=frameon)
 
 
 # Default font size for collect_results_and_plot figures (labels, ticks, legend)
@@ -1928,20 +1931,24 @@ def plot_scalar_clustered_confidence_intervals(
         secondary_y_label: Optional[str] = None,
         tertiary_axis_df: Optional[pd.DataFrame] = None,
         tertiary_y_label: Optional[str] = None,
+        quaternary_axis_df: Optional[pd.DataFrame] = None,
+        quaternary_y_label: Optional[str] = None,
         font_size: Optional[float] = None,
         color_by_position: bool = False,
         cluster_width: float = 0.8,
         cluster_gap: float = 1.0,
         legend_ncol: int = 1,
+        legend_frameon: bool = True,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
 
     Plots all columns in `df` as points with vertical confidence intervals.
     Each column is a separate cluster. The y-axis limits float freely to bound
-    the range of the data including confidence intervals. If secondary_axis_df
-    is provided, creates a second subplot in the same row. If tertiary_axis_df
-    is also provided, creates a third subplot in the same row.
+    the range of the data including confidence intervals, separately for each
+    subplot. If secondary_axis_df is provided, creates a second subplot in the
+    same row. If tertiary_axis_df and quaternary_axis_df are also provided,
+    creates a third and fourth subplot in the same row.
 
     Args:
         df: DataFrame with a 2-level row MultiIndex including bar labels and 
@@ -1975,6 +1982,9 @@ def plot_scalar_clustered_confidence_intervals(
         tertiary_y_label: Optional y-axis label for the third subplot. If None
             and tertiary_axis_df is provided, the third subplot will have no
             y-axis label.
+        quaternary_axis_df: Optional DataFrame with the same structure as df to
+            plot on a fourth subplot. Requires tertiary_axis_df.
+        quaternary_y_label: Optional y-axis label for the fourth subplot.
         color_by_position: If True, color each series by its position in the
             plotting order rather than by its method name. Use for series that
             have no fixed color meaning, such as voting algorithms.
@@ -1983,6 +1993,7 @@ def plot_scalar_clustered_confidence_intervals(
         legend_ncol: Number of legend columns. Legend locations prefixed with "outside"
             (e.g. "outside lower center") place the legend outside the axes so it never
             overlaps the data.
+        legend_frameon: Whether to draw the legend's outline and background.
 
     Returns:
         plt.Figure: The generated matplotlib figure
@@ -1990,6 +2001,8 @@ def plot_scalar_clustered_confidence_intervals(
     # Assert that if tertiary data is provided, secondary data must also be provided
     assert tertiary_axis_df is None or secondary_axis_df is not None, \
         "tertiary_axis_df requires secondary_axis_df to be provided"
+    assert quaternary_axis_df is None or tertiary_axis_df is not None, \
+        "quaternary_axis_df requires tertiary_axis_df to be provided"
     if colors is None:
         colors = DEFAULT_COLORS if color_by_position else METHOD_COLORS
     if font_size is None:
@@ -2008,89 +2021,42 @@ def plot_scalar_clustered_confidence_intervals(
         idx = label_positions.get(label, 0) if color_by_position else _method_color_index(label)
         return colors[idx % len(colors)]
     
-    # Check if we need a secondary or tertiary axis
-    has_secondary = secondary_axis_df is not None
-    has_tertiary = tertiary_axis_df is not None
-    
-    # Preprocess secondary data if provided
-    if has_secondary:
-        secondary_bar_labels, secondary_metrics, secondary_processed_data = _preprocess_clustered_ci_data(
-            secondary_axis_df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+    # Each subplot is (DataFrame, y-axis label), in left-to-right order
+    panels: list[tuple[pd.DataFrame, Optional[str]]] = [(df, y_label)]
+    for extra_df, extra_y_label in (
+        (secondary_axis_df, secondary_y_label),
+        (tertiary_axis_df, tertiary_y_label),
+        (quaternary_axis_df, quaternary_y_label),
+    ):
+        if extra_df is not None:
+            panels.append((extra_df, extra_y_label))
+
+    # Preprocess the data of the additional subplots
+    datasets = [(bar_labels, metrics, processed_data)] + [
+        _preprocess_clustered_ci_data(
+            panel_df, bar_index, error_bar_lower_index, error_bar_upper_index,
             bar_index_level
         )
-        
-        # Check if bar labels are different to determine if we need separate legends
-        need_separate_legends = set(bar_labels) != set(secondary_bar_labels)
-    else:
-        secondary_bar_labels = None
-        secondary_metrics = None
-        secondary_processed_data = None
-        need_separate_legends = False
-    
-    # Preprocess tertiary data if provided
-    if has_tertiary:
-        tertiary_bar_labels, tertiary_metrics, tertiary_processed_data = _preprocess_clustered_ci_data(
-            tertiary_axis_df, bar_index, error_bar_lower_index, error_bar_upper_index, 
-            bar_index_level
-        )
-        
-        # Check if bar labels are different to determine if we need separate legends
-        if not need_separate_legends:
-            need_separate_legends = (set(bar_labels) != set(tertiary_bar_labels) or
-                                   set(secondary_bar_labels) != set(tertiary_bar_labels))
-    else:
-        tertiary_bar_labels = None
-        tertiary_metrics = None
-        tertiary_processed_data = None
-    
+        for panel_df, _ in panels[1:]
+    ]
+
+    # If the bar labels differ between subplots, each subplot needs its own legend
+    need_separate_legends = len({frozenset(labels) for labels, _, _ in datasets}) > 1
+
     # Create figure and axes
     if fig_size is None:
-        if has_tertiary:
-            # Base width on total number of metrics across all three subplots
-            total_metrics = len(metrics) + len(secondary_metrics) + len(tertiary_metrics)
-            fig_size = (max(6.0, 1.2*total_metrics), 4)  # Width based on total metrics
-        elif has_secondary:
-            # Base width on total number of metrics across both subplots
-            total_metrics = len(metrics) + len(secondary_metrics)
-            fig_size = (max(4.0, 1.2*total_metrics), 4)  # Width based on total metrics
-        else:
-            fig_size = (max(2.5, 1.2*len(df.columns)), 4)
-    
-    if has_tertiary:
-        # Calculate relative widths based on number of clusters (metrics) in each subplot
-        primary_width = len(metrics)
-        secondary_width = len(secondary_metrics)
-        tertiary_width = len(tertiary_metrics)
-        total_width = primary_width + secondary_width + tertiary_width
-        
-        # Create width ratios for gridspec
-        width_ratios = [primary_width / total_width, secondary_width / total_width, tertiary_width / total_width]
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=fig_size,
-                                          gridspec_kw={'width_ratios': width_ratios},
-                                          layout=_figure_layout(legend_loc))
-        axes = [ax1, ax2, ax3]
-        datasets = [(bar_labels, metrics, processed_data),
-                   (secondary_bar_labels, secondary_metrics, secondary_processed_data),
-                   (tertiary_bar_labels, tertiary_metrics, tertiary_processed_data)]
-    elif has_secondary:
-        # Calculate relative widths based on number of clusters (metrics) in each subplot
-        primary_width = len(metrics)
-        secondary_width = len(secondary_metrics)
-        total_width = primary_width + secondary_width
+        # Base width on total number of metrics across all subplots
+        total_metrics = sum(len(panel_metrics) for _, panel_metrics, _ in datasets)
+        min_width = {1: 2.5, 2: 4.0, 3: 6.0}.get(len(panels), 2.0 * len(panels))
+        fig_size = (max(min_width, 1.2*total_metrics), 4)
 
-        # Create width ratios for gridspec
-        width_ratios = [primary_width / total_width, secondary_width / total_width]
-
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=fig_size,
-                                      gridspec_kw={'width_ratios': width_ratios},
-                                      layout=_figure_layout(legend_loc))
-        axes = [ax1, ax2]
-        datasets = [(bar_labels, metrics, processed_data),
-                   (secondary_bar_labels, secondary_metrics, secondary_processed_data)]
-    else:
-        fig, ax = plt.subplots(figsize=fig_size, layout=_figure_layout(legend_loc))
-        axes = [ax]
-        datasets = [(bar_labels, metrics, processed_data)]
+    # Width of each subplot is proportional to its number of clusters (metrics), to maintain consistent
+    # cluster spacing
+    width_ratios = [len(panel_metrics) for _, panel_metrics, _ in datasets]
+    fig, axes = plt.subplots(1, len(panels), figsize=fig_size, squeeze=False,
+                             gridspec_kw={'width_ratios': width_ratios},
+                             layout=_figure_layout(legend_loc))
+    axes = list(axes[0])
 
     # Margin between the outermost points and the axis edge
     x_margin = cluster_width / 2 + 0.2
@@ -2124,7 +2090,7 @@ def plot_scalar_clustered_confidence_intervals(
             
             # Plot points with error bars using matplotlib's built-in errorbar function
             # Only add label for legend if it's the first subplot or if legends are different
-            show_label = (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends)
+            show_label = (ax_idx == 0) or need_separate_legends
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
                        fmt='o', color=_color_for(str(label)),
@@ -2132,17 +2098,10 @@ def plot_scalar_clustered_confidence_intervals(
                        label=label if show_label else None)
         
         # Customize plot
-        # Set y-label based on axis and y_label parameters
-        if ax_idx == 0:
-            # First axis always uses y_label
-            current_ax.set_ylabel(y_label, fontsize=font_size)
-        elif ax_idx == 1 and secondary_y_label is not None:
-            # Second axis uses secondary_y_label if provided
-            current_ax.set_ylabel(secondary_y_label, fontsize=font_size)
-        elif ax_idx == 2 and tertiary_y_label is not None:
-            # Third axis uses tertiary_y_label if provided
-            current_ax.set_ylabel(tertiary_y_label, fontsize=font_size)
-        # If y_label is None for secondary/tertiary, no y-label is set
+        # If the y-label of an additional subplot is None, no y-label is set
+        panel_y_label = panels[ax_idx][1]
+        if panel_y_label is not None:
+            current_ax.set_ylabel(panel_y_label, fontsize=font_size)
         current_ax.set_xticks(x)
         current_ax.set_xticklabels(current_metrics, rotation=0, fontsize=font_size)
         current_ax.tick_params(axis='y', labelsize=font_size)
@@ -2168,8 +2127,8 @@ def plot_scalar_clustered_confidence_intervals(
         
         # Add legend with automatic positioning to minimize data overlap
         # Only add legend if it's the first subplot or if legends are different
-        if (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends):
-            _add_legend(fig, current_ax, legend_loc, font_size, ncol=legend_ncol)
+        if (ax_idx == 0) or need_separate_legends:
+            _add_legend(fig, current_ax, legend_loc, font_size, ncol=legend_ncol, frameon=legend_frameon)
 
     # Adjust layout
     if _figure_layout(legend_loc) is None:
