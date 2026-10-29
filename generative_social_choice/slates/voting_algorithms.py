@@ -986,6 +986,92 @@ class StepwiseMonroe(VotingAlgorithm):
 
 
 @dataclass(frozen=True)
+class ExactMonroe(VotingAlgorithm):
+    """
+    Exact Monroe rule: jointly select the slate and an assignment of equal-sized constituencies of voters
+    to its members, maximizing total utility.
+
+    Each slate member is assigned floor(n/k) or ceil(n/k) voters (exactly n/k when k divides n). Unlike
+    `optimize_monroe_matching`, which finds the optimal such assignment for a fixed slate, this optimizes
+    the slate too, so it is the exact counterpart of `StepwiseMonroe(final_assignment="optimal_equal")`.
+    Solved as an integer program.
+    """
+
+    @property
+    def display_name(self) -> str:
+        return "ExactMonroe"
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        min_coalition_size = num_agents // slate_size
+        max_coalition_size = -(-num_agents // slate_size)  # ceil(n / k)
+
+        prob = pulp.LpProblem("Maximize_Monroe_Utility", pulp.LpMaximize)
+
+        # Decision variables
+        x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+        y = [
+            [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+            for i in range(num_agents)
+        ]
+
+        # Objective function: Maximize total utility
+        prob += pulp.lpSum(U[i][j] * y[i][j] for i in range(num_agents) for j in range(num_statements)), "TotalUtility"
+
+        # Select exactly k statements
+        prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+        # Each agent is assigned to exactly one statement
+        for i in range(num_agents):
+            prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+        # An agent can only be assigned to a selected statement
+        for i in range(num_agents):
+            for j in range(num_statements):
+                prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+        # Each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
+        # Combined with each agent being assigned once, exactly (n mod k) statements get the larger size.
+        for j in range(num_statements):
+            coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
+            prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
+            prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
+
+        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+        if pulp.LpStatus[prob.status] != "Optimal":
+            raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
+
+        slate = [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+
+        candidate_assignments: list[str] = []
+        for i in range(num_agents):
+            for j in range(num_statements):
+                if pulp.value(y[i][j]) > 0.5:  # Assignment made
+                    candidate_assignments.append(rated_votes.columns[j])
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(candidate_assignments, index=assignments.index, dtype=str)
+        assignments["utility"] = [rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments)]
+
+        return slate, assignments
+
+
+@dataclass(frozen=True)
 class ReweightedRangeVoting(VotingAlgorithm):
     """
     Reweighted Range Voting (RRV) algorithm.
