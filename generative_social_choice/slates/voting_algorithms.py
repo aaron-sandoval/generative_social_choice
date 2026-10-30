@@ -989,17 +989,25 @@ class StepwiseMonroe(VotingAlgorithm):
 class ExactMonroe(VotingAlgorithm):
     """
     Exact Monroe rule: jointly select the slate and an assignment of equal-sized constituencies of voters
-    to its members, maximizing total utility.
+    to its members, maximizing total or minimum utility.
 
     Each slate member is assigned floor(n/k) or ceil(n/k) voters (exactly n/k when k divides n). Unlike
     `optimize_monroe_matching`, which finds the optimal such assignment for a fixed slate, this optimizes
-    the slate too, so it is the exact counterpart of `StepwiseMonroe(final_assignment="optimal_equal")`.
-    Solved as an integer program.
+    the slate too, so with `objective="total"` it is the exact counterpart of
+    `StepwiseMonroe(final_assignment="optimal_equal")`. Solved as an integer program.
+
+    # Arguments
+    - `objective: Literal["total", "minimum"] = "total"`: Utility to maximize over the voters' assigned utilities.
+      - `"total"`: Utilitarian Monroe
+      - `"minimum"`: Egalitarian Monroe. Many solutions typically achieve the optimal minimum utility, and the
+        solver would return an arbitrary one of them. So a second integer program selects the solution with
+        the highest total utility among those achieving the optimal minimum.
     """
+    objective: Literal["total", "minimum"] = "total"
 
     @property
     def display_name(self) -> str:
-        return "ExactMonroe"
+        return "ExactMonroe(egalitarian)" if self.objective == "minimum" else "ExactMonroe"
 
     @override
     def vote(
@@ -1022,48 +1030,74 @@ class ExactMonroe(VotingAlgorithm):
         min_coalition_size = num_agents // slate_size
         max_coalition_size = -(-num_agents // slate_size)  # ceil(n / k)
 
-        prob = pulp.LpProblem("Maximize_Monroe_Utility", pulp.LpMaximize)
+        def solve(objective: Literal["minimum", "total"], min_utility: Optional[float] = None) -> tuple[list[str], list[str]]:
+            """Solve the integer program and return the selected slate and each agent's assigned statement.
 
-        # Decision variables
-        x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
-        y = [
-            [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
-            for i in range(num_agents)
-        ]
+            If `min_utility` is given, agents may only be assigned to statements giving them at least that utility."""
+            prob = pulp.LpProblem(f"Maximize_{objective}_Monroe_Utility", pulp.LpMaximize)
 
-        # Objective function: Maximize total utility
-        prob += pulp.lpSum(U[i][j] * y[i][j] for i in range(num_agents) for j in range(num_statements)), "TotalUtility"
+            # Decision variables
+            x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+            y = [
+                [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+                for i in range(num_agents)
+            ]
+            agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
 
-        # Select exactly k statements
-        prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+            if objective == "minimum":
+                z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on every agent's utility
+                prob += z, "MinimumUtility"
+                for i in range(num_agents):
+                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
+            else:
+                prob += pulp.lpSum(agent_utility), "TotalUtility"
 
-        # Each agent is assigned to exactly one statement
-        for i in range(num_agents):
-            prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+            # Select exactly k statements
+            prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
 
-        # An agent can only be assigned to a selected statement
-        for i in range(num_agents):
+            # Each agent is assigned to exactly one statement
+            for i in range(num_agents):
+                prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+            # An agent can only be assigned to a selected statement
+            for i in range(num_agents):
+                for j in range(num_statements):
+                    prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+            # Each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
+            # Combined with each agent being assigned once, exactly (n mod k) statements get the larger size.
             for j in range(num_statements):
-                prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+                coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
+                prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
+                prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
 
-        # Each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
-        # Combined with each agent being assigned once, exactly (n mod k) statements get the larger size.
-        for j in range(num_statements):
-            coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
-            prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
-            prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
+            # Forbid assignments below the minimum utility. Comparing against the data directly, rather than
+            # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
+            if min_utility is not None:
+                for i in range(num_agents):
+                    for j in range(num_statements):
+                        if U[i][j] < min_utility:
+                            y[i][j].upBound = 0
 
-        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
-        if pulp.LpStatus[prob.status] != "Optimal":
-            raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
+            prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+            if pulp.LpStatus[prob.status] != "Optimal":
+                raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
 
-        slate = [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+            slate = [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+            candidate_assignments: list[str] = []
+            for i in range(num_agents):
+                for j in range(num_statements):
+                    if pulp.value(y[i][j]) > 0.5:  # Assignment made
+                        candidate_assignments.append(rated_votes.columns[j])
+            return slate, candidate_assignments
 
-        candidate_assignments: list[str] = []
-        for i in range(num_agents):
-            for j in range(num_statements):
-                if pulp.value(y[i][j]) > 0.5:  # Assignment made
-                    candidate_assignments.append(rated_votes.columns[j])
+        slate, candidate_assignments = solve(self.objective)
+        if self.objective == "minimum":
+            # Break ties by total utility. The optimal minimum utility is read from the data rather than the
+            # solver's objective value.
+            optimal_min_utility = min(rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments))
+            slate, candidate_assignments = solve("total", min_utility=optimal_min_utility)
+
         assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
         assignments["candidate_id"] = pd.Series(candidate_assignments, index=assignments.index, dtype=str)
         assignments["utility"] = [rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments)]
