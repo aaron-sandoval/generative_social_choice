@@ -565,7 +565,7 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
   \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
   Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with GenerativeCC.
   The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference only.
-  Its results are not directly comparable as there are other pipeline elements besides the voting algorithm which differentiate it.}
+  Its results are not directly comparable as other pipeline elements besides the voting algorithm differ.}
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
@@ -573,8 +573,9 @@ We also evaluate each voting algorithm on the social welfare functions from \Cre
 Using the 20 ballot profiles generated from GenerativeCC in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
-\GreedyMonroe{}, our adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others.
-However, most of this loss is recovered by both of the other \GreedyMonroe{} variants, each of which requires a complete ballot profile.
+\GreedyMonroe{}, our adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others on all SWFs.
+
+However, most of this loss is recovered by both of the other \GreedyMonroe{} variants. After greedy slate selection, either relaxing the Monroe equal-sized constituency constraint or solving optimally within this constraint produces similar performance. The same pattern is evident for utilitarian voting algorithms. \ExactMonroe performs nearly identically to \Exact. Together, these patterns indicate that the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset for a range of egalitarian and utilitarian objective functions.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
