@@ -223,7 +223,7 @@ For a fixed number of generated candidates, GenerativeCC uses roughly twice as m
 
 \paragraph{Runtime complexity}
 In practice, runtime is dominated by LLM calls, which are comparable in cost per call across the baseline and GenerativeCC.
-Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and then runs one of the voting algorithms from \Cref{sec:voting-algorithms}, which may have polynomial or exponential runtime.
+Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and then runs one of the voting algorithms from \Cref{sec:voting-algorithms}, which may have polynomial or exponential runtime (\Cref{tab:time-complexity}).
 However, at the small scale of our experiments, GenerativeCC is slower mostly due to the linear difference in required LLM inference rather than any difference in voting algorithm runtime.
 
 \paragraph{Number of generated statements}
@@ -383,7 +383,7 @@ Then, the equal-sized-constituency constraint is dropped and each voter is assig
 \subsection{Axioms}
 \label{sec:axioms}
 
-In addition to the social welfare metrics used in the case study, we evaluate these voting algorithms against a set of social choice axioms.
+In addition to the social welfare metrics used in the case study, we evaluate the CC voting algorithms against a set of social choice axioms.
 The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected.
 To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums.
 Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice.
@@ -468,34 +468,14 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 \begin{table*}[t]
 \centering
 \small
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{lcccc|c|ccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
 \hline
- & \multicolumn{4}{c|}{\textsc{U-CC}} & \multicolumn{1}{c|}{\textsc{U-Monroe}} & \multicolumn{3}{c}{\textsc{E-Monroe}} \\
- & \textsc{Exact} & \makecell{\textsc{Exact}\\$(p>1)$} & \textsc{Greedy} & \textsc{LP} & \textsc{Exact} & \textsc{Greedy} & \makecell{\textsc{Greedy}\\(reassign)} & \makecell{\textsc{Greedy}\\(CC reassign)} \\
+ & \Exact{} & \ExactP{} & \Greedy{} & \LP{} \\
 \hline
-Time Complexity
-& $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}
-& $O(2^{nm})$\footnotemark[\value{footnote}]
-& $O(kmn)$
-& $O(2^{nm})$\tablefootnote{Solver-dependent.
-The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$.
-See \Cref{app:lp-complexity}.}
-& \Todo
-& $O(kmn)$
-& \makecell{$O(2^{nk})$\tablefootnote{Solver dependent.
-Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
-The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables.
-The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}}
-& $O(kmn)$ \\
-
-\makecell[l]{Independence of\\Common Scale}
+Independence of Common Scale
 & \Pass
 & \Fail\tablefootnote{The Kolm--Pollak EDE is invariant to a common additive shift of utilities rather than to a common scaling \citep{blackorby-donaldson-1980}; see \Cref{app:exactp-ics}.}
-& \Pass
-& \Pass
-& \Todo
-& \Pass
 & \Pass
 & \Pass \\
 
@@ -503,77 +483,75 @@ Symmetry
 & \Pass
 & \Pass
 & \Pass
-& \Fail
-& \Todo
-& \Pass
-& \Pass
-& \Pass \\
+& \Fail\tablefootnote{See \Cref{app:lp-worst}.} \\
 
 Monotonicity
 & \Pass
 & \Pass
 & \Pass
-& \Fail
-& \Todo
-& \Pass
-& \Pass
-& \Pass \\
+& \Fail\tablefootnote{See \Cref{tab:lp-monotonicity}.} \\
 
 Individual Pareto Efficiency
 & \Pass
 & \Pass
-& \Fail\tablefootnote{Shown by \citet{lackner-skowron-2020} Example 4 for approval ballots, a special case of range ballots for which \Greedy{} is equivalent to sequential Chamberlin--Courant.}
-& \Fail
-& \Todo
-& \Fail
-& \Fail
-& \Fail \\
+& \Fail\tablefootnote{Shown by \citet{lackner-skowron-2020} Example 4 for approval ballots, a special case of range ballots for which \Greedy{} is equivalent to sequential Chamberlin--Courant. See also \Cref{tab:failure-greedy-indiv-pareto}.}
+& \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
 
 Sorted Pareto Efficiency
 & \Pass
 & \Pass
 & \Fail
-& \Fail
-& \Todo
-& \Fail
-& \Fail
 & \Fail \\
 
-\makecell[l]{Generalized Lorenz\\Efficiency}
+Generalized Lorenz Efficiency
 & \Pass\tablefootnote{Total utility is only weakly Schur-convex \citep{kostreva-ogryczak-wierzbicki-2004}, so satisfaction depends on the no-ties condition of \Cref{sec:axioms}.}
-& \Pass\tablefootnote{Shown by \citet[Cor.~2]{kostreva-ogryczak-wierzbicki-2004} for any strictly concave, increasing utility transformation, and without need for the no-ties condition.}
-& \Fail
-& \Fail
-& \Todo
-& \Fail
+& \Pass\tablefootnote{Shown by \citet[Cor.~2]{kostreva-ogryczak-wierzbicki-2004} for any strictly concave, increasing utility transformation.}
 & \Fail
 & \Fail \\
 
-\makecell[l]{Egalitarian--Utilitarian\\Efficiency}
+Egalitarian--Utilitarian Efficiency
 & \Pass
+& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(p=1.5\): \ExactP{} selects \(a_2\), while \(a_1\) has greater total and minimum utility.}
 & \Fail
-& \Fail
-& \Fail
-& \Todo
-& \Fail
-& \Fail
-& \Fail \\
+& \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
 
 Non-radical Utilitarianism
-& \Fail
-& \Fail %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.}
-& \Fail
-& \Fail
-& \Todo
-& \Fail
+& \Fail\tablefootnote{See \Cref{app:exact-nru}.}
+& \Fail\tablefootnote{See \Cref{app:exactp-nru}.} %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.}
 & \Fail
 & \Fail \\
 \hline
 \end{tabular}
-\caption{Time complexity and performance of voting algorithms against social choice axioms.
-Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.}
+\caption{Performance of CC voting algorithms against social choice axioms.}
 \label{tab:voting-axioms}
 \end{table*}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lc}
+\hline
+Algorithm & Time Complexity \\
+\hline
+\Exact{} & $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity} \\
+\ExactP{} & $O(2^{nm})$\footnotemark[\value{footnote}] \\
+\Greedy{} & $O(kmn)$ \\
+\LP{} & $O(2^{nm})$\tablefootnote{Solver-dependent.
+The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$.
+See \Cref{app:lp-complexity}.} \\
+\ExactMonroe{} & \Todo \\
+\GreedyMonroe{} & $O(kmn)$ \\
+\GreedyMonroe(reassign) & $O(2^{nk})$\tablefootnote{Solver dependent.
+Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
+The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables.
+The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.} \\
+\GreedyMonroe(CC reassign) & $O(kmn)$ \\
+\hline
+\end{tabular}
+\caption{Worst-case time complexity of the voting algorithms.
+Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.}
+\label{tab:time-complexity}
+\end{table}
 
 \begin{figure*}[t]
 \centering
@@ -683,7 +661,7 @@ AS produced the initial idea for the project, and both authors refined it.
 AS performed the literature review and contextualization of the project, as well as the selection, design, and testing of the axioms, and implemented the Monroe voting algorithm.
 PB developed and implemented the other voting algorithms, did initial design of some axioms, implemented the LLM embeddings, added formal proofs, and ran the embedding and statement count ablation studies.
 Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
-
+%\newpage
 \bibliography{gen_social_choice}
 
 \newpage
@@ -799,7 +777,7 @@ Combining the three stages,
 \[
 \underbrace{O(nm)}_{\text{formulate}} \;+\; \underbrace{O(2^{nm})}_{\text{solve}} \;+\; \underbrace{O(nm)}_{\text{extract}} \;=\; O(2^{nm}),
 \]
-which is the worst-case bound reported in \Cref{tab:voting-axioms}.
+which is the worst-case bound reported in \Cref{tab:time-complexity}.
 
 \paragraph{Comparison with brute force} An alternative exact baseline is to enumerate all \(\binom{m}{k}\) possible slates and compute the optimal assignment for each slate directly.
 That brute-force procedure has complexity
@@ -824,7 +802,7 @@ In practice, the IP solver's better average-case performance makes it far faster
 Its worst-case complexity depends entirely on which linear-programming method the solver applies.
 
 \paragraph{Simplex (as run)} Our experiments use PuLP/CBC, which solves the relaxation with the simplex method.
-Simplex runs in polynomial time on virtually every practical instance, but its worst-case complexity is exponential: adversarial constructions (e.g.\ Klee--Minty cubes) force it to visit a number of vertices exponential in the problem size, giving the $O(2^{nm})$ worst-case bound reported in \Cref{tab:voting-axioms}.
+Simplex runs in polynomial time on virtually every practical instance, but its worst-case complexity is exponential: adversarial constructions (e.g.\ Klee--Minty cubes) force it to visit a number of vertices exponential in the problem size, giving the $O(2^{nm})$ worst-case bound reported in \Cref{tab:time-complexity}.
 As we run it, \LP{} therefore shares the same exponential worst case as \Exact{}, even though it is fast in practice.
 
 \paragraph{Interior-point (polynomial alternative)} This exponential worst case is not inherent to the LP and can be removed by switching to an interior-point method, which runs in time polynomial in the problem size; the standard bound is cubic in the number of variables, i.e.\ $O((nm)^3)$ for our $O(nm)$ variables.
@@ -911,7 +889,7 @@ By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficien
 \section{Reasoning and Counterexample Ballot Profiles for Axiom Failures}
 \label{app:voting-failures}
 
-\Cref{tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity,tab:failure-monroe-egal-util,tab:failure-monroe-nru} provide representative counterexamples for the observed axiom failures discussed in the main text.
+\Cref{tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity} provide representative counterexamples for the observed axiom failures discussed in the main text.
 Table~\ref{tab:egal-util-strict} illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
 
 \begin{table}[t]
@@ -931,6 +909,7 @@ The selected slates include \(a_1\), while the only slate satisfying the axiom i
 \end{table}
 
 \subsection{\Exact{} fails Non-radical Utilitarianism}
+\label{app:exact-nru}
 
 Because \Exact{} maximizes total utility alone, it can prefer a slate with only slightly higher total utility even when an alternative offers a much larger improvement in minimum utility.
 \Cref{tab:failure-exact-nru} gives a simple counterexample for \(k=1\).
@@ -1122,67 +1101,6 @@ Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional poi
 %Our rounding scheme then breaks ties by candidate order and picks the first two statements, yielding \(\{a_1,a_2\}\).
 %But that slate is Pareto-dominated by \(\{a_1,a_4\}\), so Individual Pareto Efficiency fails.
 %This example also shows why LP can violate symmetry with respect to candidate order: once the relaxation has flattened distinctions between candidates, the final outcome depends on the tie-breaking rule.
-
-\subsection{\GreedyMonroe{} variants fail Egalitarian--Utilitarian Efficiency}
-\label{app:monroe-egal-util}
-
-All three \GreedyMonroe{} variants share the greedy selection procedure described in \Cref{sec:voting-algorithms}.
-\Cref{tab:failure-monroe-egal-util} demonstrates a failure to select an efficient slate, producing a failing voter assignment for all three \GreedyMonroe{} variants.
-
-\begin{table}[t]
-\centering
-\begin{tabular}{l|ccc}
-\hline
- & $a_1$ & $a_2$ & $a_3$ \\
-\hline
-Voter 1 & 7 & 1 & 4 \\
-Voter 2 & 4 & 9 & 2 \\
-Voter 3 & 0 & 5 & 1 \\
-Voter 4 & 2 & 6 & 3 \\
-\hline
-\end{tabular}
-\caption{Profile with $k=2$ for which all three \GreedyMonroe{} variants fail Egalitarian--Utilitarian Efficiency.
-Every variant selects $\{a_2,a_3\}$, which is dominated on both total and minimum utility by $\{a_1,a_2\}$.}
-\label{tab:failure-monroe-egal-util}
-\end{table}
-
-\subsection{\GreedyMonroe{} variants fail Non-radical Utilitarianism}
-\label{app:monroe-nru}
-
-\Cref{tab:failure-monroe-nru} gives a profile with \(k=2\), parameterized by a free parameter \(\delta>0\), for which all three \GreedyMonroe{} variants sacrifice an arbitrarily large amount of minimum utility to gain an arbitrarily small amount of total utility.
-
-\begin{table}[t]
-\centering
-\begin{tabular}{l|cccc}
-\hline
- & $a_1$ & $a_2$ & $a_3$ & $a_4$ \\
-\hline
-Voter 1 & $9$   & $0.1$ & $7$   & $0.2$ \\
-Voter 2 & $8$   & $0.3$ & $0.4$ & $6.2$ \\
-Voter 3 & $0.5$ & $6$   & $5.8$ & $0.6$ \\
-Voter 4 & $0.7$ & $1$   & $0.8$ & $5-\delta$ \\
-\hline
-\end{tabular}
-\caption{Profile with $k=2$ for which all three \GreedyMonroe{} variants fail Non-radical Utilitarianism, for any sufficiently small \(\delta>0\).}
-\label{tab:failure-monroe-nru}
-\end{table}
-
-Given the ballot profile in \Cref{tab:failure-monroe-nru}, all three \GreedyMonroe{} variants select \(a_1, a_2\) with utility vector \((9,8,6,1)\).
-This results in
-\[
-u_{\mathrm{tot}}=24,\qquad u_{\mathrm{min}}=1 .
-\]
-
-The slate \(\{a_3,a_4\}\) gives \((7,6.2,5.8,5-\delta)\), so
-\[
-u_{\mathrm{tot}}=24-\delta,\qquad u_{\mathrm{min}}=5-\delta .
-\]
-Moving to it sacrifices \(\delta\) in total utility while improving the minimum utility by \(\epsilon=4-\delta\).
-The ratio
-\[
-\frac{\epsilon}{\delta}=\frac{4-\delta}{\delta}
-\]
-is arbitrarily large by taking \(\delta\) arbitrarily small, so all three \GreedyMonroe{} variants violate Non-radical Utilitarianism.
 
 \section{Contributions of Generators}
 \label{app:statement-origin}
