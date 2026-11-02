@@ -539,7 +539,8 @@ Algorithm & Time Complexity \\
 \LP{} & $O(2^{nm})$\tablefootnote{Solver-dependent.
 The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$.
 See \Cref{app:lp-complexity}.} \\
-\ExactMonroe{} & \Todo \\
+\ExactMonroe{} & $O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
+For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.} \\
 \GreedyMonroe{} & $O(kmn)$ \\
 \GreedyMonroe(reassign) & $O(2^{nk})$\tablefootnote{Solver dependent.
 Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
@@ -555,7 +556,7 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
 
 \begin{figure*}[t]
 \centering
-  \includegraphics[width=0.8\textwidth]{figures/voting_alg_scalar_metrics_with-Monroe_with-Baseline.png}
+  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_with-ExactMonroe.png}
   \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
   Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with GenerativeCC.
   The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference only.
