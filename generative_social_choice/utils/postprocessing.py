@@ -218,14 +218,14 @@ def consolidate_duplicate_columns(df: pd.DataFrame, delimiter: str = ", ") -> pd
 
 def compute_utilities_relative_to_reference(
     utilities: pd.DataFrame,
-    reference_col: Hashable = "Exact"
+    reference_col: Hashable = ExactTotalUtilityMaximization().display_name
 ) -> pd.DataFrame:
     """
     Compute utilities relative to a reference algorithm for each run_id.
     
     Args:
         utilities: DataFrame with either MultiIndex columns (algorithm, run_id) or simple columns (algorithm)
-        reference_col: Column name of the reference algorithm (default: "Exact")
+        reference_col: Column name of the reference algorithm (default: CC-Exact)
         
     Returns:
         DataFrame with utilities relative to reference, with reference columns removed
@@ -1340,7 +1340,7 @@ def plot_generalized_lorenz_curve(
 
 def plot_generalized_lorenz_curve_differences(
     utilities: pd.DataFrame,
-    reference_col: Hashable = "Exact",
+    reference_col: Hashable = ExactTotalUtilityMaximization().display_name,
     confidence_level: float = 0.95,
     n_bootstrap: int = 400,
     figsize: tuple[float, float] = (10, 6),
@@ -1361,7 +1361,7 @@ def plot_generalized_lorenz_curve_differences(
             methods/conditions. Can have either a simple column index or a 2-level
             MultiIndex. If using a MultiIndex, columns with the same first-level
             index will be grouped together.
-        reference_col: Column name of the reference algorithm (default: "Exact").
+        reference_col: Column name of the reference algorithm (default: CC-Exact).
         confidence_level: Width of the confidence interval (default: 0.95).
         n_bootstrap: Number of bootstrap samples to generate (default: 400).
         figsize: Figure size tuple (default: (10, 6)).

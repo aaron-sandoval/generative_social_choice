@@ -485,7 +485,7 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        return f"Exact{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-Exact{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
         
     @override
     def vote(
@@ -571,7 +571,7 @@ class ExactMinimumUtilityMaximization(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        return f"Exact(egalitarian{'' if self.utilitarian_tiebreak else ', no tiebreak'})"
+        return f"E-CC-Exact{'' if self.utilitarian_tiebreak else '(no tiebreak)'}"
 
     @override
     def vote(
@@ -661,7 +661,7 @@ class ExactTotalUtilityMaximizationBruteSearch(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        return f"ExactBrute{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-ExactBrute{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -730,7 +730,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
     
     @property
     def display_name(self) -> str:
-        return f"LP{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-LP{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -802,7 +802,7 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
     
     @property
     def display_name(self) -> str:
-        return f"Greedy{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-Greedy{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -900,11 +900,10 @@ class StepwiseMonroe(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        # These names match the \paragraph headings in paper/paper.tex.
         return {
-            "greedy_equal": "GreedyMonroe",
-            "free": "GreedyMonroe(CC reassign)",
-            "optimal_equal": "GreedyMonroe(reassign)",
+            "greedy_equal": "E-Monroe-Greedy",
+            "free": "E-Monroe-Greedy(CC reassign)",
+            "optimal_equal": "E-Monroe-Greedy(reassign)",
         }[self.final_assignment]
 
     @override
@@ -1007,7 +1006,7 @@ class ExactMonroe(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        return "ExactMonroe(egalitarian)" if self.objective == "minimum" else "ExactMonroe"
+        return "E-Monroe-Exact" if self.objective == "minimum" else "U-Monroe-Exact"
 
     @override
     def vote(

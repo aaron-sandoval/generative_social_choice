@@ -25,12 +25,12 @@
 \newcommand{\Todo}{\textcolor{orange}{\textbf{?}}}  % placeholder: axiom result to be supplied
 
 % Voting algorithm names are set in small caps.
-\newcommand{\Exact}{\textsc{Exact}}
-\newcommand{\ExactP}{\textsc{Exact}$(p>1)$}
-\newcommand{\Greedy}{\textsc{Greedy}}
-\newcommand{\LP}{\textsc{LP}}
-\newcommand{\Monroe}{\textsc{Monroe}}
-\newcommand{\GreedyMonroe}{\textsc{GreedyMonroe}}
+\newcommand{\Exact}{\textsc{U-CC-Exact}}
+\newcommand{\ExactP}{\textsc{U-CC-Exact}$(p>1)$}
+\newcommand{\Greedy}{\textsc{U-CC-Greedy}}
+\newcommand{\LP}{\textsc{U-CC-LP}}
+\newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
+\newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 
 \title{Chamberlin-Courant Elections with Generative Social Choice}
 
@@ -325,16 +325,16 @@ More specifically, these changes are (i) computing the complete ballot profile $
 \section{Voting Algorithms}
 \label{sec:voting-algorithms}
 
-The pipeline separates statement generation from final slate selection.
-This allows us to compare several voting algorithms independently of the rest of the pipeline.
+We compare voting algorithms independently of the rest of the pipeline.
 In GenerativeCC, a voting algorithm selects candidates in a multiwinner election and maps each voter to exactly one winner.
-We implement voting algorithms for range ballots and evaluate them against a set of social choice axioms as well as the social welfare functions in \Cref{sec:metrics}.
-Throughout, the names of voting algorithms are set in small caps.
+We implement voting algorithms for range ballots and evaluate them against a set of social choice axioms and the social welfare functions in \Cref{sec:metrics}.
 
 \subsection{Algorithms}
 
-We compare four utility maximization algorithms.
-As a baseline, we include an approximation of the Greedy Monroe rule \citep{skowron-2015} used by \citet{fish-v2}, along with two additional algorithms as ablations.
+We evaluate four CC algorithms as candidates for GenerativeCC, and four Monroe algorithms as ablations relative to the baseline of \citet{fish-v2}.
+The algorithms are differentiated by their objective function, voting rule, and solution method.
+The prefix U-/E- denote a utilitarian/egalitarian objective function.
+The rule is either CC, under which each voter is assigned to their favorite winner, or Monroe, which requires equal-sized constituencies.
 
 \paragraph{Exact Total Utility Maximization (\Exact{})}
 This method selects the slate and assignment that maximize total utility exactly.
@@ -360,8 +360,12 @@ The total transformed utility \(\sum_i f(U_{i,\omega(i)})\) is a strictly increa
 The parameter \(p\) interpolates between utilitarian social welfare (total utility) as \(p\to1\) and egalitarian social welfare (minimum utility) as \(p\to\infty\).
 In our experiments, we use \(p=1.5\) as a modest egalitarian bias for most results.
 
+\paragraph{Exact Monroe (\ExactMonroe{})}
+The Monroe rule \citep{monroe-1995} selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
+\ExactMonroe{} selects the slate and assignment that maximize total utility exactly, subject to each winner being assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters.
+It adds this constituency-size constraint to the integer program of \Exact{} (\Cref{app:exact-lp-formulations}), which we solve with PuLP/CBC.
+
 \paragraph{\GreedyMonroe{} \citep{skowron-2015}}
-The Monroe rule selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
 We make a best-effort adaptation of the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile.
 The slate is built in \(k\) rounds.
 In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters.
@@ -464,10 +468,11 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 \begin{table*}[t]
 \centering
 \small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lccccccc}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcccc|c|ccc}
 \hline
- & \Exact{} & \ExactP{} & \Greedy{} & \LP{} & \GreedyMonroe{} & \makecell{\GreedyMonroe\\(reassign)} & \makecell{\GreedyMonroe\\(CC reassign)} \\
+ & \multicolumn{4}{c|}{\textsc{U-CC}} & \multicolumn{1}{c|}{\textsc{U-Monroe}} & \multicolumn{3}{c}{\textsc{E-Monroe}} \\
+ & \textsc{Exact} & \makecell{\textsc{Exact}\\$(p>1)$} & \textsc{Greedy} & \textsc{LP} & \textsc{Exact} & \textsc{Greedy} & \makecell{\textsc{Greedy}\\(reassign)} & \makecell{\textsc{Greedy}\\(CC reassign)} \\
 \hline
 Time Complexity
 & $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}
@@ -476,6 +481,7 @@ Time Complexity
 & $O(2^{nm})$\tablefootnote{Solver-dependent.
 The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$.
 See \Cref{app:lp-complexity}.}
+& \Todo
 & $O(kmn)$
 & \makecell{$O(2^{nk})$\tablefootnote{Solver dependent.
 Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
@@ -483,11 +489,12 @@ The algorithm has the same solver-dependent complexity described in \Cref{app:lp
 The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}}
 & $O(kmn)$ \\
 
-Independence of Common Scale
+\makecell[l]{Independence of\\Common Scale}
 & \Pass
 & \Fail\tablefootnote{The Kolm--Pollak EDE is invariant to a common additive shift of utilities rather than to a common scaling \citep{blackorby-donaldson-1980}; see \Cref{app:exactp-ics}.}
 & \Pass
 & \Pass
+& \Todo
 & \Pass
 & \Pass
 & \Pass \\
@@ -497,6 +504,7 @@ Symmetry
 & \Pass
 & \Pass
 & \Fail
+& \Todo
 & \Pass
 & \Pass
 & \Pass \\
@@ -506,6 +514,7 @@ Monotonicity
 & \Pass
 & \Pass
 & \Fail
+& \Todo
 & \Pass
 & \Pass
 & \Pass \\
@@ -515,6 +524,7 @@ Individual Pareto Efficiency
 & \Pass
 & \Fail\tablefootnote{Shown by \citet{lackner-skowron-2020} Example 4 for approval ballots, a special case of range ballots for which \Greedy{} is equivalent to sequential Chamberlin--Courant.}
 & \Fail
+& \Todo
 & \Fail
 & \Fail
 & \Fail \\
@@ -524,24 +534,27 @@ Sorted Pareto Efficiency
 & \Pass
 & \Fail
 & \Fail
+& \Todo
 & \Fail
 & \Fail
 & \Fail \\
 
-Generalized Lorenz Efficiency
+\makecell[l]{Generalized Lorenz\\Efficiency}
 & \Pass\tablefootnote{Total utility is only weakly Schur-convex \citep{kostreva-ogryczak-wierzbicki-2004}, so satisfaction depends on the no-ties condition of \Cref{sec:axioms}.}
 & \Pass\tablefootnote{Shown by \citet[Cor.~2]{kostreva-ogryczak-wierzbicki-2004} for any strictly concave, increasing utility transformation, and without need for the no-ties condition.}
 & \Fail
 & \Fail
+& \Todo
 & \Fail
 & \Fail
 & \Fail \\
 
-Egalitarian--Utilitarian Efficiency
+\makecell[l]{Egalitarian--Utilitarian\\Efficiency}
 & \Pass
 & \Fail
 & \Fail
 & \Fail
+& \Todo
 & \Fail
 & \Fail
 & \Fail \\
@@ -551,6 +564,7 @@ Non-radical Utilitarianism
 & \Fail %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.}
 & \Fail
 & \Fail
+& \Todo
 & \Fail
 & \Fail
 & \Fail \\
@@ -576,7 +590,7 @@ Using the 20 ballot profiles generated from GenerativeCC in the embedding ablati
 \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
 \GreedyMonroe{}, our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others.
-However, most of this loss is recovered by both of the other \Monroe{} variants.
+However, most of this loss is recovered by both of the other \GreedyMonroe{} variants.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
@@ -721,7 +735,7 @@ This supports the claim that our gains are not primarily due to a larger candida
 
 \section{Voting Algorithm Details}
 
-\subsection{\Exact{} and \LP{} Optimization Problems}
+\subsection{\Exact{}, \LP{}, and \ExactMonroe{} Optimization Problems}
 \label{app:exact-lp-formulations}
 
 Both \Exact{} and \LP{} are based on the same assignment-and-selection optimization problem.
@@ -747,6 +761,13 @@ y_{ij} \in [0,1] \quad \forall i,j.
 \]
 
 After solving the LP relaxation, we select the \(k\) candidates with highest fractional \(x_j\) values and assign each voter to their most preferred selected candidate.
+
+\ExactMonroe{} adds the constituency-size constraints
+\[
+\lfloor n/k\rfloor\, x_j \;\le\; \sum_i y_{ij} \;\le\; \lceil n/k\rceil\, x_j \quad \forall j
+\]
+to the integer program of \Exact{}.
+Each selected candidate is therefore assigned \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters, and each unselected candidate none.
 
 %\subsection{Exact vs.\ Brute-force Comparison} \label{app:brute-force-vs-exact}
 
@@ -1102,11 +1123,11 @@ Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional poi
 %But that slate is Pareto-dominated by \(\{a_1,a_4\}\), so Individual Pareto Efficiency fails.
 %This example also shows why LP can violate symmetry with respect to candidate order: once the relaxation has flattened distinctions between candidates, the final outcome depends on the tie-breaking rule.
 
-\subsection{\Monroe{} fails Egalitarian--Utilitarian Efficiency}
+\subsection{\GreedyMonroe{} variants fail Egalitarian--Utilitarian Efficiency}
 \label{app:monroe-egal-util}
 
-All three \Monroe{} variants share the greedy selection procedure of \GreedyMonroe{} described in \Cref{sec:voting-algorithms}.
-\Cref{tab:failure-monroe-egal-util} demonstrates a failure to select an efficient slate, producing a failing voter assignment for all \Monroe{} variants.
+All three \GreedyMonroe{} variants share the greedy selection procedure described in \Cref{sec:voting-algorithms}.
+\Cref{tab:failure-monroe-egal-util} demonstrates a failure to select an efficient slate, producing a failing voter assignment for all three \GreedyMonroe{} variants.
 
 \begin{table}[t]
 \centering
@@ -1120,15 +1141,15 @@ Voter 3 & 0 & 5 & 1 \\
 Voter 4 & 2 & 6 & 3 \\
 \hline
 \end{tabular}
-\caption{Profile with $k=2$ for which all three \Monroe{} variants fail Egalitarian--Utilitarian Efficiency.
+\caption{Profile with $k=2$ for which all three \GreedyMonroe{} variants fail Egalitarian--Utilitarian Efficiency.
 Every variant selects $\{a_2,a_3\}$, which is dominated on both total and minimum utility by $\{a_1,a_2\}$.}
 \label{tab:failure-monroe-egal-util}
 \end{table}
 
-\subsection{\Monroe{} fails Non-radical Utilitarianism}
+\subsection{\GreedyMonroe{} variants fail Non-radical Utilitarianism}
 \label{app:monroe-nru}
 
-\Cref{tab:failure-monroe-nru} gives a profile with \(k=2\), parameterized by a free parameter \(\delta>0\), for which all three \Monroe{} variants sacrifice an arbitrarily large amount of minimum utility to gain an arbitrarily small amount of total utility.
+\Cref{tab:failure-monroe-nru} gives a profile with \(k=2\), parameterized by a free parameter \(\delta>0\), for which all three \GreedyMonroe{} variants sacrifice an arbitrarily large amount of minimum utility to gain an arbitrarily small amount of total utility.
 
 \begin{table}[t]
 \centering
@@ -1142,11 +1163,11 @@ Voter 3 & $0.5$ & $6$   & $5.8$ & $0.6$ \\
 Voter 4 & $0.7$ & $1$   & $0.8$ & $5-\delta$ \\
 \hline
 \end{tabular}
-\caption{Profile with $k=2$ for which all three \Monroe{} variants fail Non-radical Utilitarianism, for any sufficiently small \(\delta>0\).}
+\caption{Profile with $k=2$ for which all three \GreedyMonroe{} variants fail Non-radical Utilitarianism, for any sufficiently small \(\delta>0\).}
 \label{tab:failure-monroe-nru}
 \end{table}
 
-Given the ballot profile in \Cref{tab:failure-monroe-nru}, all \Monroe{} variants select \(a_1, a_2\) with utility vector \((9,8,6,1)\).
+Given the ballot profile in \Cref{tab:failure-monroe-nru}, all three \GreedyMonroe{} variants select \(a_1, a_2\) with utility vector \((9,8,6,1)\).
 This results in
 \[
 u_{\mathrm{tot}}=24,\qquad u_{\mathrm{min}}=1 .
@@ -1161,7 +1182,7 @@ The ratio
 \[
 \frac{\epsilon}{\delta}=\frac{4-\delta}{\delta}
 \]
-is arbitrarily large by taking \(\delta\) arbitrarily small, so all three \Monroe{} variants violate Non-radical Utilitarianism.
+is arbitrarily large by taking \(\delta\) arbitrarily small, so all three \GreedyMonroe{} variants violate Non-radical Utilitarianism.
 
 \section{Contributions of Generators}
 \label{app:statement-origin}
