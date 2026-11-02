@@ -32,6 +32,10 @@
 \newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 
+% Fixed-width, left-aligned box so entries in a centered column align on their first character
+\newlength{\complexitywidth}
+\newcommand{\complexity}[1]{\makebox[\complexitywidth][l]{#1}}
+
 \title{Chamberlin-Courant Elections with Generative Social Choice}
 
 \author{Aaron Sandoval \\
@@ -529,24 +533,25 @@ Non-radical Utilitarianism
 \begin{table}[t]
 \centering
 \small
+\settowidth{\complexitywidth}{$O(kmn)$}
 \begin{tabular}{lc}
 \hline
 Algorithm & Time Complexity \\
 \hline
-\Exact{} & $O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity} \\
-\ExactP{} & $O(2^{nm})$\footnotemark[\value{footnote}] \\
-\Greedy{} & $O(kmn)$ \\
-\LP{} & $O(2^{nm})$\tablefootnote{Solver-dependent.
+\Exact{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}} \\
+\ExactP{} & \complexity{$O(2^{nm})$\footnotemark[\value{footnote}]} \\
+\Greedy{} & \complexity{$O(kmn)$} \\
+\LP{} & \complexity{$O(2^{nm})$\tablefootnote{Solver-dependent.
 The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$.
-See \Cref{app:lp-complexity}.} \\
-\ExactMonroe{} & $O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
-For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.} \\
-\GreedyMonroe{} & $O(kmn)$ \\
-\GreedyMonroe(reassign) & $O(2^{nk})$\tablefootnote{Solver dependent.
+See \Cref{app:lp-complexity}.}} \\
+\ExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
+For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.}} \\
+\GreedyMonroe{} & \complexity{$O(kmn)$} \\
+\GreedyMonroe(reassign) & \complexity{$O(2^{nk})$\tablefootnote{Solver dependent.
 Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
 The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables.
-The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.} \\
-\GreedyMonroe(CC reassign) & $O(kmn)$ \\
+The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}} \\
+\GreedyMonroe(CC reassign) & \complexity{$O(kmn)$} \\
 \hline
 \end{tabular}
 \caption{Worst-case time complexity of the voting algorithms.
@@ -568,8 +573,8 @@ We also evaluate each voting algorithm on the social welfare functions from \Cre
 Using the 20 ballot profiles generated from GenerativeCC in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
-\GreedyMonroe{}, our best adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others.
-However, most of this loss is recovered by both of the other \GreedyMonroe{} variants.
+\GreedyMonroe{}, our adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others.
+However, most of this loss is recovered by both of the other \GreedyMonroe{} variants, each of which requires a complete ballot profile.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
