@@ -573,7 +573,9 @@ We also evaluate each voting algorithm on the social welfare functions from \Cre
 Using the 20 ballot profiles generated from GenerativeCC in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
+
 \GreedyMonroe{}, our adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others on all SWFs.
+All other tested voting algorithms use some sort of global optimization over all candidates and voters.
 
 However, most of this loss is recovered by both of the other \GreedyMonroe{} variants.
 After greedy slate selection, either relaxing the Monroe equal-sized constituency constraint or solving optimally within this constraint produces similar performance.
