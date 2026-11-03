@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from typing import Literal, Optional, List
 from pathlib import Path
+import json
 import re
 
 import pandas as pd
@@ -156,6 +158,37 @@ def extract_voter_utilities_from_info_csv(info_csv_path: Path, assigned_utilitie
 
 
 
+def get_baseline_run_dirs(run_ids: list[int] | None = None, embedding_type: Literal["llm", "seed_statement"] = "llm") -> dict[int, Path]:
+    """
+    Get the output directories of the baseline generate_slate.py runs.
+
+    Runs are identified by their zero-indexed position among the sorted run directories,
+    so no other directories may be added next to them.
+
+    Args:
+        run_ids: List of zero-indexed directory indices to load. If None, loads all directories.
+        embedding_type: "llm" for generate_slate_results_baseline, "seed_statement" for generate_slate_results_openai_embeddings
+
+    Returns:
+        Dict mapping run_id to the run directory.
+    """
+    # Choose directory based on embedding type
+    if embedding_type == "llm":
+        baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_baseline"
+    elif embedding_type == "seed_statement":
+        baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_openai_embeddings"
+    else:
+        raise ValueError(f"Invalid embedding_type: {embedding_type}. Must be 'llm' or 'seed_statement'")
+
+    # Get all directories sorted by name
+    all_dirs = sorted([d for d in baseline_dir.iterdir() if d.is_dir()])
+
+    # Select directories based on run_ids
+    if run_ids is None:
+        run_ids = range(len(all_dirs))
+    return {i: all_dirs[i] for i in run_ids}
+
+
 def get_baseline_generate_slate_results(run_ids: list[int] | None = None, embedding_type: Literal["llm", "seed_statement"] = "llm") -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load baseline generate slate results from data/demo_data directories.
@@ -167,25 +200,10 @@ def get_baseline_generate_slate_results(run_ids: list[int] | None = None, embedd
     Returns:
         Tuple of (utilities_df, assignments_df) where column names are run_ids.
     """
-    # Choose directory based on embedding type
-    if embedding_type == "llm":
-        baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_baseline"
-    elif embedding_type == "seed_statement":
-        baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_openai_embeddings"
-    else:
-        raise ValueError(f"Invalid embedding_type: {embedding_type}. Must be 'llm' or 'seed_statement'")
-    
-    # Get all directories sorted by name
-    all_dirs = sorted([d for d in baseline_dir.iterdir() if d.is_dir()])
-    
-    # Select directories based on run_ids
-    if run_ids is None:
-        selected_dirs = all_dirs
-        column_names = list(range(len(all_dirs)))
-    else:
-        selected_dirs = [all_dirs[i] for i in run_ids]
-        column_names = run_ids
-    
+    run_dirs = get_baseline_run_dirs(run_ids, embedding_type)
+    selected_dirs = list(run_dirs.values())
+    column_names = list(run_dirs.keys())
+
     utilities_data = []
     assignments_data = []
     
@@ -212,3 +230,97 @@ def get_baseline_generate_slate_results(run_ids: list[int] | None = None, embedd
     })
     
     return utilities, assignments
+
+# The baseline runs only rated each round's candidates by the voters unassigned in that round.
+# The missing ratings are stored next to info.csv in these files, leaving the run outputs untouched.
+COMPLETION_RATINGS_FILENAME = "completion_ratings.jsonl"
+COMPLETION_LOGS_FILENAME = "completion_logs.csv"
+
+
+def read_baseline_info_csv(run_dir: Path) -> pd.DataFrame:
+    """
+    Read the info.csv of a baseline run, indexed by the candidate statements as they were rated.
+
+    info.csv was written with every newline in a statement turned into "\r\n", so this is undone
+    to recover the statements which were passed to the discriminative queries.
+    """
+    info = pd.read_csv(run_dir / "info.csv", index_col=0)
+    info.index = [statement.replace("\r\n", "\n") for statement in info.index]
+    return info
+
+
+@dataclass
+class BaselineProfile:
+    """
+    Complete ballot profile of a baseline run, together with the outcome of the baseline pipeline.
+
+    Candidate IDs are `s{row index in info.csv}`, as in `extract_voter_utilities_from_info_csv`.
+
+    # Arguments
+    - `utilities: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
+    - `statements: pd.Series`: Statement of each candidate ID
+    - `round_added: pd.Series`: Round of the pipeline in which each candidate was generated
+    - `slate: list[str]`: Candidate IDs selected by the pipeline, in the order of selection
+    - `assignments: pd.DataFrame`: The pipeline's assignment, with columns `candidate_id` and `utility`
+    """
+    utilities: pd.DataFrame
+    statements: pd.Series
+    round_added: pd.Series
+    slate: list[str]
+    assignments: pd.DataFrame
+
+
+def get_completed_baseline_utility_matrices(
+        run_ids: list[int] | None = None,
+        embedding_type: Literal["llm", "seed_statement"] = "llm",
+        allow_incomplete: bool = False,
+    ) -> dict[int, BaselineProfile]:
+    """
+    Load the complete ballot profiles of baseline runs by combining the ratings in info.csv
+    with the missing ratings collected by `scripts/complete_baseline_ratings.py`.
+
+    Args:
+        run_ids: List of zero-indexed directory indices to load. If None, loads all directories.
+        embedding_type: See `get_baseline_run_dirs`
+        allow_incomplete: If False, raise an error if any rating is still missing.
+
+    Returns:
+        Dict mapping run_id to the BaselineProfile of that run.
+    """
+    profiles = {}
+    for run_id, run_dir in get_baseline_run_dirs(run_ids, embedding_type).items():
+        info = read_baseline_info_csv(run_dir)
+        candidate_ids = [f"s{i}" for i in range(len(info))]
+        statement_to_id = dict(zip(info.index, candidate_ids))
+
+        approval_cols = [col for col in info.columns if col.startswith("approval_")]
+        utilities = info[approval_cols].T
+        utilities.index = [col.removeprefix("approval_") for col in approval_cols]
+        utilities.columns = candidate_ids
+        utilities = utilities.sort_index()
+
+        ratings_file = run_dir / COMPLETION_RATINGS_FILENAME
+        if ratings_file.exists():
+            with open(ratings_file, "r", encoding="utf-8") as f:
+                ratings = [Rating(**json.loads(line)) for line in f]
+        else:
+            ratings = []
+        for rating in ratings:
+            candidate_id = statement_to_id[rating.statement]
+            if not pd.isna(utilities.loc[rating.agent_id, candidate_id]):
+                raise ValueError(f"Rating of {rating.agent_id} for {candidate_id} in {run_dir} is also in info.csv")
+            utilities.loc[rating.agent_id, candidate_id] = rating.approval
+
+        num_missing = int(utilities.isna().sum().sum())
+        if num_missing and not allow_incomplete:
+            raise ValueError(f"{num_missing} ratings are missing in {run_dir}. Run scripts/complete_baseline_ratings.py first.")
+
+        slate = [statement_to_id[s] for s in info["round_chosen"].dropna().sort_values().index]
+        profiles[run_id] = BaselineProfile(
+            utilities=utilities,
+            statements=pd.Series(info.index, index=candidate_ids),
+            round_added=pd.Series(info["round_added"].to_numpy(), index=candidate_ids),
+            slate=slate,
+            assignments=extract_voter_utilities_from_info_csv(run_dir / "info.csv"),
+        )
+    return profiles

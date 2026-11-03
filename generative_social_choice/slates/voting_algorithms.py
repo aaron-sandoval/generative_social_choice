@@ -974,28 +974,57 @@ class StepwiseMonroe(VotingAlgorithm):
             for v in top_voters:
                 matched[v] = best
 
-        if self.final_assignment == "free":
-            # Drop the equal-coalition assignment; assign each voter to its favorite slate member.
-            best_in_slate = voter_max_utilities_from_slate(rated_votes, slate)
-            assignments["candidate_id"] = best_in_slate["candidate_id"]
-            assignments["utility"] = best_in_slate["utility"]
-        elif self.final_assignment == "optimal_equal":
-            # Keep equal-sized coalitions, but recompute the assignment optimally over the final
-            # slate: an ILP maximizing total utility subject to each slate member getting exactly
-            # n/k voters. Imported lazily so this module doesn't hard-depend on gurobipy.
-            from generative_social_choice.paper_replication.compute_matching import (
-                optimize_monroe_matching,
-            )
-
-            util_sub = rated_votes.loc[voters, slate]
-            matching_ix = optimize_monroe_matching(util_sub.to_numpy().tolist())
-            assigned = pd.Series([slate[ix] for ix in matching_ix], index=voters)
-            assignments["candidate_id"] = assigned
-            assignments["utility"] = pd.Series(
-                [rated_votes.loc[v, c] for v, c in zip(voters, assigned)], index=voters
-            )
+        if self.final_assignment != "greedy_equal":
+            assignments = assign_to_fixed_slate(rated_votes, slate, self.final_assignment)
 
         return slate, assignments
+
+
+def assign_to_fixed_slate(
+    rated_votes: pd.DataFrame,
+    slate: list[str],
+    mode: Literal["free", "optimal_equal"],
+) -> pd.DataFrame:
+    """
+    Assign every voter to a member of an already-selected slate.
+
+    Only the `slate` columns of `rated_votes` are read, so this can also be applied to a
+    utility matrix which is complete only on the slate columns.
+
+    # Arguments
+    - `mode`:
+      - `"free"`: each voter is assigned to its favorite slate member (CC).
+      - `"optimal_equal"`: the assignment maximizes total utility subject to every slate member
+        receiving floor(n/k) or ceil(n/k) voters, via the ILP `optimize_monroe_matching`.
+
+    # Returns
+    - `assignments: pd.DataFrame` indexed like `rated_votes`, with columns `candidate_id` and `utility`
+    """
+    assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+    if mode == "free":
+        # Drop the equal-coalition assignment; assign each voter to its favorite slate member.
+        best_in_slate = voter_max_utilities_from_slate(rated_votes, slate)
+        assignments["candidate_id"] = best_in_slate["candidate_id"]
+        assignments["utility"] = best_in_slate["utility"]
+    elif mode == "optimal_equal":
+        # Keep equal-sized coalitions, but recompute the assignment optimally over the final
+        # slate: an ILP maximizing total utility subject to each slate member getting exactly
+        # n/k voters. Imported lazily so this module doesn't hard-depend on gurobipy.
+        from generative_social_choice.paper_replication.compute_matching import (
+            optimize_monroe_matching,
+        )
+
+        voters = list(rated_votes.index)
+        util_sub = rated_votes.loc[voters, slate]
+        matching_ix = optimize_monroe_matching(util_sub.to_numpy().tolist())
+        assigned = pd.Series([slate[ix] for ix in matching_ix], index=voters)
+        assignments["candidate_id"] = assigned
+        assignments["utility"] = pd.Series(
+            [rated_votes.loc[v, c] for v, c in zip(voters, assigned)], index=voters
+        )
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
+    return assignments
 
 
 @dataclass(frozen=True)
