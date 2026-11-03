@@ -874,11 +874,16 @@ class StepwiseMonroe(VotingAlgorithm):
     round) with slate selection. Here the complete utility matrix is available from the start, so
     each round reads the relevant utilities directly instead of generating/evaluating them.
 
-    Each round selects one slate member: a candidate's score is the `coalition_size`-th highest
-    utility among the still-unmatched agents, the highest-scoring candidate is added to the slate,
-    and the top `coalition_size` unmatched agents (by their utility for it) are matched to it.
+    Each round selects one slate member: each candidate is scored over its best possible coalition,
+    the `coalition_size` still-unmatched agents with the highest utility for it (see `objective`).
+    The highest-scoring candidate is added to the slate, and that coalition is matched to it.
 
     # Arguments
+    - `objective: Literal["minimum", "total"] = "minimum"`: How a candidate's coalition is scored each round.
+      - `"minimum"` (E-Monroe-Greedy): the minimum utility in the coalition, i.e., the
+        `coalition_size`-th highest utility among the unmatched agents.
+      - `"total"` (U-Monroe-Greedy): the total utility of the coalition, i.e., the sum of the
+        `coalition_size` highest utilities among the unmatched agents.
     - `final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"`:
       Controls only the final voter->candidate assignment; the slate selection above is identical
       for all three modes.
@@ -893,17 +898,21 @@ class StepwiseMonroe(VotingAlgorithm):
         member receiving floor(n/k) or ceil(n/k) voters (exactly n/k when k divides n).
     """
     final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"
+    objective: Literal["minimum", "total"] = "minimum"
 
     @property
     def name(self) -> str:
-        return f"StepwiseMonroe(final_assignment={self.final_assignment})"
+        # The default objective is omitted so names of the original (egalitarian) variants are unchanged
+        objective_str = f", objective={self.objective}" if self.objective != "minimum" else ""
+        return f"StepwiseMonroe(final_assignment={self.final_assignment}{objective_str})"
 
     @property
     def display_name(self) -> str:
-        return {
-            "greedy_equal": "E-Monroe-Greedy",
-            "free": "E-Monroe-Greedy(CC reassign)",
-            "optimal_equal": "E-Monroe-Greedy(reassign)",
+        prefix = "E" if self.objective == "minimum" else "U"
+        return prefix + {
+            "greedy_equal": "-Monroe-Greedy",
+            "free": "-Monroe-Greedy(CC reassign)",
+            "optimal_equal": "-Monroe-Greedy(reassign)",
         }[self.final_assignment]
 
     @override
@@ -943,11 +952,16 @@ class StepwiseMonroe(VotingAlgorithm):
 
             remaining_candidates = [c for c in rated_votes.columns if c not in slate]
 
-            # Score each remaining candidate by the coalition_size-th highest utility among the
-            # unmatched agents. Selection via np.partition keeps each round O(mn), giving O(kmn)
-            # overall; a full sort would add an unnecessary log factor.
+            # Score each remaining candidate over the coalition_size highest utilities among the
+            # unmatched agents: their minimum (the coalition_size-th highest) or their sum.
+            # Selection via np.partition keeps each round O(mn), giving O(kmn) overall; a full sort
+            # would add an unnecessary log factor.
             sub = rated_votes.loc[unmatched, remaining_candidates].to_numpy()
-            scores = -np.partition(-sub, coalition_size - 1, axis=0)[coalition_size - 1, :]
+            top_utils = -np.partition(-sub, coalition_size - 1, axis=0)[:coalition_size, :]
+            if self.objective == "minimum":
+                scores = top_utils[coalition_size - 1, :]
+            else:
+                scores = top_utils.sum(axis=0)
             best = remaining_candidates[int(np.argmax(scores))]
             slate.append(best)
 
