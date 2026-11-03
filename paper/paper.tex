@@ -31,6 +31,7 @@
 \newcommand{\LP}{\textsc{U-CC-LP}}
 \newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
+\newcommand{\UGreedyMonroe}{\textsc{U-Monroe-Greedy}}
 
 % Fixed-width, left-aligned box so entries in a centered column align on their first character
 \newlength{\complexitywidth}
@@ -335,7 +336,7 @@ We implement voting algorithms for range ballots and evaluate them against a set
 
 \subsection{Algorithms}
 
-We evaluate four CC algorithms as candidates for GenerativeCC, and four Monroe algorithms as ablations relative to the baseline of \citet{fish-v2}.
+We evaluate four CC algorithms as candidates for GenerativeCC, and five Monroe algorithms as ablations relative to the baseline of \citet{fish-v2}.
 The algorithms are differentiated by their objective function, voting rule, and solution method.
 The prefix U-/E- denote a utilitarian/egalitarian objective function.
 The rule is either CC, under which each voter is assigned to their favorite winner, or Monroe, which requires equal-sized constituencies.
@@ -374,6 +375,9 @@ We make a best-effort adaptation of the stepwise greedy procedure used by \citet
 The slate is built in \(k\) rounds.
 In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters.
 The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it.
+
+\paragraph{\UGreedyMonroe{}}
+Identical to \GreedyMonroe{}, except that each candidate is scored by the total utility of the top \(\lceil n/k\rceil\) unassigned voters rather than by the \(\lceil n/k\rceil\)-th highest utility among them.
 
 \paragraph{\GreedyMonroe(reassign)}
 Start with \GreedyMonroe{}.
@@ -547,6 +551,7 @@ See \Cref{app:lp-complexity}.}} \\
 \ExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
 For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.}} \\
 \GreedyMonroe{} & \complexity{$O(kmn)$} \\
+\UGreedyMonroe{} & \complexity{$O(kmn)$} \\
 \GreedyMonroe(reassign) & \complexity{$O(2^{nk})$\tablefootnote{Solver dependent.
 Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
 The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables.
@@ -561,7 +566,7 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
 
 \begin{figure*}[t]
 \centering
-  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_with-ExactMonroe.png}
+  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v6.png}
   \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
   Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with GenerativeCC.
   The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference only.
@@ -574,14 +579,21 @@ Using the 20 ballot profiles generated from GenerativeCC in the embedding ablati
 \Exact{} with a mild geometric transformation (\(p=1.5\)) behaves almost identically to the untransformed rule on this benchmark, so in the figure we additionally show a more aggressive transformation (\(p=6.0\)) for contrast.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
 
-\GreedyMonroe{}, our adaptation of the \citet{fish-v2} voting algorithm, performs much worse than all others on all SWFs.
-All other tested voting algorithms use some sort of global optimization over all candidates and voters.
+\GreedyMonroe{} --- our adaptation of the \citet{fish-v2} voting algorithm --- and \UGreedyMonroe{} perform much worse than all others on all SWFs.
+All other tested voting algorithms use some sort of global optimization over all candidates and voters, even \Greedy, which reassigns voters after selecting each candidate.
+Such a global optimization requires using more discriminative queries than are used by \citet{fish-v2}.
+This suggests that the performance difference in \Cref{fig:sfws-voting-algs} between the cluster of 6 high-performing voting algorithms and the \textsc{Monroe-Greedy} algorithms stems from the latter group not leveraging the complete ballot profile.
 
-However, most of this loss is recovered by both of the other \GreedyMonroe{} variants.
-After greedy slate selection, either relaxing the Monroe equal-sized constituency constraint or solving optimally within this constraint produces similar performance.
-The same pattern is evident for utilitarian voting algorithms.
-\ExactMonroe performs nearly identically to \Exact.
+We can dismiss other possible causes by comparing various ablations.
+Most of the above difference is recovered by both of the other \GreedyMonroe{} variants.
+After greedy slate selection, either relaxing the Monroe equal-sized constituency constraint or assigning optimally within this constraint produces similar performance.
+The same pattern is evident for utilitarian voting algorithms, as \ExactMonroe performs nearly identically to \Exact.
 Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for a range of egalitarian and utilitarian objective functions.
+
+If, in a real deployment, discriminative queries are expensive, then an algorithm starting with that of \citet{fish-v2}, followed by full discriminative queries on the slate, and then a reassignment step like that of \GreedyMonroe{reassign} or \GreedyMonroe{CC reassign} may be an attractive option.
+If the performance of \GreedyMonroe{reassign} or \GreedyMonroe{CC reassign} is similar to that of such an algorithm, then it would recover significant performance while requiring far fewer discriminative queries than any of the top-performing voting algorithms.
+The tested algorithms require either $nm$ or $\frac{1}{2} n (m + m/k)$ queries (see \Cref{tab:llm-call-comparison}). This proposed algorithm requires at most $\frac{1}{2} n (m + m/k + k - 1)$ queries.
+This provides the most savings relative to computing the full ballot profile when $m >> k$.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
