@@ -266,10 +266,11 @@ Rather than using the original survey responses directly, we use the summarized 
 
 \subsection{Baseline}
 
-We run the pipeline of \citet{fish-v2} using their implementation, with two modifications for a cleaner comparison:
+We run the pipeline of \citet{fish-v2} using their implementation, with three modifications for a cleaner comparison:
 \begin{enumerate}
     \item We start from their released summaries rather than re-running the summarization step.
     \item We use GPT-4o for generative queries and GPT-4o mini for discriminative queries, matching the model choices in our own pipeline.
+    \item Unselected candidates from earlier rounds remain available for selection in later rounds, as described by \citet[Section 4.2]{fish-v2}. Their implementation by default only selects among the candidates generated in the current round. This change requires no additional queries.
 \end{enumerate}
 
 \subsection{Evaluation Metrics}
@@ -566,7 +567,7 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
 
 \begin{figure*}[t]
 \centering
-  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v6.png}
+  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v7.png}
   \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
   Confidence intervals for all series except "Baseline" are bootstrapped across 20 ballot profiles generated with GenerativeCC.
   The "Baseline" series (from \Cref{fig:swf-main}) was generated from the pipeline of \citet{fish-v2} and is included for reference only.
@@ -616,6 +617,15 @@ This likely introduces additional noise into the estimated ballot profile.
 Although that should not systematically favor our method over the baseline, we do not perform the kind of direct human validation reported by \citet{fish-v2}.
 It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here.
 In general, we make no claims about the absolute alignment with human voters of the range votes made by our LLM-based virtual voters.
+
+\paragraph{Model drift}
+The baseline runs in \Cref{fig:swf-main} were produced about a year after the GenerativeCC runs, with the same model snapshots (\texttt{gpt-4o-2024-08-06} and \texttt{gpt-4o-mini-2024-07-18}).
+To test whether inference changed in the meantime, we re-sent samples of every query type that feeds into the compared results, and compared the responses with those recorded in the earlier runs.
+For the three types of discriminative queries (rating baseline candidates, rating GenerativeCC candidates, and the baseline's nearest-neighbor search), we detect no bias: the mean differences are between \(-0.005\) and \(+0.031\) on the 0--4 scale, and all of their 95\% confidence intervals include zero.
+The ratings are noisier than before, however: their mean squared difference from the earlier ratings is 1.5--2 times that between ratings of the same voter and statement in two different earlier runs.
+Re-sent generative queries produce statements whose distance to the earlier outputs is within the earlier run-to-run variation, and whose quality does not change detectably (\(+0.06\), 95\% CI \([-0.02, +0.16]\), in mean agreement).
+We also found that ratings depend on the line breaks in the prompt (LF or CRLF, which depends on the operating system the data were checked out on): in a pilot on GenerativeCC statements, CRLF prompts were rated about 0.1 higher.
+All runs in the main results use the LF prompts that reproduce the earlier GenerativeCC ratings; the earlier baseline runs used in \Cref{app:embedding-ablation-details} used CRLF prompts.
 
 \paragraph{Inherited limitations from prior work}
 Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups.
@@ -702,6 +712,11 @@ Both authors performed main pipeline experiments, analysis, time complexity anal
 
 \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} show the results of running GenerativeCC and the pipeline of \citet{fish-v2} with different embedding choices on the chatbot personalization dataset.
 The improved LLM embeddings account for only a small portion of the overall difference in performance.
+
+Both baseline series in this ablation use an earlier set of runs, made with the default of the implementation of \citet{fish-v2}: each round selects only among the candidates generated in that round.
+Their values therefore differ from those of the baseline in \Cref{fig:swf-main}, which keeps earlier candidates available.
+The comparison between the two baseline series is unaffected, since both use the same rule, but we assume rather than test that the effect of the embeddings carries over to the baseline of \Cref{fig:swf-main}.
+These earlier runs also formatted line breaks in their prompts differently from all other runs (see \Cref{sec:limitations}).
 
 \begin{figure*}[t]
   \begin{center}
