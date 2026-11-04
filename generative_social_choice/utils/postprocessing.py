@@ -2169,6 +2169,8 @@ class ResultConfig:
     run_ids: list[str]
     labelling_model: str = "4o-mini"
     pipeline: Literal["ours", "fish"] = "ours"
+    # Only for pipeline="fish", see get_baseline_run_dirs
+    fish_candidate_pool: Literal["round", "persistent"] = "round"
 
 
 def save_figure(fig: plt.Figure, path: str | Path, fig_format: Literal["png", "pdf"] = "png") -> None:
@@ -2201,7 +2203,7 @@ def collect_results_and_plot(
         pipelines[config.name] = config.pipeline
 
         if config.pipeline=="fish":
-            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type)
+            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type, candidate_pool=config.fish_candidate_pool)
 
             utility_dfs[config.name] = [utilities[col] for col in utilities.columns]
             all_algo_assignments[config.name] = [algo_assignments[col] for col in algo_assignments.columns]
