@@ -62,7 +62,7 @@ def generate_slate_from_paper(
     )
     # The data are stored with LF line endings, but a Windows checkout (core.autocrlf) turns newlines
     # inside CSV fields into CRLF. That changes the prompts and shifts ratings by about 0.1, so always
-    # use LF, as in the GenerativeCC runs (see claude_sandbox/RESULT_model_drift.md).
+    # use LF, as in the GenerativeCC runs (see data/model_drift/RESULT_model_drift.md).
     to_lf = lambda x: x.replace("\r\n", "\n") if isinstance(x, str) else x
     df = df.apply(lambda col: col.map(to_lf))
     agent_id_to_summary = {agent_id: to_lf(summary) for agent_id, summary in agent_id_to_summary.items()}
