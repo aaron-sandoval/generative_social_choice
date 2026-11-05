@@ -1168,12 +1168,16 @@ We test whether a query sent in November 2026 behaves like one more query from 2
 
 \paragraph{Reference: variation within 2025.}
 Since these models are nondeterministic, we compare the differences between 2025 and 2026 with differences between two 2025 queries.
-In the 15 2025 baseline runs, 400 (voter, statement) cells were rated in two different runs.
-These ratings differ by 0.059 on average (mean absolute difference on the 0--4 scale).
-For nearest-neighbor searches, 1{,}453 pairs of voters \((j, i)\), in which voter \(j\) rated the summary of voter \(i\), were queried in two different runs, and differ by 0.117 on average.
+For ratings of candidate statements, the reference consists of the (voter, statement) cells rated in two different runs of the 15 2025 baseline runs.
+Only four candidate statements of these runs appear in more than one run: three outputs of the subsampling generator and one of a nearest-neighbor generator, all from the first round.
+Each was rated by all 100 voters, giving 400 cells.
+For nearest-neighbor searches, the reference consists of the 1{,}453 pairs of voters \((j, i)\), in which voter \(j\) rated the summary of voter \(i\), that were queried in two different runs; these cover 100 voters rating 33 different summaries.
 For generation, three of the baseline's generators received identical inputs in the first round of all 15 runs: the two generators prompted with the opinions of all voters, at temperatures 0 and 1, and the generator prompted with a random subsample of five opinions, which is the same in every run.
-The mean pairwise cosine distance between the embeddings of their 15 outputs is 0.139, 0.148, and 0.024, respectively.
-This is a proxy measurement of the semantic variance among generated statements.
+For these, the reference is the mean pairwise cosine distance between the embeddings of their 15 outputs, a proxy measurement of the semantic variance among generated statements.
+
+Two 2025 ratings of the same candidate cell differ by 0.059 on average (mean absolute difference on the 0--4 scale), and two 2025 nearest-neighbor searches of the same pair by 0.117.
+Since the reference for candidate ratings comes from only four statements, it measures the variation between two 2025 ratings of the same query only poorly.
+For generation, the mean pairwise distances are 0.139 and 0.148 for the generators at temperatures 0 and 1, and 0.024 for the subsampling generator.
 
 \paragraph{Discriminative queries.}
 We created three samples of 2025 queries and recomputed them in 2026:
@@ -1185,30 +1189,34 @@ We created three samples of 2025 queries and recomputed them in 2026:
 Equal numbers of ratings per bin do not match the distribution of 2025 ratings: among all 27{,}000 ratings of candidate statements in the 15 earlier baseline runs, 49\% are above 3.5 and 2\% below 2, whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below 2.
 We therefore compute each estimate as a weighted average of its values within the bins, weighting each bin by its share of all 2025 ratings of the same type, so that estimates describe all 2025 queries of a type rather than the sample.
 
-\Cref{tab:model-drift-ratings} shows the results.
-The \emph{spread ratio} is the mean squared difference between the 2026 and 2025 ratings divided by that between two 2025 ratings, combined over bins with population weights and restricted to bins with at least 20 reference pairs; a ratio of 1 means that a 2026 rating varies around a 2025 rating exactly as much as another 2025 rating would.
-Confidence intervals are 95\% bootstrap intervals with 2{,}000 resamples.
+\Cref{tab:model-drift-ratings} shows the bias, the mean difference between the 2026 and 2025 ratings, with 95\% bootstrap confidence intervals from 2{,}000 resamples.
+None of the three query types shows a detectable bias.
 
 \begin{table*}[t]
 \centering
-\begin{tabular}{lcccc}
+\begin{tabular}{lcc}
 \hline
-Query type & \(n\) & Reference pairs & Bias (2026 \(-\) 2025) & Spread ratio \\
+Query type & \(n\) & Bias (2026 \(-\) 2025) \\
 \hline
-Baseline candidates & 300 & 400 & \(+0.002\) \([-0.017, +0.021]\) & 1.81 \([1.05, 3.32]\) \\
-GenerativeCC candidates & 192 & 400\(^*\) & \(-0.005\) \([-0.026, +0.018]\) & 1.53 \([0.87, 2.78]\) \\
-Nearest-neighbor search & 152 & 1{,}453 & \(+0.031\) \([-0.019, +0.084]\) & 2.03 \([1.00, 3.41]\) \\
+Baseline candidates & 300 & \(+0.002\) \([-0.017, +0.021]\) \\
+GenerativeCC candidates & 192 & \(-0.005\) \([-0.026, +0.018]\) \\
+Nearest-neighbor search & 152 & \(+0.031\) \([-0.019, +0.084]\) \\
 \hline
 \end{tabular}
-\caption{Ratings of logged 2025 queries re-sent in November 2026, on the 0--4 scale. Bias and spread ratio are weighted to the population distribution of 2025 ratings. Brackets are 95\% bootstrap confidence intervals. \(^*\)Pairs of baseline-candidate ratings, since no GenerativeCC cell was rated twice.}
+\caption{Mean difference between ratings of 2025 queries recomputed in November 2026 and the original 2025 ratings, on the 0--4 scale, weighted to the population distribution of 2025 ratings. Brackets are 95\% bootstrap confidence intervals.}
 \label{tab:model-drift-ratings}
 \end{table*}
 
-None of the three query types shows a detectable bias.
-The 2026 ratings are noisier, however, with 1.5--2 times the mean squared difference of two 2025 ratings.
-For the 100 cells with two 2025 ratings, the ratio computed directly on the same cells is 1.71 \([1.00, 3.18]\).
+Because of the limited reference for candidate ratings, we cannot reliably tell whether the variance of the ratings changed.
+We compare variances by the \emph{spread ratio}: the mean squared difference between the 2026 and 2025 ratings divided by that between two 2025 ratings, combined over bins with population weights and restricted to bins with at least 20 reference pairs.
+A ratio of 1 means that a 2026 rating varies around a 2025 rating exactly as much as another 2025 rating would.
+For baseline candidates, the ratio is 1.81.
+Since the reference consists of only four statements, we resample statements rather than individual cells, which gives a 95\% confidence interval of \([0.93, 4.59]\); leaving out any one of the four statements gives ratios from 1.44 to 2.86.
+For the 100 cells with two 2025 ratings, which come from the same four statements, the ratio computed on the same cells is 1.71 \([1.00, 3.18]\).
+GenerativeCC candidates have no reference of their own, since no GenerativeCC cell was rated twice; against the reference of the baseline candidates, their ratio is 1.53 \([0.87, 2.78]\).
+For nearest-neighbor search, with its broader reference, the ratio is 2.03 \([1.00, 3.41]\).
 
-The additional noise affects only the baseline of \Cref{fig:swf-main}.
+Any additional noise affects only the baseline of \Cref{fig:swf-main}.
 The baseline selects statements and assigns voters using the same ratings that it reports as utilities.
 Statements whose ratings are high due to noise are more likely to be selected, so even unbiased noise applied to ratings may inflate the baseline system's performance on SWFs.
 
@@ -1216,11 +1224,13 @@ Statements whose ratings are high due to noise are more likely to be selected, s
 We re-sent 24 logged generation queries, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 queries).
 We compare outputs by the cosine distance between their \texttt{text-embedding-3-small} embeddings, and by quality: six fixed voters rated each 2025 output and both 2026 outputs, with all ratings made in 2026 so that drift of the rater cancels.
 \begin{itemize}
-    \item \emph{Distance.} Two of the sampled queries are first-round queries that were identical across 2025 runs, from the generators prompted with the opinions of all voters at temperatures 0 and 1. The mean distance of their two 2026 outputs to the 15 2025 outputs is 0.105 and 0.121, compared with 0.139 and 0.148 between two 2025 outputs, so the 2026 outputs are no farther from the 2025 outputs than another 2025 output would be. The differences are not significant: in an exact permutation test of whether a single 2026 output is exchangeable with the 15 2025 outputs, two-sided \(p\)-values are between 0.13 and 0.75 for each of the four 2026 outputs. Over all 24 queries, the two 2026 outputs are closer to each other than to the 2025 output, by 0.042 \([0.017, 0.072]\) on average. So they understate the variation between runs and are not used as the reference.
+    \item \emph{Distance.} Two of the sampled queries are first-round queries that were identical across 2025 runs, from the generators prompted with the opinions of all voters at temperatures 0 and 1. The mean distance of their two 2026 outputs to the 15 2025 outputs is 0.105 and 0.121, compared with 0.139 and 0.148 between two 2025 outputs, so the 2026 outputs are no farther from the 2025 outputs than another 2025 output would be. The differences are not significant: in an exact permutation test of whether a single 2026 output is exchangeable with the 15 2025 outputs, two-sided \(p\)-values are between 0.13 and 0.75 for each of the four 2026 outputs. Over all 24 queries, the two 2026 outputs are closer to each other than to the 2025 output, by 0.042 \([0.017, 0.072]\) on average, reflecting the lower variation of 2026 outputs (next item).
+    \item \emph{Variation between runs.} Generation varies much less between runs in 2026 than it did in 2025. The 15 baseline runs of \Cref{fig:swf-main}, made within 1.3 hours from five parallel processes, sent the same first-round queries in every run, as in 2025; these differ from the 2025 queries only in their line endings. Their mean pairwise distances are 0.007 at temperature 0 compared with 0.139 in 2025, 0.078 at temperature 1 compared with 0.148, and 0.016 for the subsampling generator compared with 0.024. The spread of the 2025 runs over three months does not explain this: the six 2025 runs of August 6--7 alone give distances of 0.136, 0.126, and 0.027. Since the baseline of \Cref{fig:swf-main} is a sample of 2026 runs, its confidence intervals reflect this lower variation and may be narrower than those of an equivalent sample of 2025 runs.
     \item \emph{Quality.} Mean agreement with 2026 outputs differs from that with 2025 outputs by \(+0.06\) \([-0.02, +0.16]\), with no detectable change. Two 2026 outputs of the same query differ by 0.06 on average.
     \item \emph{Format.} The mean response lengths are similar (71--86 words per generator in 2025, 71--85 in 2026).
 \end{itemize}
 
-Overall, we find no evidence that the models' outputs shifted between 2025 and 2026, only that the 2026 ratings are noisier.
+Overall, we find no shift in the mean of the ratings or in the quality of the generated statements.
+Generation varies markedly less between runs in 2026 than in 2025, and the 2025 references are too limited to tell whether the variance of the ratings changed.
 
 \end{document}
