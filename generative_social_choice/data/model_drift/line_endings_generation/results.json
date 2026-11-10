@@ -1,0 +1,324 @@
+{
+  "fingerprints": {
+    "A (2025 logs)": {
+      "fp_a288987b44": 3,
+      "fp_07871e2ad8": 6,
+      "NaN": 15,
+      "fp_ff25b2783a": 18,
+      "fp_46bff0e0c8": 3
+    },
+    "B (Nov 3 2026 logs)": {
+      "fp_e85bcce457": 45
+    },
+    "C (now, CRLF)": {
+      "fp_e85bcce457": 42,
+      "fp_4c910a9acf": 3
+    },
+    "D (now, LF)": {
+      "fp_e85bcce457": 42,
+      "fp_f2008e483d": 1,
+      "fp_4c910a9acf": 2
+    }
+  },
+  "fingerprints_now_by_slot": {
+    "crlf slot 0": {
+      "fp_e85bcce457": 13,
+      "fp_4c910a9acf": 2
+    },
+    "crlf slot 1": {
+      "fp_e85bcce457": 14,
+      "fp_4c910a9acf": 1
+    },
+    "crlf slot 2": {
+      "fp_e85bcce457": 15
+    },
+    "lf slot 0": {
+      "fp_e85bcce457": 14,
+      "fp_4c910a9acf": 1
+    },
+    "lf slot 1": {
+      "fp_e85bcce457": 14,
+      "fp_f2008e483d": 1
+    },
+    "lf slot 2": {
+      "fp_e85bcce457": 14,
+      "fp_4c910a9acf": 1
+    }
+  },
+  "timestamps": {
+    "first": "2026-11-10-192455",
+    "last": "2026-11-10-192703"
+  },
+  "slots": {
+    "0": {
+      "name": "Personalization (T=0)",
+      "var": {
+        "A": 0.13880480987036242,
+        "B": 0.00671986775913784,
+        "C": 0.003690547463416781,
+        "D": 0.005530588368581663
+      },
+      "distinct": {
+        "A": 15,
+        "B": 7,
+        "C": 5,
+        "D": 7
+      },
+      "modal_count": {
+        "A": 1,
+        "B": 4,
+        "C": 6,
+        "D": 5
+      },
+      "exact_matches": {
+        "C in A": 0,
+        "D in B": 9,
+        "C in D": 5,
+        "D in A": 0,
+        "B in A": 0
+      },
+      "pairs": {
+        "C-A": {
+          "label": "drift, prompts fixed (CRLF)",
+          "cross": 0.10395174538190977,
+          "ref": "C",
+          "within_ref": 0.003690547463416781,
+          "cross_minus_within_ref": 0.10026119791849299,
+          "p_two_sided": 0.0,
+          "alt_ref": "A",
+          "within_alt_ref": 0.13880480987036242,
+          "cross_minus_within_alt_ref": -0.034853064488452656,
+          "p_two_sided_alt_ref": 0.0009
+        },
+        "D-B": {
+          "label": "2026 stability, LF, one week",
+          "cross": 0.00608776186996088,
+          "ref": "D",
+          "within_ref": 0.005530588368581663,
+          "cross_minus_within_ref": 0.000557173501379217,
+          "p_two_sided": 0.3554,
+          "alt_ref": "B",
+          "within_alt_ref": 0.00671986775913784,
+          "cross_minus_within_alt_ref": -0.0006321058891769604,
+          "p_two_sided_alt_ref": 0.2581
+        },
+        "C-D": {
+          "label": "line-ending effect, same time",
+          "cross": 0.005145991514715887,
+          "ref": "C",
+          "within_ref": 0.003690547463416781,
+          "cross_minus_within_ref": 0.0014554440512991062,
+          "p_two_sided": 0.0225,
+          "alt_ref": "D",
+          "within_alt_ref": 0.005530588368581663,
+          "cross_minus_within_alt_ref": -0.0003845968538657759,
+          "p_two_sided_alt_ref": 0.3621
+        },
+        "D-A": {
+          "label": "now LF vs 2025 CRLF",
+          "cross": 0.1045128092311518,
+          "ref": "D",
+          "within_ref": 0.005530588368581663,
+          "cross_minus_within_ref": 0.09898222086257014,
+          "p_two_sided": 0.0,
+          "alt_ref": "A",
+          "within_alt_ref": 0.13880480987036242,
+          "cross_minus_within_alt_ref": -0.03429200063921062,
+          "p_two_sided_alt_ref": 0.0037
+        },
+        "B-A": {
+          "label": "original comparison",
+          "cross": 0.10419362918155901,
+          "ref": "B",
+          "within_ref": 0.00671986775913784,
+          "cross_minus_within_ref": 0.09747376142242115,
+          "p_two_sided": 0.0,
+          "alt_ref": "A",
+          "within_alt_ref": 0.13880480987036242,
+          "cross_minus_within_alt_ref": -0.03461118068880341,
+          "p_two_sided_alt_ref": 0.0004
+        }
+      }
+    },
+    "1": {
+      "name": "Personalization (T=1)",
+      "var": {
+        "A": 0.1483370045038936,
+        "B": 0.0783699967613226,
+        "C": 0.1450731835618581,
+        "D": 0.09975810003511322
+      },
+      "distinct": {
+        "A": 15,
+        "B": 15,
+        "C": 15,
+        "D": 15
+      },
+      "modal_count": {
+        "A": 1,
+        "B": 1,
+        "C": 1,
+        "D": 1
+      },
+      "exact_matches": {
+        "C in A": 0,
+        "D in B": 0,
+        "C in D": 0,
+        "D in A": 0,
+        "B in A": 0
+      },
+      "pairs": {
+        "C-A": {
+          "label": "drift, prompts fixed (CRLF)",
+          "cross": 0.14441959218744746,
+          "ref": "C",
+          "within_ref": 0.1450731835618581,
+          "cross_minus_within_ref": -0.0006535913744106503,
+          "p_two_sided": 0.9288,
+          "alt_ref": "A",
+          "within_alt_ref": 0.1483370045038936,
+          "cross_minus_within_alt_ref": -0.003917412316446128,
+          "p_two_sided_alt_ref": 0.908
+        },
+        "D-B": {
+          "label": "2026 stability, LF, one week",
+          "cross": 0.08802302650920953,
+          "ref": "D",
+          "within_ref": 0.09975810003511322,
+          "cross_minus_within_ref": -0.011735073525903694,
+          "p_two_sided": 0.0446,
+          "alt_ref": "B",
+          "within_alt_ref": 0.0783699967613226,
+          "cross_minus_within_alt_ref": 0.009653029747886926,
+          "p_two_sided_alt_ref": 0.1838
+        },
+        "C-D": {
+          "label": "line-ending effect, same time",
+          "cross": 0.12735149306810048,
+          "ref": "C",
+          "within_ref": 0.1450731835618581,
+          "cross_minus_within_ref": -0.01772169049375763,
+          "p_two_sided": 0.3416,
+          "alt_ref": "D",
+          "within_alt_ref": 0.09975810003511322,
+          "cross_minus_within_alt_ref": 0.02759339303298726,
+          "p_two_sided_alt_ref": 0.1695
+        },
+        "D-A": {
+          "label": "now LF vs 2025 CRLF",
+          "cross": 0.13087405842127117,
+          "ref": "D",
+          "within_ref": 0.09975810003511322,
+          "cross_minus_within_ref": 0.031115958386157952,
+          "p_two_sided": 0.0769,
+          "alt_ref": "A",
+          "within_alt_ref": 0.1483370045038936,
+          "cross_minus_within_alt_ref": -0.017462946082622416,
+          "p_two_sided_alt_ref": 0.2761
+        },
+        "B-A": {
+          "label": "original comparison",
+          "cross": 0.1200259294118473,
+          "ref": "B",
+          "within_ref": 0.0783699967613226,
+          "cross_minus_within_ref": 0.04165593265052471,
+          "p_two_sided": 0.0185,
+          "alt_ref": "A",
+          "within_alt_ref": 0.1483370045038936,
+          "cross_minus_within_alt_ref": -0.028311075092046292,
+          "p_two_sided_alt_ref": 0.0379
+        }
+      }
+    },
+    "2": {
+      "name": "Subsampling (n=5)",
+      "var": {
+        "A": 0.023738953693631444,
+        "B": 0.01629446385073526,
+        "C": 0.015751928488153776,
+        "D": 0.017101006768529766
+      },
+      "distinct": {
+        "A": 10,
+        "B": 4,
+        "C": 8,
+        "D": 5
+      },
+      "modal_count": {
+        "A": 3,
+        "B": 11,
+        "C": 5,
+        "D": 11
+      },
+      "exact_matches": {
+        "C in A": 0,
+        "D in B": 13,
+        "C in D": 0,
+        "D in A": 0,
+        "B in A": 0
+      },
+      "pairs": {
+        "C-A": {
+          "label": "drift, prompts fixed (CRLF)",
+          "cross": 0.021247174023787604,
+          "ref": "C",
+          "within_ref": 0.015751928488153776,
+          "cross_minus_within_ref": 0.005495245535633832,
+          "p_two_sided": 0.0099,
+          "alt_ref": "A",
+          "within_alt_ref": 0.023738953693631444,
+          "cross_minus_within_alt_ref": -0.0024917796698438396,
+          "p_two_sided_alt_ref": 0.1312
+        },
+        "D-B": {
+          "label": "2026 stability, LF, one week",
+          "cross": 0.015750751623449452,
+          "ref": "D",
+          "within_ref": 0.017101006768529766,
+          "cross_minus_within_ref": -0.0013502551450803174,
+          "p_two_sided": 0.8249,
+          "alt_ref": "B",
+          "within_alt_ref": 0.01629446385073526,
+          "cross_minus_within_alt_ref": -0.0005437122272858065,
+          "p_two_sided_alt_ref": 0.9202
+        },
+        "C-D": {
+          "label": "line-ending effect, same time",
+          "cross": 0.02806963074183649,
+          "ref": "C",
+          "within_ref": 0.015751928488153776,
+          "cross_minus_within_ref": 0.012317702253682717,
+          "p_two_sided": 0.0,
+          "alt_ref": "D",
+          "within_alt_ref": 0.017101006768529766,
+          "cross_minus_within_alt_ref": 0.010968623973306724,
+          "p_two_sided_alt_ref": 0.0002
+        },
+        "D-A": {
+          "label": "now LF vs 2025 CRLF",
+          "cross": 0.030399540312022244,
+          "ref": "D",
+          "within_ref": 0.017101006768529766,
+          "cross_minus_within_ref": 0.013298533543492478,
+          "p_two_sided": 0.0004,
+          "alt_ref": "A",
+          "within_alt_ref": 0.023738953693631444,
+          "cross_minus_within_alt_ref": 0.0066605866183908,
+          "p_two_sided_alt_ref": 0.0344
+        },
+        "B-A": {
+          "label": "original comparison",
+          "cross": 0.02929858427102393,
+          "ref": "B",
+          "within_ref": 0.01629446385073526,
+          "cross_minus_within_ref": 0.013004120420288673,
+          "p_two_sided": 0.0004,
+          "alt_ref": "A",
+          "within_alt_ref": 0.023738953693631444,
+          "cross_minus_within_alt_ref": 0.005559630577392487,
+          "p_two_sided_alt_ref": 0.0575
+        }
+      }
+    }
+  }
+}
