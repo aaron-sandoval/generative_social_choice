@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import cached_property
 from itertools import combinations
 import abc
+import math
 from dataclasses import dataclass
 from typing import Optional, Literal, override
 import warnings
@@ -484,7 +485,7 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        return f"Exact{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-Exact{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
         
     @override
     def vote(
@@ -554,6 +555,105 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
 
 
 @dataclass(frozen=True)
+class ExactMinimumUtilityMaximization(VotingAlgorithm):
+    """
+    Egalitarian Chamberlin-Courant: select the slate maximizing the minimum utility of any voter,
+    where each voter is assigned to their favorite candidate in the slate.
+
+    Solved exactly as an integer program. Many slates typically achieve the optimal minimum utility, and
+    the solver would return an arbitrary one of them. So with `utilitarian_tiebreak`, a second integer
+    program selects the slate with the highest total utility among those achieving the optimal minimum.
+
+    # Arguments
+    - `utilitarian_tiebreak: bool = True`: Whether to break ties in minimum utility by total utility
+    """
+    utilitarian_tiebreak: bool = True
+
+    @property
+    def display_name(self) -> str:
+        return f"E-CC-Exact{'' if self.utilitarian_tiebreak else '(no tiebreak)'}"
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        def solve(objective: Literal["minimum", "total"], min_utility: Optional[float] = None) -> list[str]:
+            """Solve the integer program and return the selected slate.
+
+            If `min_utility` is given, agents may only be assigned to statements giving them at least that utility."""
+            prob = pulp.LpProblem(f"Maximize_{objective}_Utility", pulp.LpMaximize)
+
+            # Decision variables
+            x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+            y = [
+                [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+                for i in range(num_agents)
+            ]
+            agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
+
+            if objective == "minimum":
+                z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on every agent's utility
+                prob += z, "MinimumUtility"
+                for i in range(num_agents):
+                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
+            else:
+                prob += pulp.lpSum(agent_utility), "TotalUtility"
+
+            # Select exactly k statements
+            prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+            # Each agent is assigned to exactly one statement
+            for i in range(num_agents):
+                prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+            # An agent can only be assigned to a selected statement
+            for i in range(num_agents):
+                for j in range(num_statements):
+                    prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+            # Forbid assignments below the minimum utility. Comparing against the data directly, rather than
+            # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
+            if min_utility is not None:
+                for i in range(num_agents):
+                    for j in range(num_statements):
+                        if U[i][j] < min_utility:
+                            y[i][j].upBound = 0
+
+            prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+            if pulp.LpStatus[prob.status] != "Optimal":
+                raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
+
+            return [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+
+        slate = solve("minimum")
+        if self.utilitarian_tiebreak:
+            # The optimal minimum utility, read from the data rather than the solver's objective value
+            optimal_min_utility = rated_votes.loc[:, slate].max(axis=1).min()
+            slate = solve("total", min_utility=optimal_min_utility)
+
+        # Assign each agent to their favorite statement in the slate
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(rated_votes.loc[:, slate].idxmax(axis=1), index=assignments.index, dtype=str)
+        assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
+
+        return slate, assignments
+
+
+@dataclass(frozen=True)
 class ExactTotalUtilityMaximizationBruteSearch(VotingAlgorithm):
     """Brute-force search over all slates of size k to maximize total utility."""
 
@@ -561,7 +661,7 @@ class ExactTotalUtilityMaximizationBruteSearch(VotingAlgorithm):
 
     @property
     def display_name(self) -> str:
-        return f"ExactBrute{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-ExactBrute{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -630,7 +730,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
     
     @property
     def display_name(self) -> str:
-        return f"LP{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-LP{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -680,11 +780,7 @@ class LPTotalUtilityMaximization(VotingAlgorithm):
                 prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
 
         # Now solve the problem using an existing integer programming solver
-        # options=['barrier'] is to use an interior point method, which has polynomial time complexity, other than the default simplex method
-        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-9, options=['barrier']))
-
-        #prob.solve(pulp.GLPK_CMD(options=['--interior'], msg=0))  # GLPK's interior point
-        #prob.solve(pulp.CPLEX_CMD())
+        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-9))
 
         # Extract slate and assignments from the solved problem
         # Here, take the k statements with maximum score
@@ -706,7 +802,7 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
     
     @property
     def display_name(self) -> str:
-        return f"Greedy{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
+        return f"U-CC-Greedy{f'({self.utility_transform.display_name})' if self.utility_transform is not None else ''}"
 
     @override
     def vote(
@@ -764,6 +860,261 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
             assignments["utility"] = rated_votes.loc[:, slate].max(axis=1)
 
         #TODO If a utility transformation was applied, assignments["utilities"] won't match the original utilities
+        return slate, assignments
+
+
+@dataclass(frozen=True)
+class StepwiseMonroe(VotingAlgorithm):
+    """
+    Greedy stepwise Monroe rule applied to a complete, precomputed utility matrix.
+
+    This is a port of the greedy selection loop in
+    `slate_generation.generate_slate_ensemble_greedy`, which normally interleaves on-demand
+    statement generation and utility evaluation (querying only the currently-unmatched agents each
+    round) with slate selection. Here the complete utility matrix is available from the start, so
+    each round reads the relevant utilities directly instead of generating/evaluating them.
+
+    Each round selects one slate member: each candidate is scored over its best possible coalition,
+    the `coalition_size` still-unmatched agents with the highest utility for it (see `objective`).
+    The highest-scoring candidate is added to the slate, and that coalition is matched to it.
+
+    # Arguments
+    - `objective: Literal["minimum", "total"] = "minimum"`: How a candidate's coalition is scored each round.
+      - `"minimum"` (E-Monroe-Greedy): the minimum utility in the coalition, i.e., the
+        `coalition_size`-th highest utility among the unmatched agents.
+      - `"total"` (U-Monroe-Greedy): the total utility of the coalition, i.e., the sum of the
+        `coalition_size` highest utilities among the unmatched agents.
+    - `final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"`:
+      Controls only the final voter->candidate assignment; the slate selection above is identical
+      for all three modes.
+      - `"greedy_equal"` (default, true Monroe): each voter is assigned to the candidate of the
+        equal-sized coalition (~n/k voters) it was matched into during the greedy selection.
+      - `"free"` (relaxed): the equal-coalition-size constraint is dropped and each voter is
+        reassigned to its favorite member of the final slate (the same final assignment rule the
+        utility-maximizing algorithms use).
+      - `"optimal_equal"`: the equal-coalition-size constraint is *kept*, but instead of the
+        greedy per-round matching the assignment is recomputed optimally over the final slate via
+        `optimize_monroe_matching` -- an ILP that maximizes total utility subject to every slate
+        member receiving floor(n/k) or ceil(n/k) voters (exactly n/k when k divides n).
+    """
+    final_assignment: Literal["greedy_equal", "free", "optimal_equal"] = "greedy_equal"
+    objective: Literal["minimum", "total"] = "minimum"
+
+    @property
+    def name(self) -> str:
+        # The default objective is omitted so names of the original (egalitarian) variants are unchanged
+        objective_str = f", objective={self.objective}" if self.objective != "minimum" else ""
+        return f"StepwiseMonroe(final_assignment={self.final_assignment}{objective_str})"
+
+    @property
+    def display_name(self) -> str:
+        prefix = "E" if self.objective == "minimum" else "U"
+        return prefix + {
+            "greedy_equal": "-Monroe-Greedy",
+            "free": "-Monroe-Greedy(CC reassign)",
+            "optimal_equal": "-Monroe-Greedy(reassign)",
+        }[self.final_assignment]
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - `utility`: The utility of the voter for the assigned candidate
+        """
+        n = len(rated_votes.index)
+        k = slate_size
+        voters = list(rated_votes.index)
+
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = NULL_CANDIDATE_ID
+        assignments["utility"] = float(BASELINE_UTILITY)
+
+        matched: dict = {v: None for v in voters}
+        slate: list[str] = []
+
+        for round_num in range(k):
+            unmatched = [v for v in voters if matched[v] is None]
+            if not unmatched:
+                break
+
+            # Coalition size: identical formula to generate_slate_ensemble_greedy, ensuring that the
+            # per-round coalition sizes sum to exactly n over the k rounds.
+            j = round_num + 1
+            coalition_size = math.ceil(n / k) if j <= n - k * (n // k) else n // k
+            coalition_size = min(coalition_size, len(unmatched))
+
+            remaining_candidates = [c for c in rated_votes.columns if c not in slate]
+
+            # Score each remaining candidate over the coalition_size highest utilities among the
+            # unmatched agents: their minimum (the coalition_size-th highest) or their sum.
+            # Selection via np.partition keeps each round O(mn), giving O(kmn) overall; a full sort
+            # would add an unnecessary log factor.
+            sub = rated_votes.loc[unmatched, remaining_candidates].to_numpy()
+            top_utils = -np.partition(-sub, coalition_size - 1, axis=0)[:coalition_size, :]
+            if self.objective == "minimum":
+                scores = top_utils[coalition_size - 1, :]
+            else:
+                scores = top_utils.sum(axis=0)
+            best = remaining_candidates[int(np.argmax(scores))]
+            slate.append(best)
+
+            # Match the top coalition_size unmatched agents (by utility for `best`) to `best`.
+            best_utils = rated_votes.loc[unmatched, best]
+            top_idx = np.argpartition(-best_utils.to_numpy(), coalition_size - 1)[:coalition_size]
+            top_voters = best_utils.index[top_idx]
+            assignments.loc[top_voters, "candidate_id"] = best
+            assignments.loc[top_voters, "utility"] = rated_votes.loc[top_voters, best].to_numpy()
+            for v in top_voters:
+                matched[v] = best
+
+        if self.final_assignment == "free":
+            # Drop the equal-coalition assignment; assign each voter to its favorite slate member.
+            best_in_slate = voter_max_utilities_from_slate(rated_votes, slate)
+            assignments["candidate_id"] = best_in_slate["candidate_id"]
+            assignments["utility"] = best_in_slate["utility"]
+        elif self.final_assignment == "optimal_equal":
+            # Keep equal-sized coalitions, but recompute the assignment optimally over the final
+            # slate: an ILP maximizing total utility subject to each slate member getting exactly
+            # n/k voters. Imported lazily so this module doesn't hard-depend on gurobipy.
+            from generative_social_choice.paper_replication.compute_matching import (
+                optimize_monroe_matching,
+            )
+
+            util_sub = rated_votes.loc[voters, slate]
+            matching_ix = optimize_monroe_matching(util_sub.to_numpy().tolist())
+            assigned = pd.Series([slate[ix] for ix in matching_ix], index=voters)
+            assignments["candidate_id"] = assigned
+            assignments["utility"] = pd.Series(
+                [rated_votes.loc[v, c] for v, c in zip(voters, assigned)], index=voters
+            )
+
+        return slate, assignments
+
+
+@dataclass(frozen=True)
+class ExactMonroe(VotingAlgorithm):
+    """
+    Exact Monroe rule: jointly select the slate and an assignment of equal-sized constituencies of voters
+    to its members, maximizing total or minimum utility.
+
+    Each slate member is assigned floor(n/k) or ceil(n/k) voters (exactly n/k when k divides n). Unlike
+    `optimize_monroe_matching`, which finds the optimal such assignment for a fixed slate, this optimizes
+    the slate too, so with `objective="total"` it is the exact counterpart of
+    `StepwiseMonroe(final_assignment="optimal_equal")`. Solved as an integer program.
+
+    # Arguments
+    - `objective: Literal["total", "minimum"] = "total"`: Utility to maximize over the voters' assigned utilities.
+      - `"total"`: Utilitarian Monroe
+      - `"minimum"`: Egalitarian Monroe. Many solutions typically achieve the optimal minimum utility, and the
+        solver would return an arbitrary one of them. So a second integer program selects the solution with
+        the highest total utility among those achieving the optimal minimum.
+    """
+    objective: Literal["total", "minimum"] = "total"
+
+    @property
+    def display_name(self) -> str:
+        return "E-Monroe-Exact" if self.objective == "minimum" else "U-Monroe-Exact"
+
+    @override
+    def vote(
+        self,
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+    ) -> tuple[list[str], pd.DataFrame]:
+        """
+        # Returns
+        - `slate: List[str]`: The slate of candidates to be selected
+        - `assignments: pd.DataFrame`: The assignments of the candidates to the voters with the following columns:
+            - `candidate_id`: GUARANTEED: The candidate to which the voter is assigned
+            - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
+            - `utility`: The utility of the voter for the candidate
+        """
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        min_coalition_size = num_agents // slate_size
+        max_coalition_size = -(-num_agents // slate_size)  # ceil(n / k)
+
+        def solve(objective: Literal["minimum", "total"], min_utility: Optional[float] = None) -> tuple[list[str], list[str]]:
+            """Solve the integer program and return the selected slate and each agent's assigned statement.
+
+            If `min_utility` is given, agents may only be assigned to statements giving them at least that utility."""
+            prob = pulp.LpProblem(f"Maximize_{objective}_Monroe_Utility", pulp.LpMaximize)
+
+            # Decision variables
+            x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+            y = [
+                [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+                for i in range(num_agents)
+            ]
+            agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
+
+            if objective == "minimum":
+                z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on every agent's utility
+                prob += z, "MinimumUtility"
+                for i in range(num_agents):
+                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
+            else:
+                prob += pulp.lpSum(agent_utility), "TotalUtility"
+
+            # Select exactly k statements
+            prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+            # Each agent is assigned to exactly one statement
+            for i in range(num_agents):
+                prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+            # An agent can only be assigned to a selected statement
+            for i in range(num_agents):
+                for j in range(num_statements):
+                    prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+            # Each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
+            # Combined with each agent being assigned once, exactly (n mod k) statements get the larger size.
+            for j in range(num_statements):
+                coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
+                prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
+                prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
+
+            # Forbid assignments below the minimum utility. Comparing against the data directly, rather than
+            # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
+            if min_utility is not None:
+                for i in range(num_agents):
+                    for j in range(num_statements):
+                        if U[i][j] < min_utility:
+                            y[i][j].upBound = 0
+
+            prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+            if pulp.LpStatus[prob.status] != "Optimal":
+                raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
+
+            slate = [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+            candidate_assignments: list[str] = []
+            for i in range(num_agents):
+                for j in range(num_statements):
+                    if pulp.value(y[i][j]) > 0.5:  # Assignment made
+                        candidate_assignments.append(rated_votes.columns[j])
+            return slate, candidate_assignments
+
+        slate, candidate_assignments = solve(self.objective)
+        if self.objective == "minimum":
+            # Break ties by total utility. The optimal minimum utility is read from the data rather than the
+            # solver's objective value.
+            optimal_min_utility = min(rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments))
+            slate, candidate_assignments = solve("total", min_utility=optimal_min_utility)
+
+        assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
+        assignments["candidate_id"] = pd.Series(candidate_assignments, index=assignments.index, dtype=str)
+        assignments["utility"] = [rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments)]
+
         return slate, assignments
 
 

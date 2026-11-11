@@ -9,6 +9,10 @@ def optimize_monroe_matching(utilities: List[List[int]]) -> Tuple[int]:
     """Function to compute the optimal assignment of agents to statements using integer linear programming, to maximize
     the Monroe value.
 
+    Coalition sizes are balanced as evenly as possible: each statement is assigned either
+    floor(n/m) or ceil(n/m) agents, so exactly (n mod m) statements receive the extra agent. When
+    n is a multiple of m, floor == ceil and every statement gets exactly n/m agents.
+
     Args:
     utilities (List[List[int]]): n x m Utility-Matrix. `utilities[i][j]` indicate the utility of agent `i` for statement `j`.
 
@@ -18,11 +22,9 @@ def optimize_monroe_matching(utilities: List[List[int]]) -> Tuple[int]:
 
     n = len(utilities)
     m = len(utilities[0])
-    assert (
-        n % m == 0
-    ), "The number of agents (rows) must be a multiple of the number of statements (columns)."
 
-    k = n // m
+    min_coalition_size = n // m
+    max_coalition_size = -(-n // m)  # ceil(n / m)
     model = Model()
     model.Params.LogToConsole = 0
 
@@ -41,9 +43,12 @@ def optimize_monroe_matching(utilities: List[List[int]]) -> Tuple[int]:
     for i in range(n):
         model.addConstr(quicksum(variables[i]) == 1)
 
-    # constraints: each statement is assigned to exactly k agents.
+    # constraints: each statement is assigned floor(n/m) or ceil(n/m) agents. Combined with each
+    # agent being assigned once (total = n), exactly (n mod m) statements get the larger size.
     for j in range(m):
-        model.addConstr(quicksum(variables[i][j] for i in range(n)) == k)
+        coalition_size = quicksum(variables[i][j] for i in range(n))
+        model.addConstr(coalition_size >= min_coalition_size)
+        model.addConstr(coalition_size <= max_coalition_size)
 
     model.optimize()
     assert model.status == GRB.OPTIMAL or model.status == GRB.SUBOPTIMAL

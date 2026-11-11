@@ -16,6 +16,10 @@ from generative_social_choice.slates.voting_utils import gini
 from generative_social_choice.ratings.utility_matrix import extract_voter_utilities_from_info_csv
 from generative_social_choice.utils.helper_functions import get_results_paths
 from generative_social_choice.ratings.utility_matrix import get_baseline_generate_slate_results
+from generative_social_choice.slates.voting_algorithms import (
+    StepwiseMonroe,
+    ExactTotalUtilityMaximization,
+)
 
 
 LIKERT_SCORES: dict[int, str] = {
@@ -36,8 +40,12 @@ DARK_COLORS = [
     '#0f766e',  # dark teal
     '#831843',  # dark pink
 ]
-# Hex codes for the first 8 colors in the default matplotlib colormap (tab10)
-DEFAULT_COLORS = [
+# The default matplotlib color cycle (tab10), in order:
+# blue, orange, green, red, purple, brown, pink, gray, olive, cyan
+DEFAULT_COLORS = list(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+# Shared palette for method/config names (e.g. Ours, Baseline) so line and scalar CI plots match.
+# Deliberately ordered (not the matplotlib cycle) to give the leading methods distinct hues.
+METHOD_COLORS = [
     '#1f77b4',  # blue
     '#2ca02c',  # green
     '#ff7f0e',  # orange
@@ -47,8 +55,6 @@ DEFAULT_COLORS = [
     '#e377c2',  # pink
     '#7f7f7f',  # gray
 ]
-# Shared palette for method/config names (e.g. Ours, Baseline) so line and scalar CI plots match
-METHOD_COLORS = DEFAULT_COLORS
 # Map method/config labels to a stable color index. Same key = same color across plots.
 # "Ours" and "Ours (LLM Embeddings)" share a color; "Ours (Their Embeddings)" is distinct; same idea for Baseline.
 METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
@@ -62,6 +68,17 @@ METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
     "Baseline (LLM Embeddings)": 3,
     "Baseline (Their Embs.)": 2,
     "Baseline (LLM Embs.)": 3,
+    # Statement count ablation
+    "Ours (42 statements)": 0,
+    "Ours (30 statements)": 6,
+    "Baseline (30 statements)": 2,
+    # Stepwise-Monroe ablation methods: keyed by each algorithm's `display_name` (the single
+    # source of truth) so renaming a series there propagates here automatically. Reuses the
+    # embedding-ablation palette so the leading colors match (purple, orange, pink, blue).
+    StepwiseMonroe(final_assignment="greedy_equal").display_name: 3,   # purple
+    StepwiseMonroe(final_assignment="optimal_equal").display_name: 2,  # orange
+    StepwiseMonroe(final_assignment="free").display_name: 6,           # pink
+    ExactTotalUtilityMaximization().display_name: 0,                   # blue
 }
 
 
@@ -76,6 +93,28 @@ def _method_color_index(label: str) -> int:
     if s.startswith("Baseline "):
         return 5
     return min(6 + (abs(hash(s)) % max(1, len(METHOD_COLORS) - 6)), len(METHOD_COLORS) - 1)
+
+
+def _figure_layout(legend_loc: str) -> Optional[str]:
+    """Figure layout engine to use with `legend_loc`. "outside ..." legend locations need constrained layout."""
+    return "constrained" if legend_loc.startswith("outside") else None
+
+
+def _add_legend(
+    fig: plt.Figure, ax: plt.Axes, legend_loc: str, font_size: float, ncol: int = 1, frameon: bool = True
+) -> None:
+    """
+    Add a legend for the labeled artists of `ax`.
+
+    Locations prefixed with "outside" (e.g. "outside lower center", "outside right upper") place the legend
+    outside the axes in space reserved by constrained layout, so it never overlaps the data. These require the
+    figure to have been created with `layout=_figure_layout(legend_loc)`.
+    `frameon=False` removes the legend's outline and background.
+    """
+    if legend_loc.startswith("outside"):
+        fig.legend(*ax.get_legend_handles_labels(), loc=legend_loc, fontsize=font_size, ncol=ncol, frameon=frameon)
+    else:
+        ax.legend(loc=legend_loc, fontsize=font_size, ncol=ncol, frameon=frameon)
 
 
 # Default font size for collect_results_and_plot figures (labels, ticks, legend)
@@ -183,14 +222,14 @@ def consolidate_duplicate_columns(df: pd.DataFrame, delimiter: str = ", ") -> pd
 
 def compute_utilities_relative_to_reference(
     utilities: pd.DataFrame,
-    reference_col: Hashable = "Exact"
+    reference_col: Hashable = ExactTotalUtilityMaximization().display_name
 ) -> pd.DataFrame:
     """
     Compute utilities relative to a reference algorithm for each run_id.
     
     Args:
         utilities: DataFrame with either MultiIndex columns (algorithm, run_id) or simple columns (algorithm)
-        reference_col: Column name of the reference algorithm (default: "Exact")
+        reference_col: Column name of the reference algorithm (default: CC-Exact)
         
     Returns:
         DataFrame with utilities relative to reference, with reference columns removed
@@ -354,22 +393,26 @@ def bootstrap_df_rows(
     data: pd.DataFrame,
     confidence_level: float = 0.95,
     n_bootstrap: int = 400,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    sort_groups: bool = True
 ) -> pd.DataFrame:
     """
     Calculate bootstrap confidence intervals for the mean across rows grouped by MultiIndex.
-    
+
     All levels of the MultiIndex except the last are treated as grouping indices,
     where rows with the same grouping indices belong to a group. The last level is
     a sample ID. If there is no MultiIndex, then the DataFrame is treated as having
     1 group. The columns represent metrics and should be unchanged in the output.
-    
+
     Args:
         data: DataFrame with potentially MultiIndex rows. All levels except the last
               are grouping indices, the last level is sample ID.
-        confidence_level: Width of the confidence interval for the mean (default: 0.95). 
+        confidence_level: Width of the confidence interval for the mean (default: 0.95).
         n_bootstrap: Number of bootstrap samples to generate (default: 400).
-    
+        sort_groups: If True (default), groups come out in sorted order. If False,
+            they keep the order in which they first appear in `data`, which lets the
+            caller control the plotting order of the resulting series.
+
     Returns:
         DataFrame with same columns as input. Rows have MultiIndex with statistics
         as the innermost level: 'Mean', f'{confidence_level}% lower bound', 
@@ -396,7 +439,7 @@ def bootstrap_df_rows(
         grouping_levels = list(range(n_levels - 1))
         
         # Group by all levels except the last
-        groups = data.groupby(level=grouping_levels)
+        groups = data.groupby(level=grouping_levels, sort=sort_groups)
         group_names = list(groups.groups.keys())
     else:
         # Treat as single group
@@ -1301,7 +1344,7 @@ def plot_generalized_lorenz_curve(
 
 def plot_generalized_lorenz_curve_differences(
     utilities: pd.DataFrame,
-    reference_col: Hashable = "Exact",
+    reference_col: Hashable = ExactTotalUtilityMaximization().display_name,
     confidence_level: float = 0.95,
     n_bootstrap: int = 400,
     figsize: tuple[float, float] = (10, 6),
@@ -1322,7 +1365,7 @@ def plot_generalized_lorenz_curve_differences(
             methods/conditions. Can have either a simple column index or a 2-level
             MultiIndex. If using a MultiIndex, columns with the same first-level
             index will be grouped together.
-        reference_col: Column name of the reference algorithm (default: "Exact").
+        reference_col: Column name of the reference algorithm (default: CC-Exact).
         confidence_level: Width of the confidence interval (default: 0.95).
         n_bootstrap: Number of bootstrap samples to generate (default: 400).
         figsize: Figure size tuple (default: (10, 6)).
@@ -1887,21 +1930,31 @@ def plot_scalar_clustered_confidence_intervals(
         bar_index_level: Literal[0, 1] = 0,
         y_label: str = "",
         fig_size: Optional[tuple[float, float]] = None,
-        legend_loc: Literal["best", "upper left", "upper right", "lower left", "lower right", "center left", "center right", "lower center", "upper center", "center"] = "best",
+        legend_loc: str = "best",
         secondary_axis_df: Optional[pd.DataFrame] = None,
         secondary_y_label: Optional[str] = None,
         tertiary_axis_df: Optional[pd.DataFrame] = None,
         tertiary_y_label: Optional[str] = None,
+        quaternary_axis_df: Optional[pd.DataFrame] = None,
+        quaternary_y_label: Optional[str] = None,
         font_size: Optional[float] = None,
+        color_by_position: bool = False,
+        cluster_width: float = 0.8,
+        cluster_gap: float = 1.0,
+        legend_ncol: int = 1,
+        legend_frameon: bool = True,
+        fig: Optional[matplotlib.figure.FigureBase] = None,
+        width_ratios: Optional[Sequence[float]] = None,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
 
     Plots all columns in `df` as points with vertical confidence intervals.
     Each column is a separate cluster. The y-axis limits float freely to bound
-    the range of the data including confidence intervals. If secondary_axis_df
-    is provided, creates a second subplot in the same row. If tertiary_axis_df
-    is also provided, creates a third subplot in the same row.
+    the range of the data including confidence intervals, separately for each
+    subplot. If secondary_axis_df is provided, creates a second subplot in the
+    same row. If tertiary_axis_df and quaternary_axis_df are also provided,
+    creates a third and fourth subplot in the same row.
 
     Args:
         df: DataFrame with a 2-level row MultiIndex including bar labels and 
@@ -1932,114 +1985,104 @@ def plot_scalar_clustered_confidence_intervals(
             plot on a third subplot. If provided, creates three subplots 
             horizontally arranged with widths proportional to the number of 
             clusters in each subplot to maintain consistent cluster spacing.
-        tertiary_y_label: Optional y-axis label for the third subplot. If None 
-            and tertiary_axis_df is provided, the third subplot will have no 
+        tertiary_y_label: Optional y-axis label for the third subplot. If None
+            and tertiary_axis_df is provided, the third subplot will have no
             y-axis label.
+        quaternary_axis_df: Optional DataFrame with the same structure as df to
+            plot on a fourth subplot. Requires tertiary_axis_df.
+        quaternary_y_label: Optional y-axis label for the fourth subplot.
+        color_by_position: If True, color each series by its position in the
+            plotting order rather than by its method name. Use for series that
+            have no fixed color meaning, such as voting algorithms.
+        cluster_width: Horizontal span of the points within each cluster.
+        cluster_gap: Horizontal space between the outermost points of adjacent clusters.
+        legend_ncol: Number of legend columns. Legend locations prefixed with "outside"
+            (e.g. "outside lower center") place the legend outside the axes so it never
+            overlaps the data.
+        legend_frameon: Whether to draw the legend's outline and background.
+        fig: Optional existing figure or subfigure (e.g. from `Figure.subfigures`) to draw the subplots into,
+            for stacking several of these plots in one figure. `fig_size` is then ignored, and the layout is
+            left to the parent figure (create it with `layout="constrained"`).
+        width_ratios: Optional relative widths of the subplots, overriding the default of their numbers of
+            clusters (which keeps the cluster spacing equal across subplots).
 
     Returns:
-        plt.Figure: The generated matplotlib figure
+        plt.Figure: The generated matplotlib figure (or `fig`, if given)
     """
     # Assert that if tertiary data is provided, secondary data must also be provided
     assert tertiary_axis_df is None or secondary_axis_df is not None, \
         "tertiary_axis_df requires secondary_axis_df to be provided"
+    assert quaternary_axis_df is None or tertiary_axis_df is not None, \
+        "quaternary_axis_df requires tertiary_axis_df to be provided"
     if colors is None:
-        colors = METHOD_COLORS
+        colors = DEFAULT_COLORS if color_by_position else METHOD_COLORS
     if font_size is None:
         font_size = PLOT_FONT_SIZE
     # Use the helper function to preprocess the data
     bar_labels, metrics, processed_data = _preprocess_clustered_ci_data(
-        df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+        df, bar_index, error_bar_lower_index, error_bar_upper_index,
         bar_index_level
     )
+
+    # Color each series either by its semantic method name (so "Ours"/"Baseline" keep the
+    # same color across figures) or simply by its position in the plotting order.
+    label_positions = {str(label): i for i, label in enumerate(bar_labels)}
+
+    def _color_for(label: str) -> str:
+        idx = label_positions.get(label, 0) if color_by_position else _method_color_index(label)
+        return colors[idx % len(colors)]
     
-    # Check if we need a secondary or tertiary axis
-    has_secondary = secondary_axis_df is not None
-    has_tertiary = tertiary_axis_df is not None
-    
-    # Preprocess secondary data if provided
-    if has_secondary:
-        secondary_bar_labels, secondary_metrics, secondary_processed_data = _preprocess_clustered_ci_data(
-            secondary_axis_df, bar_index, error_bar_lower_index, error_bar_upper_index, 
+    # Each subplot is (DataFrame, y-axis label), in left-to-right order
+    panels: list[tuple[pd.DataFrame, Optional[str]]] = [(df, y_label)]
+    for extra_df, extra_y_label in (
+        (secondary_axis_df, secondary_y_label),
+        (tertiary_axis_df, tertiary_y_label),
+        (quaternary_axis_df, quaternary_y_label),
+    ):
+        if extra_df is not None:
+            panels.append((extra_df, extra_y_label))
+
+    # Preprocess the data of the additional subplots
+    datasets = [(bar_labels, metrics, processed_data)] + [
+        _preprocess_clustered_ci_data(
+            panel_df, bar_index, error_bar_lower_index, error_bar_upper_index,
             bar_index_level
         )
-        
-        # Check if bar labels are different to determine if we need separate legends
-        need_separate_legends = set(bar_labels) != set(secondary_bar_labels)
-    else:
-        secondary_bar_labels = None
-        secondary_metrics = None
-        secondary_processed_data = None
-        need_separate_legends = False
-    
-    # Preprocess tertiary data if provided
-    if has_tertiary:
-        tertiary_bar_labels, tertiary_metrics, tertiary_processed_data = _preprocess_clustered_ci_data(
-            tertiary_axis_df, bar_index, error_bar_lower_index, error_bar_upper_index, 
-            bar_index_level
-        )
-        
-        # Check if bar labels are different to determine if we need separate legends
-        if not need_separate_legends:
-            need_separate_legends = (set(bar_labels) != set(tertiary_bar_labels) or
-                                   set(secondary_bar_labels) != set(tertiary_bar_labels))
-    else:
-        tertiary_bar_labels = None
-        tertiary_metrics = None
-        tertiary_processed_data = None
-    
+        for panel_df, _ in panels[1:]
+    ]
+
+    # If the bar labels differ between subplots, each subplot needs its own legend
+    need_separate_legends = len({frozenset(labels) for labels, _, _ in datasets}) > 1
+
     # Create figure and axes
+    draw_into_existing_fig = fig is not None
     if fig_size is None:
-        if has_tertiary:
-            # Base width on total number of metrics across all three subplots
-            total_metrics = len(metrics) + len(secondary_metrics) + len(tertiary_metrics)
-            fig_size = (max(6.0, 1.2*total_metrics), 4)  # Width based on total metrics
-        elif has_secondary:
-            # Base width on total number of metrics across both subplots
-            total_metrics = len(metrics) + len(secondary_metrics)
-            fig_size = (max(4.0, 1.2*total_metrics), 4)  # Width based on total metrics
-        else:
-            fig_size = (max(2.5, 1.2*len(df.columns)), 4)
-    
-    if has_tertiary:
-        # Calculate relative widths based on number of clusters (metrics) in each subplot
-        primary_width = len(metrics)
-        secondary_width = len(secondary_metrics)
-        tertiary_width = len(tertiary_metrics)
-        total_width = primary_width + secondary_width + tertiary_width
-        
-        # Create width ratios for gridspec
-        width_ratios = [primary_width / total_width, secondary_width / total_width, tertiary_width / total_width]
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=fig_size, 
-                                          gridspec_kw={'width_ratios': width_ratios})
-        axes = [ax1, ax2, ax3]
-        datasets = [(bar_labels, metrics, processed_data), 
-                   (secondary_bar_labels, secondary_metrics, secondary_processed_data),
-                   (tertiary_bar_labels, tertiary_metrics, tertiary_processed_data)]
-    elif has_secondary:
-        # Calculate relative widths based on number of clusters (metrics) in each subplot
-        primary_width = len(metrics)
-        secondary_width = len(secondary_metrics)
-        total_width = primary_width + secondary_width
-        
-        # Create width ratios for gridspec
-        width_ratios = [primary_width / total_width, secondary_width / total_width]
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=fig_size, 
-                                      gridspec_kw={'width_ratios': width_ratios})
-        axes = [ax1, ax2]
-        datasets = [(bar_labels, metrics, processed_data), 
-                   (secondary_bar_labels, secondary_metrics, secondary_processed_data)]
+        # Base width on total number of metrics across all subplots
+        total_metrics = sum(len(panel_metrics) for _, panel_metrics, _ in datasets)
+        min_width = {1: 2.5, 2: 4.0, 3: 6.0}.get(len(panels), 2.0 * len(panels))
+        fig_size = (max(min_width, 1.2*total_metrics), 4)
+
+    # Width of each subplot is proportional to its number of clusters (metrics), to maintain consistent
+    # cluster spacing
+    if width_ratios is None:
+        width_ratios = [len(panel_metrics) for _, panel_metrics, _ in datasets]
+    assert len(width_ratios) == len(panels), "width_ratios needs one entry per subplot"
+    if draw_into_existing_fig:
+        axes = fig.subplots(1, len(panels), squeeze=False, gridspec_kw={'width_ratios': width_ratios})
     else:
-        fig, ax = plt.subplots(figsize=fig_size)
-        axes = [ax]
-        datasets = [(bar_labels, metrics, processed_data)]
-    
+        fig, axes = plt.subplots(1, len(panels), figsize=fig_size, squeeze=False,
+                                 gridspec_kw={'width_ratios': width_ratios},
+                                 layout=_figure_layout(legend_loc))
+    axes = list(axes[0])
+
+    # Margin between the outermost points and the axis edge
+    x_margin = cluster_width / 2 + 0.2
+
     # Plot data on each axis
     for ax_idx, (current_ax, (current_bar_labels, current_metrics, current_processed_data)) in enumerate(zip(axes, datasets)):
         # Set up the x positions for each cluster
-        cluster_width = 0.8
-        x = np.arange(len(current_metrics)) * (1.0 + cluster_width)
-        
+        x = np.arange(len(current_metrics)) * (cluster_gap + cluster_width)
+
         # Calculate offset spacing for points within each cluster
         point_spacing = cluster_width / max(1, len(current_bar_labels) - 1) if len(current_bar_labels) > 1 else 0
         
@@ -2057,43 +2100,31 @@ def plot_scalar_clustered_confidence_intervals(
                 offset = point_spacing * (i - (len(current_bar_labels)-1)/2)
             
             x_positions = x + offset
-            
+
             # Calculate error bar deltas (errorbar expects deltas, not absolute values)
             yerr_lower = [means[j] - lower_bounds[j] for j in range(len(means))]
             yerr_upper = [upper_bounds[j] - means[j] for j in range(len(means))]
             
             # Plot points with error bars using matplotlib's built-in errorbar function
             # Only add label for legend if it's the first subplot or if legends are different
-            show_label = (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends)
+            show_label = (ax_idx == 0) or need_separate_legends
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
-                       fmt='o', color=colors[_method_color_index(str(label)) % len(colors)],
+                       fmt='o', color=_color_for(str(label)),
                        markersize=6, capsize=4, capthick=1,
                        label=label if show_label else None)
         
         # Customize plot
-        # Set y-label based on axis and y_label parameters
-        if ax_idx == 0:
-            # First axis always uses y_label
-            current_ax.set_ylabel(y_label, fontsize=font_size)
-        elif ax_idx == 1 and secondary_y_label is not None:
-            # Second axis uses secondary_y_label if provided
-            current_ax.set_ylabel(secondary_y_label, fontsize=font_size)
-        elif ax_idx == 2 and tertiary_y_label is not None:
-            # Third axis uses tertiary_y_label if provided
-            current_ax.set_ylabel(tertiary_y_label, fontsize=font_size)
-        # If y_label is None for secondary/tertiary, no y-label is set
+        # If the y-label of an additional subplot is None, no y-label is set
+        panel_y_label = panels[ax_idx][1]
+        if panel_y_label is not None:
+            current_ax.set_ylabel(panel_y_label, fontsize=font_size)
         current_ax.set_xticks(x)
         current_ax.set_xticklabels(current_metrics, rotation=0, fontsize=font_size)
         current_ax.tick_params(axis='y', labelsize=font_size)
-        
-        # Adjust x-axis limits for better appearance, especially with single clusters
-        if len(current_metrics) == 1:
-            # For single cluster, center it with reasonable margins
-            current_ax.set_xlim(-0.6, 0.6)
-        else:
-            # For multiple clusters, use default behavior with small margins
-            current_ax.set_xlim(x[0] - 0.6, x[-1] + 0.6)
+
+        # Fit the x-axis to the clusters with small margins
+        current_ax.set_xlim(x[0] - x_margin, x[-1] + x_margin)
         
         # Let y-axis limits float freely to bound the data (including CIs)
         all_lower = []
@@ -2113,12 +2144,13 @@ def plot_scalar_clustered_confidence_intervals(
         
         # Add legend with automatic positioning to minimize data overlap
         # Only add legend if it's the first subplot or if legends are different
-        if (ax_idx == 0) or ((has_secondary or has_tertiary) and need_separate_legends):
-            current_ax.legend(loc=legend_loc, fontsize=font_size)
-    
-    # Adjust layout
-    plt.tight_layout()
-    
+        if (ax_idx == 0) or need_separate_legends:
+            _add_legend(fig, current_ax, legend_loc, font_size, ncol=legend_ncol, frameon=legend_frameon)
+
+    # Adjust layout (an existing figure's layout belongs to its parent figure)
+    if _figure_layout(legend_loc) is None and not draw_into_existing_fig:
+        plt.tight_layout()
+
     return fig
 
 
@@ -2154,6 +2186,8 @@ class ResultConfig:
     run_ids: list[str]
     labelling_model: str = "4o-mini"
     pipeline: Literal["ours", "fish"] = "ours"
+    # Only for pipeline="fish", see get_baseline_run_dirs
+    fish_candidate_pool: Literal["round", "persistent"] = "round"
 
 
 def save_figure(fig: plt.Figure, path: str | Path, fig_format: Literal["png", "pdf"] = "png") -> None:
@@ -2186,7 +2220,7 @@ def collect_results_and_plot(
         pipelines[config.name] = config.pipeline
 
         if config.pipeline=="fish":
-            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type)
+            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type, candidate_pool=config.fish_candidate_pool)
 
             utility_dfs[config.name] = [utilities[col] for col in utilities.columns]
             all_algo_assignments[config.name] = [algo_assignments[col] for col in algo_assignments.columns]
