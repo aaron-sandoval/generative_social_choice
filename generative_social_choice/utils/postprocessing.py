@@ -68,6 +68,10 @@ METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
     "Baseline (LLM Embeddings)": 3,
     "Baseline (Their Embs.)": 2,
     "Baseline (LLM Embs.)": 3,
+    # Statement count ablation
+    "Ours (42 statements)": 0,
+    "Ours (30 statements)": 6,
+    "Baseline (30 statements)": 2,
     # Stepwise-Monroe ablation methods: keyed by each algorithm's `display_name` (the single
     # source of truth) so renaming a series there propagates here automatically. Reuses the
     # embedding-ablation palette so the leading colors match (purple, orange, pink, blue).
