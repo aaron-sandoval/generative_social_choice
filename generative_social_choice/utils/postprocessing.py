@@ -68,6 +68,10 @@ METHOD_COLOR_KEY_TO_INDEX: dict[str, int] = {
     "Baseline (LLM Embeddings)": 3,
     "Baseline (Their Embs.)": 2,
     "Baseline (LLM Embs.)": 3,
+    # Statement count ablation
+    "Ours (42 statements)": 0,
+    "Ours (30 statements)": 6,
+    "Baseline (30 statements)": 2,
     # Stepwise-Monroe ablation methods: keyed by each algorithm's `display_name` (the single
     # source of truth) so renaming a series there propagates here automatically. Reuses the
     # embedding-ablation palette so the leading colors match (purple, orange, pink, blue).
@@ -1939,6 +1943,8 @@ def plot_scalar_clustered_confidence_intervals(
         cluster_gap: float = 1.0,
         legend_ncol: int = 1,
         legend_frameon: bool = True,
+        fig: Optional[matplotlib.figure.FigureBase] = None,
+        width_ratios: Optional[Sequence[float]] = None,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
@@ -1994,9 +2000,14 @@ def plot_scalar_clustered_confidence_intervals(
             (e.g. "outside lower center") place the legend outside the axes so it never
             overlaps the data.
         legend_frameon: Whether to draw the legend's outline and background.
+        fig: Optional existing figure or subfigure (e.g. from `Figure.subfigures`) to draw the subplots into,
+            for stacking several of these plots in one figure. `fig_size` is then ignored, and the layout is
+            left to the parent figure (create it with `layout="constrained"`).
+        width_ratios: Optional relative widths of the subplots, overriding the default of their numbers of
+            clusters (which keeps the cluster spacing equal across subplots).
 
     Returns:
-        plt.Figure: The generated matplotlib figure
+        plt.Figure: The generated matplotlib figure (or `fig`, if given)
     """
     # Assert that if tertiary data is provided, secondary data must also be provided
     assert tertiary_axis_df is None or secondary_axis_df is not None, \
@@ -2044,6 +2055,7 @@ def plot_scalar_clustered_confidence_intervals(
     need_separate_legends = len({frozenset(labels) for labels, _, _ in datasets}) > 1
 
     # Create figure and axes
+    draw_into_existing_fig = fig is not None
     if fig_size is None:
         # Base width on total number of metrics across all subplots
         total_metrics = sum(len(panel_metrics) for _, panel_metrics, _ in datasets)
@@ -2052,10 +2064,15 @@ def plot_scalar_clustered_confidence_intervals(
 
     # Width of each subplot is proportional to its number of clusters (metrics), to maintain consistent
     # cluster spacing
-    width_ratios = [len(panel_metrics) for _, panel_metrics, _ in datasets]
-    fig, axes = plt.subplots(1, len(panels), figsize=fig_size, squeeze=False,
-                             gridspec_kw={'width_ratios': width_ratios},
-                             layout=_figure_layout(legend_loc))
+    if width_ratios is None:
+        width_ratios = [len(panel_metrics) for _, panel_metrics, _ in datasets]
+    assert len(width_ratios) == len(panels), "width_ratios needs one entry per subplot"
+    if draw_into_existing_fig:
+        axes = fig.subplots(1, len(panels), squeeze=False, gridspec_kw={'width_ratios': width_ratios})
+    else:
+        fig, axes = plt.subplots(1, len(panels), figsize=fig_size, squeeze=False,
+                                 gridspec_kw={'width_ratios': width_ratios},
+                                 layout=_figure_layout(legend_loc))
     axes = list(axes[0])
 
     # Margin between the outermost points and the axis edge
@@ -2130,8 +2147,8 @@ def plot_scalar_clustered_confidence_intervals(
         if (ax_idx == 0) or need_separate_legends:
             _add_legend(fig, current_ax, legend_loc, font_size, ncol=legend_ncol, frameon=legend_frameon)
 
-    # Adjust layout
-    if _figure_layout(legend_loc) is None:
+    # Adjust layout (an existing figure's layout belongs to its parent figure)
+    if _figure_layout(legend_loc) is None and not draw_into_existing_fig:
         plt.tight_layout()
 
     return fig
@@ -2169,6 +2186,8 @@ class ResultConfig:
     run_ids: list[str]
     labelling_model: str = "4o-mini"
     pipeline: Literal["ours", "fish"] = "ours"
+    # Only for pipeline="fish", see get_baseline_run_dirs
+    fish_candidate_pool: Literal["round", "persistent"] = "round"
 
 
 def save_figure(fig: plt.Figure, path: str | Path, fig_format: Literal["png", "pdf"] = "png") -> None:
@@ -2201,7 +2220,7 @@ def collect_results_and_plot(
         pipelines[config.name] = config.pipeline
 
         if config.pipeline=="fish":
-            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type)
+            utilities, algo_assignments = get_baseline_generate_slate_results(run_ids=config.run_ids, embedding_type=config.embedding_type, candidate_pool=config.fish_candidate_pool)
 
             utility_dfs[config.name] = [utilities[col] for col in utilities.columns]
             all_algo_assignments[config.name] = [algo_assignments[col] for col in algo_assignments.columns]

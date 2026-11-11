@@ -16,8 +16,19 @@ from generative_social_choice.slates.slate_generation import (
 )
 import random
 import os
+import time
 import argparse
+import concurrent.futures
 from typing import Optional, Literal
+
+
+def get_results_dir(embedding_type: Literal["llm", "seed_statement"], candidates_persist: bool):
+    """Directory holding the runs of one configuration. Runs are identified by their position among
+    the sorted run directories, so each configuration needs its own directory."""
+    results_dir = "generate_slate_results_openai_embeddings" if embedding_type == "seed_statement" else "generate_slate_results_baseline"
+    if candidates_persist:
+        results_dir += "_persistent_pool"
+    return get_base_dir_path() / "data" / "demo_data" / results_dir
 
 
 def generate_slate_from_paper(
@@ -26,16 +37,19 @@ def generate_slate_from_paper(
     discriminator_model: str = "default",
     dir_suffix: Optional[str] = "from_paper",
     embedding_type: Literal["llm", "seed_statement"] = "llm",
+    candidates_persist: bool = False,
+    num_threads: int = 1,
 ):
     if embedding_type == "seed_statement":
-        embedding_type = find_nearest_neighbors_by_embeddings
+        nn_function = find_nearest_neighbors_by_embeddings
     elif embedding_type == "llm":
-        embedding_type = find_nearest_neighbors
+        nn_function = find_nearest_neighbors
     else:
         raise ValueError(f"Invalid embedding_type: {embedding_type}")
 
     disc_query_model_arg = {"model": "gpt-4o-mini-2024-07-18"} if discriminator_model == "default" else {"model": discriminator_model}
-    gen_query_model_arg = {"model": "gpt-4o"} if generator_model == "default" else {"model": generator_model}
+    # The earlier runs used "gpt-4o", which resolved to this snapshot (see the model in their logs)
+    gen_query_model_arg = {"model": "gpt-4o-2024-08-06"} if generator_model == "default" else {"model": generator_model}
 
     # Set up agents
 
@@ -46,6 +60,12 @@ def generate_slate_from_paper(
         .set_index("user_id")["summary"]
         .to_dict()
     )
+    # The data are stored with LF line endings, but a Windows checkout (core.autocrlf) turns newlines
+    # inside CSV fields into CRLF. That changes the prompts and shifts ratings by about 0.1, so always
+    # use LF, as in the GenerativeCC runs (see data/model_drift/RESULT_model_drift.md).
+    to_lf = lambda x: x.replace("\r\n", "\n") if isinstance(x, str) else x
+    df = df.apply(lambda col: col.map(to_lf))
+    agent_id_to_summary = {agent_id: to_lf(summary) for agent_id, summary in agent_id_to_summary.items()}
 
     agents = []
     for id in df.user_id.unique():
@@ -84,7 +104,7 @@ def generate_slate_from_paper(
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=embedding_type,
+            nn_function=nn_function,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -92,7 +112,7 @@ def generate_slate_from_paper(
             nbhd_size=5,
             seed=None,
             gpt_temperature=0,
-            nn_function=embedding_type,
+            nn_function=nn_function,
             **gen_query_model_arg,
         ),
         NearestNeighborChatbotPersonalizationGenerator(
@@ -100,21 +120,23 @@ def generate_slate_from_paper(
             nbhd_size=10,
             seed=None,
             gpt_temperature=0,
-            nn_function=embedding_type,
+            nn_function=nn_function,
             **gen_query_model_arg,
         ),
     ]
 
     # Generate slate
 
-    full_log_dir = (
-        get_base_dir_path()
-        / "data"
-        / "demo_data"
-        / ("generate_slate_results_openai_embeddings" if "openai" in embedding_type else "generate_slate_results_baseline")
-        / f"{get_time_string()}__generate_slate_{dir_suffix}"
-    )
-    os.mkdir(full_log_dir)
+    results_dir = get_results_dir(embedding_type, candidates_persist)
+    results_dir.mkdir(parents=True, exist_ok=True)
+    # Runs in parallel processes can start in the same second, so retry with a later timestamp
+    while True:
+        full_log_dir = results_dir / f"{get_time_string()}__generate_slate_{dir_suffix}"
+        try:
+            os.mkdir(full_log_dir)
+            break
+        except FileExistsError:
+            time.sleep(1)
 
     print(
         f"Generating slate for {len(agents)} agents with {len(generators)} generators"
@@ -124,8 +146,10 @@ def generate_slate_from_paper(
         agents=agents,
         generators=generators,
         slate_size=5,
+        candidates_persist=candidates_persist,
         full_log_dir=full_log_dir,
         verbose=True,
+        num_threads=num_threads,
     )
 
     return slate, agents_round_matched, slate_utilities
@@ -145,7 +169,7 @@ if __name__ == "__main__":
         "--generator_model",
         type=str,
         default="default",
-        help="Specify a model to use for statement generation. Default is gpt-4o. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
+        help="Specify a model to use for statement generation. Default is gpt-4o-2024-08-06. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
     )
 
     parser.add_argument(
@@ -154,11 +178,51 @@ if __name__ == "__main__":
         default="default",
         help="Specify a model to use for statement generation. Default is gpt-4o-mini-2024-07-18. Fish's experiments (late 2023) used gpt-4-base (publicly unavailable) for the discriminative queries and gpt-4-32k-0613 for the generative queries.",
     )
-    args = parser.parse_args()
-    # args.num_agents = 10
-    # args.dir_suffix = "via_openai_embeddings_nn"
-    args.dir_suffix = "via_fish_nn"
-    args.embedding_type = "llm"
+    parser.add_argument(
+        "--embedding_type",
+        type=str,
+        default="llm",
+        choices=["llm", "seed_statement"],
+        help="How the nearest-neighbor generators find neighbors: 'llm' uses discriminative queries (as in Fish et al.), 'seed_statement' uses precomputed OpenAI embeddings.",
+    )
 
-    for _ in range(1):
-        generate_slate_from_paper(num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model, dir_suffix=args.dir_suffix, embedding_type=args.embedding_type)
+    parser.add_argument(
+        "--candidates_persist",
+        action="store_true",
+        help="Keep the candidates of earlier rounds in the pool, as described in Fish et al. (Section 4.2, footnote 13). Their released code defaults to only considering the current round's candidates.",
+    )
+
+    parser.add_argument(
+        "--num_runs",
+        type=int,
+        default=1,
+    )
+
+    parser.add_argument(
+        "--num_processes",
+        type=int,
+        default=1,
+        help="Number of runs to execute in parallel. Each run is serial, like the earlier runs: with threads, the generators would share the global random state in a nondeterministic order.",
+    )
+
+    parser.add_argument(
+        "--num_threads",
+        type=int,
+        default=1,
+        help="Threads for LLM calls within a run. Also parallelizes the generators, see --num_processes.",
+    )
+    args = parser.parse_args()
+    dir_suffix = {"llm": "via_fish_nn", "seed_statement": "via_openai_embeddings_nn"}[args.embedding_type]
+    run_args = dict(
+        num_agents=args.num_agents, generator_model=args.generator_model, discriminator_model=args.discriminator_model,
+        dir_suffix=dir_suffix, embedding_type=args.embedding_type, candidates_persist=args.candidates_persist, num_threads=args.num_threads,
+    )
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.num_processes) as executor:
+        futures = []
+        for _ in range(args.num_runs):
+            futures.append(executor.submit(generate_slate_from_paper, **run_args))
+            # Stagger the starts so that the run directories' timestamps differ
+            time.sleep(2)
+        for future in concurrent.futures.as_completed(futures):
+            future.result()

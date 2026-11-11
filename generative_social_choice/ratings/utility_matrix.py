@@ -158,7 +158,11 @@ def extract_voter_utilities_from_info_csv(info_csv_path: Path, assigned_utilitie
 
 
 
-def get_baseline_run_dirs(run_ids: list[int] | None = None, embedding_type: Literal["llm", "seed_statement"] = "llm") -> dict[int, Path]:
+def get_baseline_run_dirs(
+        run_ids: list[int] | None = None,
+        embedding_type: Literal["llm", "seed_statement"] = "llm",
+        candidate_pool: Literal["round", "persistent"] = "round",
+    ) -> dict[int, Path]:
     """
     Get the output directories of the baseline generate_slate.py runs.
 
@@ -168,6 +172,9 @@ def get_baseline_run_dirs(run_ids: list[int] | None = None, embedding_type: Lite
     Args:
         run_ids: List of zero-indexed directory indices to load. If None, loads all directories.
         embedding_type: "llm" for generate_slate_results_baseline, "seed_statement" for generate_slate_results_openai_embeddings
+        candidate_pool: "round" for runs where each round only considers the candidates generated in that round
+            (the default of Fish et al.'s code), "persistent" for runs which keep the candidates of earlier rounds
+            (as described in their paper), stored in the directory with suffix "_persistent_pool"
 
     Returns:
         Dict mapping run_id to the run directory.
@@ -179,6 +186,10 @@ def get_baseline_run_dirs(run_ids: list[int] | None = None, embedding_type: Lite
         baseline_dir = get_base_dir_path() / "data/demo_data/generate_slate_results_openai_embeddings"
     else:
         raise ValueError(f"Invalid embedding_type: {embedding_type}. Must be 'llm' or 'seed_statement'")
+    if candidate_pool == "persistent":
+        baseline_dir = baseline_dir.with_name(baseline_dir.name + "_persistent_pool")
+    elif candidate_pool != "round":
+        raise ValueError(f"Invalid candidate_pool: {candidate_pool}. Must be 'round' or 'persistent'")
 
     # Get all directories sorted by name
     all_dirs = sorted([d for d in baseline_dir.iterdir() if d.is_dir()])
@@ -189,18 +200,23 @@ def get_baseline_run_dirs(run_ids: list[int] | None = None, embedding_type: Lite
     return {i: all_dirs[i] for i in run_ids}
 
 
-def get_baseline_generate_slate_results(run_ids: list[int] | None = None, embedding_type: Literal["llm", "seed_statement"] = "llm") -> tuple[pd.DataFrame, pd.DataFrame]:
+def get_baseline_generate_slate_results(
+        run_ids: list[int] | None = None,
+        embedding_type: Literal["llm", "seed_statement"] = "llm",
+        candidate_pool: Literal["round", "persistent"] = "round",
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load baseline generate slate results from data/demo_data directories.
-    
+
     Args:
         run_ids: List of zero-indexed directory indices to load. If None, loads all directories.
         embedding_type: "llm" for generate_slate_results_baseline, "seed_statement" for generate_slate_results_openai_embeddings
-        
+        candidate_pool: See `get_baseline_run_dirs`
+
     Returns:
         Tuple of (utilities_df, assignments_df) where column names are run_ids.
     """
-    run_dirs = get_baseline_run_dirs(run_ids, embedding_type)
+    run_dirs = get_baseline_run_dirs(run_ids, embedding_type, candidate_pool)
     selected_dirs = list(run_dirs.values())
     column_names = list(run_dirs.keys())
 
