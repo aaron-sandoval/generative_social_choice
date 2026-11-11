@@ -170,6 +170,16 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--candidate_pool",
+        type=str,
+        default="round",
+        choices=["round", "persistent"],
+        help="Which set of baseline runs to complete (see get_baseline_run_dirs). The persistent-pool runs were "
+             "rated with LF line endings in the prompts and the earlier round-only runs with CRLF, so the "
+             "missing ratings are queried with the same line endings.",
+    )
+
+    parser.add_argument(
         "--num_threads",
         type=int,
         default=8,
@@ -190,13 +200,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    run_dirs = get_baseline_run_dirs(args.run_ids, args.embedding_type)
+    run_dirs = get_baseline_run_dirs(args.run_ids, args.embedding_type, args.candidate_pool)
 
     if args.dry_run:
         for run_dir in run_dirs.values():
             print_missing(run_dir)
     else:
-        agents = {agent.get_id(): agent for agent in get_agents(model=MODEL)}
+        # Same prompt line endings as the runs' own ratings (see --candidate_pool)
+        agents = {
+            agent.get_id(): agent
+            for agent in get_agents(model=MODEL, lf_line_endings=args.candidate_pool == "persistent")
+        }
         for run_dir in run_dirs.values():
             if args.calibrate is not None:
                 calibrate(run_dir, agents, num_pairs=args.calibrate, num_threads=args.num_threads)

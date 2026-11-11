@@ -29,11 +29,20 @@ class Rating:
         return {"agent_id": self.agent_id, "statement": self.statement, "approval": self.approval}
 
 
-def get_agents(model: Optional[str] = None) -> List[ChatbotPersonalizationAgent]:
-    """Utility function to get all agents based on survey data and summaries"""
+def get_agents(model: Optional[str] = None, lf_line_endings: bool = False) -> List[ChatbotPersonalizationAgent]:
+    """
+    Utility function to get all agents based on survey data and summaries
+
+    Args:
+        model: Model of the agents' queries
+        lf_line_endings: If True, use LF line endings in the survey data and summaries, as the GenerativeCC runs
+            and the persistent-pool baseline runs did. Otherwise they are used as read from the checkout, where
+            a Windows checkout (core.autocrlf) turns newlines inside CSV fields into CRLF, as in the earlier
+            baseline runs. The line endings shift ratings by about 0.1 (see data/model_drift/RESULT_model_drift.md).
+    """
     if model is None:
         model = "gpt-4o-mini"
-    
+
     df = pd.read_csv(get_base_dir_path() / "data/chatbot_personalization_data.csv")
     df = df[df["sample_type"] == "generation"]
     agent_id_to_summary = (
@@ -41,6 +50,10 @@ def get_agents(model: Optional[str] = None) -> List[ChatbotPersonalizationAgent]
         .set_index("user_id")["summary"]
         .to_dict()
     )
+    if lf_line_endings:
+        to_lf = lambda x: x.replace("\r\n", "\n") if isinstance(x, str) else x
+        df = df.apply(lambda col: col.map(to_lf))
+        agent_id_to_summary = {agent_id: to_lf(summary) for agent_id, summary in agent_id_to_summary.items()}
 
     agents = []
     for id in df.user_id.unique():

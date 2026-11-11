@@ -290,6 +290,7 @@ def get_completed_baseline_utility_matrices(
         run_ids: list[int] | None = None,
         embedding_type: Literal["llm", "seed_statement"] = "llm",
         allow_incomplete: bool = False,
+        candidate_pool: Literal["round", "persistent"] = "round",
     ) -> dict[int, BaselineProfile]:
     """
     Load the complete ballot profiles of baseline runs by combining the ratings in info.csv
@@ -299,12 +300,13 @@ def get_completed_baseline_utility_matrices(
         run_ids: List of zero-indexed directory indices to load. If None, loads all directories.
         embedding_type: See `get_baseline_run_dirs`
         allow_incomplete: If False, raise an error if any rating is still missing.
+        candidate_pool: See `get_baseline_run_dirs`
 
     Returns:
         Dict mapping run_id to the BaselineProfile of that run.
     """
     profiles = {}
-    for run_id, run_dir in get_baseline_run_dirs(run_ids, embedding_type).items():
+    for run_id, run_dir in get_baseline_run_dirs(run_ids, embedding_type, candidate_pool).items():
         info = read_baseline_info_csv(run_dir)
         candidate_ids = [f"s{i}" for i in range(len(info))]
         statement_to_id = dict(zip(info.index, candidate_ids))
