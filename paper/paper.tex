@@ -701,19 +701,21 @@ Both authors performed main pipeline experiments, analysis, time complexity anal
 \label{app:embedding-ablation-details}
 
 \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} show the results of running GenerativeCC and the pipeline of \citet{fish-v2} with different embedding choices on the chatbot personalization dataset.
+In both pipelines, the embeddings only determine the groups of similar voters that a subset of the statement generators are prompted with: the five clusters in GenerativeCC (\Cref{sec:statement-generation}), and the nearest neighbors found by three of the six generators of the baseline.
 The improved LLM embeddings account for only a small portion of the overall difference in performance.
 
 Both baseline series in this ablation use a slightly modified \citet{fish-v2} pipeline with a different voting algorithm due to a mistake in the experiment.
 Each round of slate selection considers only the candidates generated in that round, rather than all previously generated candidates.
 We expect this change to an unrelated part of the pipeline to introduce negligible bias in the comparison, so we did not rerun the experiment.
 
-\begin{figure*}[t]
+\begin{figure}[t]
   \begin{center}
-  \includegraphics[width=0.7\textwidth]{figures/scalar_confidence_intervals_all.pdf}
-  \caption{Changing embeddings in GenerativeCC or the most closely related prior approach has only a limited effect.}
+  \includegraphics[width=\columnwidth]{figures/scalar_confidence_intervals_all_stacked.pdf}
+  \caption{Comparison of SWF performance for an ablation changing only the embeddings in (a) the \citet{fish-v2} baseline (b) GenerativeCC. Using LLM embeddings accounts for only a small portion of the overall SWF performance difference in \Cref{fig:swf-main}.
+}
   \label{fig:scalar-metrics-embeddings}
   \end{center}
-\end{figure*}
+\end{figure}
 
 \begin{figure*}[t]
   \begin{center}
