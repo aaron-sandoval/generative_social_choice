@@ -1157,27 +1157,52 @@ These counts show that all generation modes contribute to the final slates rathe
 (For description of generation methods, refer to \Cref{sec:statement-generation}.)
 
 
-\section{Model Drift}
+\section{Confounding Variable Analysis}
 \label{app:model-drift}
 
-The GenerativeCC runs and the earlier baseline runs (\Cref{app:embedding-ablation-details}) were produced between May and August 2025.
-The baseline runs of \Cref{fig:swf-main} were produced in November 2026, with the same model snapshots and OpenAI API.
-Even a fixed model snapshot served through an API can behave differently over time, for example through changes to the serving infrastructure \citep{anthropic2025postmortem}; the performance of \texttt{gpt-4o-2024-08-06}, our generator, varies with the time of day and week \citep{tschisgale2026periodicity}.
-OpenAI may thus have changed how our snapshots are served over this interval, introducing model drift.
-We test whether a query sent in November 2026 behaves like one more query from 2025, for every type of query whose outputs enter a comparison between the two periods.
+This appendix examines whether model drift or differences in line endings could affect our results.
+\Cref{tab:confounder-systems} summarizes which results are potentially affected.
+The GenerativeCC runs and the earlier baseline runs (\Cref{app:embedding-ablation-details}) were produced between May and August 2025, while
+the baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main} were produced in 2026.
+Due to the long interval between queries, there is an elevated risk of model drift confounding comparisons.
+Additionally, the baseline data in \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} was generated using CRLF line endings in some prompts rather than LF line endings.
+If line endings meaningfully affect the behavior of LLM elements of the pipeline, this could also be a confounder.
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{llll}
+\hline
+System & Results & Queries sent & Line endings \\
+\hline
+GenerativeCC (both embeddings) & all & May--Aug.\ 2025 & LF \\
+Baseline & \Cref{fig:swf-main,fig:mth-happiest-main,fig:sfws-voting-algs,fig:statement-ablation-comparison} & 2026 & LF \\
+Earlier baseline (both embeddings) & \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} & May--Aug.\ 2025 & CRLF \\
+\hline
+\end{tabular}
+\caption{When the queries of each system were sent, and the line endings of their prompts.}
+\label{tab:confounder-systems}
+\end{table*}
+
+\subsection{Model drift}
+\label{app:drift}
+
+Even a fixed model snapshot served through an API can behave differently over time, for example through changes to the serving infrastructure \citep{anthropic2025postmortem}; the performance of \texttt{gpt-4o-2024-08-06}, our generator, has been shown to vary with the time of day and week \citep{tschisgale2026periodicity}.
+OpenAI may thus have changed how our snapshots are served between 2025 and 2026, introducing model drift.
+We test whether a query sent in 2026 behaves like one more query from 2025, for every type of query whose outputs enter a comparison between the two periods.
+Each 2025 query is re-sent in 2026.
 
 \paragraph{Reference: variance within 2025.}
-Since these models are nondeterministic, we compare the differences between 2025 and 2026 with differences between two 2025 queries.
+We first evaluate the differences between identical 2025 queries.
 For ratings of candidate statements, the reference consists of the (voter, statement) cells rated in two different runs of the 15 2025 baseline runs.
 Only four candidate statements of these runs appear in more than one run: three outputs of the subsampling generator and one of a nearest-neighbor generator, all from the first round.
 Each was rated by all 100 voters, giving 400 cells.
 For nearest-neighbor searches, the reference consists of the 1{,}453 pairs of voters \((j, i)\), in which voter \(j\) rated the summary of voter \(i\), that were queried in two different runs; these cover 100 voters rating 33 different summaries.
 For generation, three of the baseline's generators received identical inputs in the first round of all 15 runs: the two generators prompted with the opinions of all voters, at temperatures 0 and 1, and the generator prompted with a random subsample of five opinions, which is the same in every run.
-For these, the reference is the mean pairwise cosine distance between the embeddings of their 15 outputs, a proxy measurement of the semantic variance among generated statements.
+For these, the reference is the mean pairwise cosine distance between the \texttt{text-embedding-3-small} embeddings of their 15 outputs, a proxy measurement of the semantic variance among generated statements.
 
 Two 2025 ratings of the same candidate cell differ by 0.059 on average (mean absolute difference on the 0--4 scale), and two 2025 nearest-neighbor searches of the same pair by 0.117.
 \textbf{Since the reference for candidate ratings comes from only four statements, it measures the variance of 2025 ratings of the same query only poorly.}
-For generation, the mean pairwise distances are shown in the first column of \Cref{tab:model-drift-generation}.
+For generation, the mean pairwise distances are shown in the 2025 rows of \Cref{tab:model-drift-generation}.
 
 \paragraph{Discriminative queries.}
 We created three samples of 2025 queries and recomputed them in 2026:
@@ -1187,6 +1212,7 @@ We created three samples of 2025 queries and recomputed them in 2026:
     \item \emph{GenerativeCC candidates} (192 ratings): cells of the 10 GenerativeCC utility matrices, stratified by the same bins.
     \item \emph{Nearest-neighbor search} (152 ratings): the baseline's queries rating another voter's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
 \end{itemize}
+The queries of the earlier baseline runs were re-sent with their CRLF line endings, and those of GenerativeCC with LF (\Cref{tab:confounder-systems}).
 Equal numbers of ratings per bin do not match the distribution of 2025 ratings: among all 27{,}000 ratings of candidate statements in the 15 earlier baseline runs, 49\% are above 3.5 and 2\% below 2, whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below 2.
 We therefore compute each estimate as a weighted average of its values within the bins, weighting each bin by its share of all 2025 ratings of the same type, so that estimates describe all 2025 queries of a type rather than the sample.
 
@@ -1206,7 +1232,7 @@ Query type & \(n\) & \makecell{Bias\\(95\% CI)} \\
 \makecell[l]{Nearest-neighbor\\search} & 152 & \makecell{\(+0.031\)\\\([-0.019, +0.084]\)} \\
 \hline
 \end{tabular}
-\caption{Bias: mean difference between ratings of 2025 queries recomputed in November 2026 and the original 2025 ratings (2026 \(-\) 2025), on the 0--4 scale, weighted to the population distribution of 2025 ratings, with 95\% bootstrap confidence intervals.}
+\caption{Bias: mean difference between ratings of 2025 queries recomputed in 2026 and the original 2025 ratings (2026 \(-\) 2025), on the 0--4 scale, weighted to the population distribution of 2025 ratings, with 95\% bootstrap confidence intervals.}
 \label{tab:model-drift-ratings}
 \end{table}
 
@@ -1216,53 +1242,133 @@ A ratio of 1 means that a 2026 rating varies around a 2025 rating exactly as muc
 The ratio is 2.03, with a 95\% confidence interval of \([1.05, 3.62]\) from resampling the rated summaries, since ratings of the same summary are not independent.
 So \textbf{2026 nearest-neighbor searches have higher variance than 2025 ones}.
 
-Any additional noise affects only the baseline of \Cref{fig:swf-main}.
-The baseline selects statements and assigns voters using the same ratings that it reports as utilities.
-Statements whose ratings are high due to noise are more likely to be selected, so \textbf{even unbiased noise applied to ratings may inflate the baseline system's performance on SWFs}.
-
 \paragraph{Generative queries.}
 We use two sets of 2026 generation queries.
-First, the 15 baseline runs of \Cref{fig:swf-main} produced in 2026 sent the three generators with identical first-round inputs the same first-round queries as the 15 2025 runs, differing only in their line endings (LF vs.\ CRLF).
-This gives 15 outputs per generator from each year, which we compare by the cosine distance between their \texttt{text-embedding-3-small} embeddings.
+First, we sent the first-round queries of the three generators with identical first-round inputs 15 times each, with the exact 2025 messages and parameters, and compare their outputs with the 15 outputs of 2025 by cosine distance.
 Second, we re-sent 24 logged generation queries of the 2025 runs, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 queries).
 Since most of these queries have only one 2025 output, we use them only to compare quality and format: six fixed voters rated each 2025 output and both 2026 outputs, with all ratings made in 2026 so that drift of the rater cancels.
 
-\begin{table*}[t]
+\begin{table}[t]
 \centering
-\begin{tabular}{lcccc}
+\begin{tabular}{lcc}
 \hline
-& \multicolumn{2}{c}{Between outputs of the same year} & & \\
-Generator & 2025 & 2026 & 2026 to 2025 & \(p\) \\
-Outputs per generator & 15 & 15 & \(15 \times 15\) & \\
+Queries sent & CRLF & LF \\
 \hline
-All voters, temperature 0 & 0.139 & 0.007 & 0.104 & \(<0.001\) \\
-All voters, temperature 1 & 0.148 & 0.078 & 0.120 & 0.037 \\
-Subsample of five voters & 0.024 & 0.016 & 0.029 & 0.055 \\
+\multicolumn{3}{l}{\emph{All voters, temperature 0}} \\
+2025 & 0.139 & \\
+2026 & 0.004 & 0.006 \\
+\hline
+\multicolumn{3}{l}{\emph{All voters, temperature 1}} \\
+2025 & 0.148 & \\
+2026 & 0.145 & 0.089 \\
+\hline
+\multicolumn{3}{l}{\emph{Subsample of five voters}} \\
+2025 & 0.024 & \\
+2026 & 0.016 & 0.016 \\
 \hline
 \end{tabular}
-\caption{Cosine distances between first-round outputs of the three generators with identical first-round inputs in every run. The first two columns are mean pairwise distances among the outputs of the 15 2025 runs and of the 15 2026 runs; the third is the mean distance from a 2026 output to a 2025 output. \(p\) is from a two-sided permutation test (20{,}000 permutations of the year labels) of whether the third column differs from the first, which it would not if 2026 outputs were exchangeable with 2025 outputs.}
+\caption{Variance of the first-round outputs of the three generators with identical first-round inputs in every run: mean pairwise cosine distance between the embeddings of 15 outputs (30 for 2026 LF), by when the queries were sent and the line endings of their prompts. The 2025 outputs come from the earlier baseline runs, and 15 of the 2026 LF outputs from the baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main}. Blank cells were not run.}
 \label{tab:model-drift-generation}
+\end{table}
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{lccccc}
+\hline
+& \multicolumn{2}{c}{Variance} & Mean distance & \multicolumn{2}{c}{\(p\)} \\
+Generator & 2025 & 2026 & between groups & Variance & Bias \\
+\hline
+All voters, temperature 0 & 0.139 & 0.004 & 0.104 & \(<0.001\) & \(<0.001\) \\
+All voters, temperature 1 & 0.148 & 0.145 & 0.144 & 0.93 & 0.92 \\
+Subsample of five voters & 0.024 & 0.016 & 0.021 & 0.007 & 0.12 \\
+\hline
+\end{tabular}
+\caption{Tests of drift between 2025 and 2026 in the first-round outputs of \Cref{tab:model-drift-generation} with CRLF prompts, 15 outputs per group. \emph{Variance}: mean pairwise cosine distance within a group. \emph{Mean distance between groups}: mean distance between a 2026 output and a 2025 output. \emph{Variance \(p\)}: two-sided permutation test of whether the two variances differ. \emph{Bias \(p\)}: two-sided permutation test of whether the mean distance between groups differs from the variance of the 2025 outputs, which it would not if the outputs of the two groups were exchangeable. All tests use 20{,}000 permutations of the group labels.}
+\label{tab:model-drift-generation-tests}
 \end{table*}
 
-\Cref{tab:model-drift-generation} shows the distances between first-round outputs of the two years.
+\begin{table*}[t]
+\centering
+\begin{tabular}{lccccc}
+\hline
+& \multicolumn{2}{c}{Variance} & Mean distance & \multicolumn{2}{c}{\(p\)} \\
+Generator & CRLF & LF & between groups & Variance & Bias \\
+\hline
+All voters, temperature 0 & 0.004 & 0.006 & 0.006 & 0.003 & 0.006 \\
+All voters, temperature 1 & 0.145 & 0.089 & 0.123 & 0.050 & 0.13 \\
+Subsample of five voters & 0.016 & 0.016 & 0.027 & 0.88 & 0.002 \\
+\hline
+\end{tabular}
+\caption{Tests of line endings, CRLF vs.\ LF, in the 2026 first-round outputs of \Cref{tab:model-drift-generation}, with 15 CRLF and 30 LF outputs per generator. Columns as in \Cref{tab:model-drift-generation-tests}, with CRLF in place of 2025: the bias test compares the mean distance between groups with the variance of the CRLF outputs.}
+\label{tab:line-endings-generation-tests}
+\end{table*}
+
+\Cref{tab:model-drift-generation} shows the variance of the first-round outputs, and \Cref{tab:model-drift-generation-tests} the tests of drift.
 \begin{itemize}
-    \item \emph{Variance among runs.} 
-    \textbf{Generation has much lower variance among runs in 2026 than in 2025}, most of all at temperature 0.
-    Since the baseline of \Cref{fig:swf-main} is a sample of 2026 runs, its confidence intervals reflect this lower variance and may be narrower than those of an equivalent sample of 2025 runs.
-    \item \emph{Bias.} 
-    For the two generators prompted with the opinions of all voters, the 2026 outputs are closer to the 2025 outputs than 2025 outputs are to each other.
-    For the subsampling generator, they are slightly farther (0.029 vs.\ 0.024, \(p = 0.055\)).
+    \item \emph{Variance among runs.}
+    \textbf{Generation has much lower variance among runs in 2026 than in 2025 at temperature 0, and somewhat lower variance for the subsampling generator}, with the prompts held fixed.
+    At temperature 1, we detect no difference (0.145 vs.\ 0.148, \(p = 0.93\)).
+    \item \emph{Bias.}
+    With the prompts held fixed, the 2026 outputs are no farther from the 2025 outputs than 2025 outputs are from each other for any generator, and at temperature 0 they are closer.
     The lower variance of 2026 outputs explains why they can be closer: outputs concentrated among the 2025 outputs are closer to them on average than these are to each other.
     So \textbf{the 2026 output distribution lies within the spread of the 2025 output distribution}.
     It's possible that the 2026 distribution is biased relative to the 2025 distribution, where the 2026 distribution lies mostly inside the 2025 distribution, but the sample sizes are too small to detect this.
-    \item \emph{Quality.} 
+    \item \emph{Quality.}
     Mean agreement with 2026 outputs differs from that with 2025 outputs by \(+0.06\) \([-0.02, +0.16]\), with \textbf{no detectable bias}.
     Two 2026 outputs of the same query differ by 0.06 on average.
-    \item \emph{Format.} 
+    \item \emph{Format.}
     \textbf{The mean response lengths are similar} (71--86 words per generator in 2025, 71--85 in 2026).
 \end{itemize}
 
-Overall, \textbf{we find no bias in the ratings or in the content and quality of the generated statements}, apart from a possible small bias in the content of the subsampling generator's statements.
-\textbf{Nearest-neighbor searches have higher variance in 2026, and generation has markedly lower variance among runs}; the 2025 reference is too limited to tell whether the variance of ratings of candidate statements changed.
+\subsection{Line endings}
+\label{app:line-endings}
+
+All results in the paper use prompts with LF line endings, except the two baseline series of the embedding ablation (\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}), whose runs used CRLF.
+
+\paragraph{Ratings.}
+We re-rated 40 cells of the GenerativeCC utility matrices, 10 from each utility bin, in 2026 with each combination of survey and statement line endings.
+All-LF prompts reproduce the 2025 ratings best, with a bias of \(-0.002\) \([-0.047, +0.044]\) and a mean absolute difference of 0.085, compared with 0.116 to 0.159 for the other combinations, so we infer that GenerativeCC used LF.
+A second sample of 120 cells of the GenerativeCC variant with the embeddings of \citet{fish-v2}, rated with all-CRLF and all-LF prompts, gives the same result, with mean absolute differences of 0.100 for LF and 0.114 for CRLF.
+Prompts formatted as in the earlier baseline runs, with CRLF survey answers and LF statements, rate \textbf{0.073 \([0.010, 0.134]\) higher than all-LF prompts}, weighted to the distribution of GenerativeCC ratings; the difference is largest for ratings below 2 (\(+0.27\)).
+These estimates come from 40 cells only.
+
+\paragraph{Generation.}
+For the three generators with identical first-round inputs, we compare the 15 2026 outputs with CRLF prompts (\Cref{app:drift}) with 30 2026 outputs with LF prompts: the first-round outputs of the 15 baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main} and 15 further queries (\Cref{tab:model-drift-generation,tab:line-endings-generation-tests}).
+At temperature 1, LF outputs have lower variance than CRLF outputs (0.089 vs.\ 0.145, \(p = 0.050\)).
+At temperature 0, the variances differ only negligibly (0.006 vs.\ 0.004), and for the subsampling generator not at all.
+Line endings change the content of the subsampling generator's outputs: an LF output is farther from the CRLF outputs (0.027) than these are from each other (0.016, \(p = 0.002\)).
+For the other generators, we detect no such difference beyond a negligible one at temperature 0 (0.006 vs.\ 0.004).
+So \textbf{line endings shift the content of the subsampling generator's outputs, and may lower the variance of the outputs at temperature 1}.
+
+\subsection{Implications for the results}
+
+\paragraph{\Cref{fig:swf-main,fig:mth-happiest-main}.}
+Both systems use LF prompts, so line endings do not confound this comparison.
+The queries of the two systems were sent in different periods, but we detect no bias in any type of rating, nor in the content or quality of generated statements.
+This includes the ratings of GenerativeCC candidates, which were re-sent with LF prompts, the format of the baseline's 2026 ratings.
+The detected differences in variance affect only the baseline, in three ways:
+\begin{itemize}
+    \item \emph{Ratings of candidate statements.}
+    We cannot tell whether their variance changed.
+    The baseline selects statements and assigns voters using the same ratings that it reports as utilities.
+    Statements whose ratings are high due to noise are more likely to be selected, so \textbf{any additional noise in these ratings may inflate the baseline's performance on SWFs}.
+    \item \emph{Nearest-neighbor searches.}
+    Their higher variance may give the baseline's nearest-neighbor generators less similar groups of voters, which could \textbf{lower the baseline's performance}; we did not measure this effect.
+    \item \emph{Generation.}
+    Since the baseline of \Cref{fig:swf-main,fig:mth-happiest-main} is a sample of 2026 runs, \textbf{its confidence intervals reflect the lower variance of generation and may be narrower} than those of an equivalent sample of 2025 runs.
+\end{itemize}
+
+\paragraph{\Cref{fig:sfws-voting-algs,fig:statement-ablation-comparison}.}
+All series except the baseline reuse the 2025 queries of GenerativeCC: the voting algorithms are applied to its ballot profiles, and the statement count ablation selects from its generated statements without new queries.
+Comparisons among these series are therefore unaffected, and \textbf{their comparisons with the baseline are subject to the same considerations as \Cref{fig:swf-main,fig:mth-happiest-main}}, whose baseline they reuse.
+
+\paragraph{\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}.}
+All four series were produced in 2025, so drift does not affect them.
+Both baseline series used CRLF and both GenerativeCC series LF, so the comparisons between the two embeddings within each system are unaffected.
+Between the systems, the CRLF prompts of the baseline series may raise their ratings by about 0.07, so \textbf{line endings may favor the baseline series over the GenerativeCC series} in these figures.
+The CRLF prompts also change the content of some of the baseline's generated statements and may change their variance, with no known effect on its performance.
+
+\paragraph{Other results.}
+\Cref{tab:llm-call-comparison} counts queries, and \Cref{app:statement-origin} concerns GenerativeCC alone, so neither is affected.
 
 \end{document}
