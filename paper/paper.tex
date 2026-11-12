@@ -26,7 +26,7 @@
 
 % Voting algorithm names are set in small caps.
 \newcommand{\Exact}{\textsc{U-CC-Exact}}
-\newcommand{\ExactP}{\textsc{U-CC-Exact}$(p>1)$}
+\newcommand{\ExactP}{\textsc{U-CC-Exact}$(\kappa>0)$}
 \newcommand{\Greedy}{\textsc{U-CC-Greedy}}
 \newcommand{\LP}{\textsc{U-CC-LP}}
 \newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
@@ -355,16 +355,21 @@ After solving the relaxed program, it selects the \(k\) candidates with largest 
 \paragraph{Greedy Total Utility Maximization (\Greedy{})}
 This method builds the slate incrementally, repeatedly selecting the candidate with the largest marginal improvement in total assignment utility.
 
-\paragraph{Geometric Utility Transformation (\ExactP{})}
+\paragraph{Kolm--Pollak Utility Transformation (\ExactP{})}
 We also test a variant of \Exact{} that maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} instead of total utility.
-For a parameter \(p>1\), \ExactP{} replaces each utility \(U_{ij}\) in the ballot profile with \(f(U_{ij})\), where
+For an inequality aversion parameter \(\kappa>0\), the EDE of utilities \(u_1,\dots,u_n\) is
 \[
-f(u)=\frac{1-(1/p)^u}{1-(1/p)},
+\mathrm{EDE}_\kappa(u)=-\frac{1}{\kappa}\ln\Bigl(\frac{1}{n}\sum_{i=1}^n e^{-\kappa u_i}\Bigr).
+\]
+\ExactP{} replaces each utility \(U_{ij}\) in the ballot profile with \(f(U_{ij})\), where
+\[
+f(u)=\frac{1-e^{-\kappa u}}{1-e^{-\kappa}},
 \]
 and then runs \Exact{} on the transformed ballot profile.
+For numerical stability the solver uses equivalent utilities \(-e^{\kappa(c-U_{ij})}\), where \(c=\min_i\max_j U_{ij}\); this is a positive affine transformation of \(f\) and selects the same slate and assignment, but avoids the near-constant values of \(f\) at large \(\kappa\).
 The total transformed utility \(\sum_i f(U_{i,\omega(i)})\) is a strictly increasing function of the Kolm--Pollak EDE of the original utilities, so the two objectives select the same slate and assignment.
-The parameter \(p\) interpolates between utilitarian social welfare (total utility) as \(p\to1\) and egalitarian social welfare (minimum utility) as \(p\to\infty\).
-In our experiments, we use \(p=6\) and \(p=25\) (see \Cref{fig:sfws-voting-algs}).
+The parameter \(\kappa\) interpolates between utilitarian social welfare (total utility) as \(\kappa\to0\) and egalitarian social welfare (minimum utility) as \(\kappa\to\infty\).
+In our experiments, we use \(\kappa=3\) and \(\kappa=7\) (see \Cref{fig:sfws-voting-algs}).
 
 \paragraph{Exact Monroe (\ExactMonroe{})}
 The Monroe rule \citep{monroe-1995} selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
@@ -520,7 +525,7 @@ Generalized Lorenz Efficiency
 
 Egalitarian--Utilitarian Efficiency
 & \Pass
-& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(p=1.5\): \ExactP{} selects \(a_2\), while \(a_1\) has greater total and minimum utility.}
+& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(\kappa=\ln 1.5\): \ExactP{} selects \(a_2\), while \(a_1\) has greater total and minimum utility.}
 & \Fail
 & \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
 
@@ -578,8 +583,8 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
 
 We also evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
 Using the 20 ballot profiles generated from GenerativeCC in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
-We show \ExactP{} with stronger transformations \(p=6\) and \(p=25\) because a mild transformation behaves almost identically to \Exact{} on this benchmark.
-At \(p=1.5\), the 10 slates selected by \ExactP{} and \Exact{} share 48 of their 50 statements, and 91.6\% of voters are assigned to the same statement under both rules.
+We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this benchmark.
+At \(\kappa=\ln 1.5\approx0.41\), the 10 slates selected by \ExactP{} and \Exact{} share 48 of their 50 statements, and 91.6\% of voters are assigned to the same statement under both rules.
 \Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
 
 \GreedyMonroe{} --- our adaptation of the \citet{fish-v2} voting algorithm --- and \UGreedyMonroe{} perform much worse than all others on all SWFs.
@@ -614,7 +619,7 @@ This provides the most savings relative to computing the full ballot profile whe
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
 When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
-A modest geometric transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
+A modest Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
 While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
 \section{Discussion}
@@ -644,7 +649,7 @@ However, the choice of minimum utility as the egalitarianism SWF imposes a subje
 There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
 This axiom is overly constraining.
 
-Additionally, none of the tested voting algorithms satisfy this axiom despite the geometric transformation being implemented specifically to achieve more egalitarian outcomes.
+Additionally, none of the tested voting algorithms satisfy this axiom despite the Kolm--Pollak transformation being implemented specifically to achieve more egalitarian outcomes.
 Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
 
 \paragraph{Strategic voting}
@@ -1014,9 +1019,9 @@ Therefore, \Exact{} violates Non-radical Utilitarianism.
 \label{app:exactp-nru}
 % Example found by Claude Opus 4.7
 
-The geometric transformation does not repair this failure.
+The Kolm--Pollak transformation does not repair this failure.
 \ExactP{} maximizes the \emph{transformed} total $\sum_i f(U_{i,\omega(i)})$, and because $f$ is concave it can still reject an alternative slate that is essentially tied in raw total utility but substantially better in raw minimum utility.
-\Cref{tab:failure-exactp-nru} gives a counterexample for $k=1$ and $p=1.5$, where $\delta>0$ is a free parameter.
+\Cref{tab:failure-exactp-nru} gives a counterexample for $k=1$ and $\kappa=\ln 1.5$, where $\delta>0$ is a free parameter.
 \begin{table}[t]
 \centering
 \begin{tabular}{l|cc}
@@ -1028,10 +1033,10 @@ Voter 2 & $5/2$ & $1/2$ \\
 Voter 3 & $5/2$ & $4-\delta$ \\
 \hline
 \end{tabular}
-\caption{Counterexample showing that \ExactP{} fails Non-radical Utilitarianism for \(k=1\) and \(p=1.5\), for any sufficiently small \(\delta>0\).}
+\caption{Counterexample showing that \ExactP{} fails Non-radical Utilitarianism for \(k=1\) and \(\kappa=\ln 1.5\), for any sufficiently small \(\delta>0\).}
 \label{tab:failure-exactp-nru}
 \end{table}
-For \(p=1.5\) the transformation is \(f(u)=3\bigl(1-1.5^{-u}\bigr)\), giving
+For \(\kappa=\ln 1.5\) the transformation is \(f(u)=3\bigl(1-1.5^{-u}\bigr)\), giving
 \[
 f(0)=0,\quad f(\tfrac12)\approx0.55,
 \]
@@ -1059,7 +1064,7 @@ Moving from \(a_1\) to \(a_2\) therefore sacrifices only \(\delta\) in total uti
 The ratio \(\epsilon/\delta = 1/(2\delta)\) can be made arbitrarily large by taking \(\delta\) arbitrarily small.
 Therefore \ExactP{} violates Non-radical Utilitarianism.
 
-The same profile is a counterexample for every \(p>1\), hence \ExactP{} fails Non-radical Utilitarianism for all \(p>1\).
+The same profile is a counterexample for every \(\kappa>0\), hence \ExactP{} fails Non-radical Utilitarianism for all \(\kappa>0\).
 This is expected of any scalar inequality-averse objective: an arbitrarily large \(\epsilon/\delta\) tradeoff amounts to lexicographic priority for the worst-off voter, which is instead obtained by lexicographic maximin optimization \citep{luss-1999, kostreva-ogryczak-wierzbicki-2004}.
 %, and in particular in the limit \(p\to1^{+}\).
 %counterexamples for larger \(p\) follow from the same mechanism (a steep region of \(f\) amplifying several small per-voter losses) and can be located by adversarial search.

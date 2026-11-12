@@ -1,5 +1,6 @@
 from pathlib import Path
 import unittest
+import math
 from typing import Optional, Sequence, Generator, Hashable, override
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -53,12 +54,12 @@ voting_algorithms_to_test = (
     ExactTotalUtilityMaximization(),
     # ExactTotalUtilityMaximizationBruteSearch(),
     LPTotalUtilityMaximization(),
-    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
-    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=10.0)),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
+    ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
+    # GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(10.0))),
+    # ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(10.0))),
+    # LPTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(10.0))),
     # *all_instances(SequentialPhragmenMinimax),
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=True, redistribute_defected_candidate_loads=False),
     # SequentialPhragmenMinimax(load_magnitude_method="marginal_slate", clear_reassigned_loads=False, redistribute_defected_candidate_loads=False),
@@ -66,7 +67,7 @@ voting_algorithms_to_test = (
     SequentialPhragmenMinimax(),
     ReweightedRangeVoting(),
     # ReweightedRangeVoting(k=0.5),
-    # ExactTotalUtilityMaximizationBruteSearch(utility_transform=GeometricTransformation(p=1.5)),
+    # ExactTotalUtilityMaximizationBruteSearch(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
 )
 
 rated_vote_cases_to_test: tuple[RatedVoteCase, ...] = tuple(rated_vote_cases.values())

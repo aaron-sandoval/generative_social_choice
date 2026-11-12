@@ -213,25 +213,32 @@ class UtilityTransformation(abc.ABC):
 @dataclass(frozen=True)
 class GeometricTransformation(UtilityTransformation):
     """
-    Utility transformation based on geometric series.
-    
-    This transformation takes a tunable parameter p>1 and maps utility u to f(u)
-    such that
-     (i) `f(u+1)-f(u)=p*(f(u+2)-f(u+1))` for all u>=0
-     (ii) f(0) = 0
-     (iii) f(1) = 1
-     (iv) f(u) > 0 for all u>0
-     
-    The transformation is given by
-    `f(u) = (1-(1/p)^u)/(1-(1/p))
-    
-    Higher values of p make total utility increasingly egalitarian.
+    Kolm-Pollak utility transformation with inequality aversion parameter `kappa` > 0.
+
+    The Kolm-Pollak equally distributed equivalent (EDE) of utilities u_1, ..., u_n is
+    `EDE(u) = -(1/kappa) * ln((1/n) * sum_i exp(-kappa*u_i))`.
+    It is a strictly increasing function of the total transformed utility `sum_i f(u_i)` with
+    `f(u) = -exp(-kappa*u)`, so maximizing that total maximizes the EDE.
+    kappa -> 0 approaches utilitarian welfare (total utility) and kappa -> inf approaches egalitarian
+    welfare (minimum utility).
+
+    This was formerly parametrized by p = exp(kappa), with the normalized transformation
+    `(1-(1/p)^u)/(1-(1/p))`, a positive affine function of f. The default kappa = ln(1.5) is the
+    former default p=1.5.
+
+    `transform` returns the positive affine rescaling `g(u) = -exp(kappa*(c-u))` of f, where c is the
+    smallest of the voters' maximum utilities. Every algorithm using a transformation assigns each
+    voter to exactly one candidate, so maximizing the total of g selects the same slate and
+    assignment as maximizing the total of f. The normalized form is numerically unusable for large
+    kappa: it is nearly constant, so for kappa=ln(150) and utilities of 3 or more the differences
+    between candidates are ~1e-7, below the tolerances of the ILP solver. g keeps the utilities
+    around the worst-off voter's best candidate of order 1. Note that g is negative.
     """
-    p: float=1.5
+    kappa: float = math.log(1.5)
 
     @property
     def display_name(self) -> str:
-        return f"p={self.p}"
+        return f"κ={self.kappa:.3g}"
 
     @override
     def transform(
@@ -248,11 +255,11 @@ class GeometricTransformation(UtilityTransformation):
 
         # Returns
         `transformed_rated_votes: pd.DataFrame`: Utility of each voter (rows) for each candidate (columns)
-            after transformation
+            after transformation. These are the rescaled utilities g(u) = -exp(kappa*(c-u)) described in
+            the class docstring, an equivalent objective to the Kolm-Pollak EDE.
         """
-        transform_fct = lambda u: (1-(1/self.p)**u)/(1-(1/self.p))
-        transformed_rated_votes = rated_votes.apply(transform_fct)
-        return transformed_rated_votes
+        anchor = rated_votes.max(axis=1).min()
+        return -np.exp(self.kappa * (anchor - rated_votes))
 
 @dataclass(frozen=True)
 class SequentialPhragmenMinimax(VotingAlgorithm):
@@ -837,7 +844,9 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
             # For every candidate c not yet included in the slate, compute the maximum obtainable total utility
             # for any mapping corresponding to the slate after adding c
             best_candidate = None
-            new_total_utility = current_total_utility
+            # The first candidate is always added: utilities may be negative (e.g., after
+            # GeometricTransformation), so they need not improve on BASELINE_UTILITY.
+            new_total_utility = current_total_utility if slate else -np.inf
             for c in rated_votes.columns:
                 if c in slate:
                     continue
@@ -851,7 +860,7 @@ class GreedyTotalUtilityMaximization(VotingAlgorithm):
                     new_total_utility = potential_total_utility
 
             # Stop if no further improvement is possible
-            if new_total_utility<=current_total_utility:
+            if best_candidate is None or (slate and new_total_utility<=current_total_utility):
                 break
 
             # Update the slate and assignments

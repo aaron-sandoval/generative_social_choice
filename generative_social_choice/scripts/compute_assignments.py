@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 from pathlib import Path
 from typing import Optional
@@ -23,9 +24,9 @@ VOTING_ALGORITHMS = {
     "exact": ExactTotalUtilityMaximization(),
     "greedy": GreedyTotalUtilityMaximization(),
     "lp": LPTotalUtilityMaximization(),
-    "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
-    "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(p=1.5)),
+    "greedy (p=1.5)": GreedyTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
+    "exact (p=1.5)": ExactTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
+    "lp (p=1.5)": LPTotalUtilityMaximization(utility_transform=GeometricTransformation(kappa=math.log(1.5))),
 }
 
 def run(
