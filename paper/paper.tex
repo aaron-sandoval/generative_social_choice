@@ -30,6 +30,7 @@
 \newcommand{\Greedy}{\textsc{U-CC-Greedy}}
 \newcommand{\LP}{\textsc{U-CC-LP}}
 \newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
+\newcommand{\EExactMonroe}{\textsc{E-Monroe-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 \newcommand{\UGreedyMonroe}{\textsc{U-Monroe-Greedy}}
 
@@ -550,13 +551,14 @@ The simplex solver we use has an exponential worst case; switching to an interio
 See \Cref{app:lp-complexity}.}} \\
 \ExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
 For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.}} \\
-\GreedyMonroe{} & \complexity{$O(kmn)$} \\
+\EExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \ExactMonroe{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
 \UGreedyMonroe{} & \complexity{$O(kmn)$} \\
-\GreedyMonroe(reassign) & \complexity{$O(2^{nk})$\tablefootnote{Solver dependent.
+\GreedyMonroe{} & \complexity{$O(kmn)$} \\
+Baseline + U-Monroe-Exact reassign &\complexity{$O(2^{nk})$\tablefootnote{Solver dependent.
 Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
 The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables.
 The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}} \\
-\GreedyMonroe(CC reassign) & \complexity{$O(kmn)$} \\
+Baseline + CC reassign & \complexity{$O(kmn)$} \\
 \hline
 \end{tabular}
 \caption{Worst-case time complexity of the voting algorithms.
