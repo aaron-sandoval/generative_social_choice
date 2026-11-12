@@ -597,9 +597,15 @@ Together, these patterns indicate that \textbf{the Monroe equal-sized constituen
   \label{fig:sfws-voting-algs-fish}
 \end{figure*}
 
-If, in a real deployment, discriminative queries are expensive, then an algorithm starting with that of \citet{fish-v2}, followed by full discriminative queries on the slate, and finally a reassignment step may be an attractive compromise between cost and SWF performance.
-If the performance of \GreedyMonroe{reassign} or \GreedyMonroe{CC reassign} is similar to that of such an algorithm, then it would recover significant performance while requiring far fewer discriminative queries than any of the top-performing voting algorithms.
-The tested algorithms require either $nm$ or $\frac{1}{2} n (m + m/k)$ queries (see \Cref{tab:llm-call-comparison}). This proposed algorithm requires at most $\frac{1}{2} n (m + m/k + k - 1)$ queries.
+\subsubsection{Voting Algorithms for Expensive Discriminative Queries}
+
+If, in a real deployment, discriminative queries are expensive, then it may be desirable to avoid voting algorithms that depend on computing a full ballot profile.
+Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
+One algorithm design is to select the slate using limited quantities of discriminative queries, as does the \citet{fish-v2} pipeline, followed by full discriminative queries on the slate, and finally a reassignment step.
+We test two such algorithms.
+
+Prior algorithms require either $nm$ or $\frac{1}{2} n (m + m/k)$ discriminative queries (see \Cref{tab:llm-call-comparison}).
+This proposed algorithm requires at most $\frac{1}{2} n (m + m/k + k - 1)$ queries.
 This provides the most savings relative to computing the full ballot profile when $m >> k$.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
