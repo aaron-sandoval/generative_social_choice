@@ -548,14 +548,14 @@ Non-radical Utilitarianism
 \hline
 Algorithm & Time Complexity \\
 \hline
-\Exact{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}} \\
-\ExactP{} & \complexity{$O(2^{nm})$\footnotemark[\value{footnote}]} \\
+\Exact{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves an integer program and therefore has solver-dependent, exponential worst-case complexity; see \Cref{app:brute-force-vs-exact} for further notes on runtime complexity}\xdef\exactcomplexityfn{\number\value{footnote}}} \\
 \Greedy{} & \complexity{$O(kmn)$} \\
 \LP{} & \complexity{$O(2^{nm})$\tablefootnote{Solver-dependent.
 The simplex solver we use has an exponential worst case; switching to an interior-point method achieves $O((nm)^3)$.
 See \Cref{app:lp-complexity}.}} \\
 \ExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
 For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.}} \\
+\ExactP{} & \complexity{$O(2^{nm})$\footnotemark[\exactcomplexityfn]} \\
 \EExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \ExactMonroe{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
 \UGreedyMonroe{} & \complexity{$O(kmn)$} \\
 \GreedyMonroe{} & \complexity{$O(kmn)$} \\
