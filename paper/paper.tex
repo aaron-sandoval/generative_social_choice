@@ -31,6 +31,7 @@
 \newcommand{\LP}{\textsc{U-CC-LP}}
 \newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
 \newcommand{\EExactMonroe}{\textsc{E-Monroe-Exact}}
+\newcommand{\ECCExact}{\textsc{E-CC-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 \newcommand{\UGreedyMonroe}{\textsc{U-Monroe-Greedy}}
 
@@ -336,27 +337,35 @@ In GenerativeCC, a voting algorithm selects candidates in a multiwinner election
 We implement voting algorithms for range ballots and evaluate them against a set of social choice axioms and the social welfare functions in \Cref{sec:metrics}.
 
 \subsection{Algorithms}
+\label{sec:algorithms}
 
-We evaluate four CC algorithms as candidates for GenerativeCC, and five Monroe algorithms as ablations relative to the baseline of \citet{fish-v2}.
-The algorithms are differentiated by their objective function, voting rule, and solution method.
-The prefix U-/E- denote a utilitarian/egalitarian objective function.
-The rule is either CC, under which each voter is assigned to their favorite winner, or Monroe, which requires equal-sized constituencies.
+We evaluate CC algorithms as candidates for GenerativeCC, and Monroe algorithms as ablations relative to the baseline of \citet{fish-v2}.
+Most of these algorithms sit in a three-dimensional design space, parametrized by the objective function, the constituency-size constraint, and the solution method (\Cref{tab:algorithm-space}).
+Their names list their coordinates in this order, e.g.\ \Exact{} maximizes total utility exactly under the CC rule.
+The remaining algorithms do not fit this space and are described afterwards.
 
-\paragraph{Exact Total Utility Maximization (\Exact{})}
-This method selects the slate and assignment that maximize total utility exactly.
-In our experiments, we solve the corresponding integer program with PuLP/CBC.
-At the scale of our benchmark, the solver terminates quickly, but exact worst-case complexity remains exponential.
+\begin{table*}[t]
+\centering
+\begin{tabular}{ll|ccc}
+\hline
+Rule & Method & Utilitarian & Kolm--Pollak & Egalitarian \\
+\hline
+CC & Exact & \Exact{} & \ExactP{} & \ECCExact{} \\
+ & Greedy & \Greedy{} & -- & -- \\
+ & LP & \LP{} & -- & -- \\
+\hline
+Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
+ & Greedy & \UGreedyMonroe{} & -- & \GreedyMonroe{} \\
+\hline
+\end{tabular}
+\caption{Design space of the voting algorithms: constituency-size constraint (rule) and solution method (rows), and objective function (columns).}
+\label{tab:algorithm-space}
+\end{table*}
 
-\paragraph{LP Relaxation of Total Utility Maximization (\LP{})}
-This approximation uses the same problem formulation for slate selection and voter assignment as \Exact{}, %assignment-and-selection formulation as Exact,
-but relaxes binary constraints to the interval \([0,1]\).
-After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their most preferred selected candidate.
-
-\paragraph{Greedy Total Utility Maximization (\Greedy{})}
-This method builds the slate incrementally, repeatedly selecting the candidate with the largest marginal improvement in total assignment utility.
-
-\paragraph{Kolm--Pollak Utility Transformation (\ExactP{})}
-We also test a variant of \Exact{} that maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} instead of total utility.
+\paragraph{Objective function}
+Utilitarian (U-) algorithms maximize the total utility \(\sum_i U_{i,\omega(i)}\) of the assignment.
+Egalitarian (E-) algorithms maximize the minimum utility \(\min_i U_{i,\omega(i)}\).
+Between these, \ExactP{} maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} instead of total utility.
 For an inequality aversion parameter \(\kappa>0\), the EDE of utilities \(u_1,\dots,u_n\) is
 \[
 \mathrm{EDE}_\kappa(u)=-\frac{1}{\kappa}\ln\Bigl(\frac{1}{n}\sum_{i=1}^n e^{-\kappa u_i}\Bigr).
@@ -365,34 +374,48 @@ For an inequality aversion parameter \(\kappa>0\), the EDE of utilities \(u_1,\d
 \[
 f(u)=\frac{1-e^{-\kappa u}}{1-e^{-\kappa}},
 \]
-and then runs \Exact{} on the transformed ballot profile.
-For numerical stability the solver uses equivalent utilities \(-e^{\kappa(c-U_{ij})}\), where \(c=\min_i\max_j U_{ij}\); this is a positive affine transformation of \(f\) and selects the same slate and assignment, but avoids the near-constant values of \(f\) at large \(\kappa\).
+and then runs \Exact{} on the transformed ballot profile.\footnote{For numerical stability the solver uses equivalent utilities \(-e^{\kappa(c-U_{ij})}\), where \(c=\min_i\max_j U_{ij}\); this is a positive affine transformation of \(f\) and selects the same slate and assignment, but avoids the near-constant values of \(f\) at large \(\kappa\).}
 The total transformed utility \(\sum_i f(U_{i,\omega(i)})\) is a strictly increasing function of the Kolm--Pollak EDE of the original utilities, so the two objectives select the same slate and assignment.
 The parameter \(\kappa\) interpolates between utilitarian social welfare (total utility) as \(\kappa\to0\) and egalitarian social welfare (minimum utility) as \(\kappa\to\infty\).
 In our experiments, we use \(\kappa=3\) and \(\kappa=7\) (see \Cref{fig:sfws-voting-algs}).
 
-\paragraph{Exact Monroe (\ExactMonroe{})}
-The Monroe rule \citep{monroe-1995} selects a slate together with an assignment of an equal-sized constituency of voters to each winner.
-\ExactMonroe{} selects the slate and assignment that maximize total utility exactly, subject to each winner being assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters.
-It adds this constituency-size constraint to the integer program of \Exact{} (\Cref{app:exact-lp-formulations}), which we solve with PuLP/CBC.
+\paragraph{Constituency-size constraint}
+Under the CC rule \citep{chamberlin-courant}, each voter is assigned to their favorite winner, and constituencies may have any size.
+The Monroe rule \citep{monroe-1995} instead assigns each winner an equal-sized constituency of either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters, as in the pipeline of \citet{fish-v2}.
 
-\paragraph{\GreedyMonroe{} \citep{skowron-2015}}
-We make a best-effort adaptation of the stepwise greedy procedure used by \citet{fish-v2} to operate on the complete ballot profile.
+\paragraph{Solution method}
+Exact algorithms select the slate and assignment that optimize the objective exactly, by solving an integer program (\Cref{app:exact-lp-formulations}).
+Greedy algorithms build the slate one candidate at a time.
+\Greedy{} repeatedly adds the candidate with the largest marginal improvement in total assignment utility, assigning each voter to their favorite slate member.
+The Monroe greedy algorithms are our best-effort adaptation of the stepwise greedy procedure \citep{skowron-2015} used by \citet{fish-v2} to operate on the complete ballot profile.
 The slate is built in \(k\) rounds.
-In each round, every remaining candidate is scored by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters.
+In each round, every remaining candidate is scored over the top \(\lceil n/k\rceil\) unassigned voters by utility for that candidate.
+\GreedyMonroe{} scores it by the \(\lceil n/k\rceil\)-th highest utility among the unassigned voters, i.e.\ the lowest utility in this group, and \UGreedyMonroe{} by the total utility of the group.
 The highest-scoring candidate is added to the slate, and those top \(\lceil n/k\rceil\) unassigned voters are provisionally assigned to it.
+\LP{} approximates \Exact{} with a linear program: it uses the same problem formulation for slate selection and voter assignment as \Exact{}, %assignment-and-selection formulation as Exact,
+but relaxes binary constraints to the interval \([0,1]\).
+After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their most preferred selected candidate.
 
-\paragraph{\UGreedyMonroe{}}
-Identical to \GreedyMonroe{}, except that each candidate is scored by the total utility of the top \(\lceil n/k\rceil\) unassigned voters rather than by the \(\lceil n/k\rceil\)-th highest utility among them.
+We do not include \textsc{E-CC-Greedy}.
+Greedily adding the candidate that most increases the minimum utility is degenerate: every candidate that lifts the worst-off voter above the next-worst voter yields the same new minimum, so most rounds end in ties.
+Additional algorithmic constraints, such as tie-breaking rules, are needed to make such an algorithm worth considering, and it is not needed to support our claims.
 
-\paragraph{\GreedyMonroe(reassign)}
-Start with \GreedyMonroe{}.
-Then, holding the selected slate fixed, the final assignment is recomputed to maximize total utility subject to the constituency-size constraint: each winner must be assigned either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters.
-We solve this assignment with an integer linear program.
+\paragraph{Baseline \citep{fish-v2}}
+The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation, so it only requires part of the ballot profile.
+In each of the \(k\) rounds, new candidates are generated from the opinions of the unassigned voters, and only the unassigned voters rate them.
+The candidates generated in earlier rounds that are not yet on the slate remain eligible, and the unassigned voters have already rated them.
+This uses \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries instead of \(nm\) (\Cref{tab:llm-call-comparison}).
 
-\paragraph{\GreedyMonroe(CC reassign)}
-Start with \GreedyMonroe{}.
-Then, the equal-sized-constituency constraint is dropped and each voter is assigned to their favorite member of the final slate.
+\paragraph{Baseline + \EExactMonroe{} reassign}
+If, in a real deployment, discriminative queries are expensive, then it may be desirable to avoid voting algorithms that depend on computing a full ballot profile.
+Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
+This algorithm and Baseline + CC reassign select the slate using limited quantities of discriminative queries, as does the baseline, followed by full discriminative queries on the slate, and finally a reassignment step.
+Having every voter rate every member of the baseline's slate takes at most \(\frac{1}{2} n (k-1)\) additional discriminative queries, for at most \(\frac{1}{2} n (m + m/k + k - 1)\) in total, compared with \(nm\) for the algorithms that compute the full ballot profile and \(\frac{1}{2} n (m + m/k)\) for the baseline (\Cref{tab:llm-call-comparison}).
+This provides the most savings relative to computing the full ballot profile when \(m \gg k\).
+Holding the slate fixed, this algorithm then reassigns the voters with \EExactMonroe{}: it maximizes the minimum utility subject to the constituency-size constraint, breaking ties by total utility.
+
+\paragraph{Baseline + CC reassign}
+As Baseline + \EExactMonroe{} reassign, but each voter is assigned to their favorite member of the slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
@@ -556,13 +579,12 @@ See \Cref{app:lp-complexity}.}} \\
 \ExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
 For reference, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.}} \\
 \ExactP{} & \complexity{$O(2^{nm})$\footnotemark[\exactcomplexityfn]} \\
+\ECCExact{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \Exact{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
 \EExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \ExactMonroe{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
 \UGreedyMonroe{} & \complexity{$O(kmn)$} \\
 \GreedyMonroe{} & \complexity{$O(kmn)$} \\
-Baseline + U-Monroe-Exact reassign &\complexity{$O(2^{nk})$\tablefootnote{Solver dependent.
-Voter assignment is an integer program whose constraint matrix is totally unimodular, so it is equivalent to its LP relaxation.
-The algorithm has the same solver-dependent complexity described in \Cref{app:lp-complexity}, but with $nk$ variables.
-The simplex solver we use has an exponential worst case; an interior-point method achieves $O((nk)^3)$.}} \\
+Baseline + \EExactMonroe{} reassign &\complexity{$O(2^{nk})$\tablefootnote{The implementation runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, i.e.\ two integer programs over $nk$ assignment variables.
+Because the slate is fixed, the reassignment can also be computed in polynomial time with network flows; see \Cref{app:baseline-reassign-complexity}.}} \\
 Baseline + CC reassign & \complexity{$O(kmn)$} \\
 \hline
 \end{tabular}
@@ -590,7 +612,7 @@ At \(\kappa=\ln 1.5\approx0.41\), the 10 slates selected by \ExactP{} and \Exact
 \GreedyMonroe{} --- our adaptation of the \citet{fish-v2} voting algorithm --- and \UGreedyMonroe{} perform much worse than all others on all SWFs.
 All other tested voting algorithms use some sort of global optimization over all candidates and voters, even \Greedy, which reassigns voters after selecting each candidate.
 Such a global optimization requires using more discriminative queries than are used by \citet{fish-v2}.
-This suggests that the performance difference in \Cref{fig:sfws-voting-algs} between the cluster of 6 high-performing voting algorithms and the \textsc{Monroe-Greedy} algorithms stems from the latter group not leveraging the complete ballot profile.
+This suggests that the performance difference in \Cref{fig:sfws-voting-algs} between the cluster of high-performing voting algorithms and the \textsc{Monroe-Greedy} algorithms stems from the latter group not leveraging the complete ballot profile.
 
 We can dismiss other possible causes by comparing various ablations.
 Most of the above difference is recovered by both of the other \GreedyMonroe{} variants.
@@ -607,14 +629,7 @@ Together, these patterns indicate that \textbf{the Monroe equal-sized constituen
 
 \subsubsection{Voting Algorithms for Expensive Discriminative Queries}
 
-If, in a real deployment, discriminative queries are expensive, then it may be desirable to avoid voting algorithms that depend on computing a full ballot profile.
-Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
-One algorithm design is to select the slate using limited quantities of discriminative queries, as does the \citet{fish-v2} pipeline, followed by full discriminative queries on the slate, and finally a reassignment step.
-We test two such algorithms.
-
-Prior algorithms require either $nm$ or $\frac{1}{2} n (m + m/k)$ discriminative queries (see \Cref{tab:llm-call-comparison}).
-This proposed algorithm requires at most $\frac{1}{2} n (m + m/k + k - 1)$ queries.
-This provides the most savings relative to computing the full ballot profile when $m >> k$.
+\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, Baseline + \EExactMonroe{} reassign and Baseline + CC reassign (\Cref{sec:algorithms}), with the baseline and \EExactMonroe{} on the ballot profiles of the baseline pipeline.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
@@ -770,8 +785,11 @@ This supports the claim that our gains are not primarily due to a larger candida
 
 \section{Voting Algorithm Details}
 
-\subsection{\Exact{}, \LP{}, and \ExactMonroe{} Optimization Problems}
+\subsection{Optimization Problems of the Exact Algorithms and \LP{}}
 \label{app:exact-lp-formulations}
+
+We solve all integer programs with PuLP/CBC \citep{pulp, john_forrest_cbc}.
+At the scale of our benchmark, the solver terminates quickly, but exact worst-case complexity remains exponential.
 
 Both \Exact{} and \LP{} are based on the same assignment-and-selection optimization problem.
 Let \(x_j\) indicate whether candidate \(j\) is selected, and let \(y_{ij}\) indicate whether voter \(i\) is assigned to candidate \(j\).
@@ -803,6 +821,14 @@ After solving the LP relaxation, we select the \(k\) candidates with highest fra
 \]
 to the integer program of \Exact{}.
 Each selected candidate is therefore assigned \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters, and each unselected candidate none.
+
+The egalitarian algorithms \ECCExact{} and \EExactMonroe{} solve two integer programs with the constraints of \Exact{} and \ExactMonroe{}, respectively.
+The first maximizes an auxiliary variable \(z\) subject to the additional constraints
+\[
+z \;\le\; \sum_j U_{ij}\, y_{ij} \quad \forall i,
+\]
+so its optimal value \(z^\star\) is the largest achievable minimum utility.
+The second maximizes total utility \(\sum_i\sum_j U_{ij}\, y_{ij}\) with \(y_{ij}\) fixed to \(0\) wherever \(U_{ij}<z^\star\), i.e.\ among the solutions achieving that minimum.
 
 %\subsection{Exact vs.\ Brute-force Comparison} \label{app:brute-force-vs-exact}
 
@@ -881,9 +907,16 @@ It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the \LP{} variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
 
-\paragraph{\GreedyMonroe(reassign)} The final assignment step of \GreedyMonroe(reassign) solves an integer program over $nk$ variables (\Cref{sec:voting-algorithms}).
-Its constraint matrix is the incidence matrix of a bipartite graph and hence totally unimodular, so the LP relaxation has only integral vertices and solving the relaxation solves the integer program.
-The solver-dependence discussion above therefore applies with $nm$ replaced by $nk$: simplex-based solvers (including the branch-and-bound root solve in our Gurobi implementation) have an exponential worst case, while an interior-point method with crossover to a vertex yields $O((nk)^3)$.
+\subsection{Runtime Complexity of Baseline + \EExactMonroe{} reassign}
+\label{app:baseline-reassign-complexity}
+The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the two integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
+Solved by branch-and-bound, as in our implementation, its worst case is $O(2^{nk})$.
+Because the slate is fixed, the reassignment can also be computed in polynomial time.
+The optimal minimum utility is one of the $nk$ utilities on the slate.
+Whether a threshold $t$ is achievable is a feasibility question for a bipartite flow network in which voter $i$ may only be assigned to slate members $j$ with $U_{ij}\ge t$, and each slate member receives between $\lfloor n/k\rfloor$ and $\lceil n/k\rceil$ voters.
+A binary search over the sorted utilities therefore finds the optimal minimum with $O(\log(nk))$ maximum-flow computations.
+Maximizing total utility among the assignments that respect this threshold is then a minimum-cost flow problem on the same network.
+Both steps run in time polynomial in $n$ and $k$.
 
 
 \section{Proofs of Axiom Satisfaction and Implications}
