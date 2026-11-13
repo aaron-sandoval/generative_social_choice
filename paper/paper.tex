@@ -31,6 +31,7 @@
 \newcommand{\LP}{\textsc{U-CC-LP}}
 \newcommand{\ExactMonroe}{\textsc{U-Monroe-Exact}}
 \newcommand{\EExactMonroe}{\textsc{E-Monroe-Exact}}
+\newcommand{\Baseline}{\textsc{Baseline}}
 \newcommand{\ECCExact}{\textsc{E-CC-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 \newcommand{\UGreedyMonroe}{\textsc{U-Monroe-Greedy}}
@@ -348,14 +349,15 @@ The remaining algorithms do not fit this space and are described afterwards.
 \centering
 \begin{tabular}{ll|ccc}
 \hline
-Rule & Method & Utilitarian & Kolm--Pollak & Egalitarian \\
+\textit{Rule} & \textit{Method} & Utilitarian & Kolm--Pollak & Egalitarian \\
 \hline
 CC & Exact & \Exact{} & \ExactP{} & \ECCExact{} \\
  & Greedy & \Greedy{} & -- & -- \\
  & LP & \LP{} & -- & -- \\
 \hline
 Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
- & Greedy & \UGreedyMonroe{} & -- & \GreedyMonroe{} \\
+ & Greedy & \UGreedyMonroe{} & -- & \GreedyMonroe{} \\[3pt]
+ & \makecell[l]{Interleaved\\[-0.6ex]Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
 \caption{Design space of the voting algorithms: constituency-size constraint (rule) and solution method (rows), and objective function (columns).}
@@ -400,22 +402,22 @@ We do not include \textsc{E-CC-Greedy}.
 Greedily adding the candidate that most increases the minimum utility is degenerate: every candidate that lifts the worst-off voter above the next-worst voter yields the same new minimum, so most rounds end in ties.
 Additional algorithmic constraints, such as tie-breaking rules, are needed to make such an algorithm worth considering, and it is not needed to support our claims.
 
-\paragraph{Baseline \citep{fish-v2}}
+\paragraph{\Baseline{} \citep{fish-v2}}
 The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation, so it only requires part of the ballot profile.
 In each of the \(k\) rounds, new candidates are generated from the opinions of the unassigned voters, and only the unassigned voters rate them.
 The candidates generated in earlier rounds that are not yet on the slate remain eligible, and the unassigned voters have already rated them.
 This uses \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries instead of \(nm\) (\Cref{tab:llm-call-comparison}).
 
-\paragraph{Baseline + \EExactMonroe{} reassign}
+\paragraph{\Baseline{} + \EExactMonroe{} reassign}
 If, in a real deployment, discriminative queries are expensive, then it may be desirable to avoid voting algorithms that depend on computing a full ballot profile.
 Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
-This algorithm and Baseline + CC reassign select the slate using limited quantities of discriminative queries, as does the baseline, followed by full discriminative queries on the slate, and finally a reassignment step.
+This algorithm and \Baseline{} + CC reassign select the slate using limited quantities of discriminative queries, as does \Baseline{}, followed by full discriminative queries on the slate, and finally a reassignment step.
 Having every voter rate every member of the baseline's slate takes at most \(\frac{1}{2} n (k-1)\) additional discriminative queries, for at most \(\frac{1}{2} n (m + m/k + k - 1)\) in total, compared with \(nm\) for the algorithms that compute the full ballot profile and \(\frac{1}{2} n (m + m/k)\) for the baseline (\Cref{tab:llm-call-comparison}).
 This provides the most savings relative to computing the full ballot profile when \(m \gg k\).
 Holding the slate fixed, this algorithm then reassigns the voters with \EExactMonroe{}: it maximizes the minimum utility subject to the constituency-size constraint, breaking ties by total utility.
 
-\paragraph{Baseline + CC reassign}
-As Baseline + \EExactMonroe{} reassign, but each voter is assigned to their favorite member of the slate.
+\paragraph{\Baseline{} + CC reassign}
+As \Baseline{} + \EExactMonroe{} reassign, but each voter is assigned to their favorite member of the slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
@@ -583,9 +585,9 @@ For reference, enumerating all slates and solving a transportation problem for e
 \EExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \ExactMonroe{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
 \UGreedyMonroe{} & \complexity{$O(kmn)$} \\
 \GreedyMonroe{} & \complexity{$O(kmn)$} \\
-Baseline + \EExactMonroe{} reassign &\complexity{$O(2^{nk})$\tablefootnote{The implementation runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, i.e.\ two integer programs over $nk$ assignment variables.
+\Baseline{} + \EExactMonroe{} reassign &\complexity{$O(2^{nk})$\tablefootnote{The implementation runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, i.e.\ two integer programs over $nk$ assignment variables.
 Because the slate is fixed, the reassignment can also be computed in polynomial time with network flows; see \Cref{app:baseline-reassign-complexity}.}} \\
-Baseline + CC reassign & \complexity{$O(kmn)$} \\
+\Baseline{} + CC reassign & \complexity{$O(kmn)$} \\
 \hline
 \end{tabular}
 \caption{Worst-case time complexity of the voting algorithms.
@@ -597,8 +599,8 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
 \centering
   \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v8.png}
   \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
-  Confidence intervals for all series except "Baseline" are bootstrapped across 10 ballot profiles generated with GenerativeCC.
-  The "Baseline" series is copied from \Cref{fig:swf-main}. It was generated from the pipeline of \citet{fish-v2} and is included for reference only.
+  Confidence intervals for all series except \Baseline{} are bootstrapped across 10 ballot profiles generated with GenerativeCC.
+  The \Baseline{} series is copied from \Cref{fig:swf-main}. It was generated from the pipeline of \citet{fish-v2} and is included for reference only.
   Its results are not directly comparable as other pipeline elements besides the voting algorithm differ.}
   \label{fig:sfws-voting-algs}
 \end{figure*}
@@ -623,13 +625,13 @@ Together, these patterns indicate that \textbf{the Monroe equal-sized constituen
 \begin{figure*}[t]
 \centering
   \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_fish_candidates.png}
-  \caption{Voting algorithm SWF performance on ballot profiles generated by the baseline pipeline. Profiles are filled afterwards using additional discriminative queries. Adding either reassignment step to the baseline algorithm recovers most of the performance of \EExactMonroe.}
+  \caption{Voting algorithm SWF performance on ballot profiles generated by the baseline pipeline. Profiles are filled afterwards using additional discriminative queries. Adding either reassignment step to \Baseline{} recovers most of the performance of \EExactMonroe.}
   \label{fig:sfws-voting-algs-fish}
 \end{figure*}
 
 \subsubsection{Voting Algorithms for Expensive Discriminative Queries}
 
-\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, Baseline + \EExactMonroe{} reassign and Baseline + CC reassign (\Cref{sec:algorithms}), with the baseline and \EExactMonroe{} on the ballot profiles of the baseline pipeline.
+\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the ballot profiles of the baseline pipeline.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
@@ -907,7 +909,7 @@ It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the \LP{} variant we benchmark is formally subject to the $O(2^{nm})$ simplex bound, an interior-point deployment attains a polynomial $O((nm)^3)$ worst case at no change to the formulation.
 
-\subsection{Runtime Complexity of Baseline + \EExactMonroe{} reassign}
+\subsection{Runtime Complexity of \Baseline{} + \EExactMonroe{} reassign}
 \label{app:baseline-reassign-complexity}
 The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the two integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
 Solved by branch-and-bound, as in our implementation, its worst case is $O(2^{nk})$.
