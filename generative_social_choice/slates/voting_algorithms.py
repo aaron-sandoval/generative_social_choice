@@ -561,24 +561,228 @@ class ExactTotalUtilityMaximization(VotingAlgorithm):
         return slate, assignments
 
 
+EgalitarianTiebreak = Literal["leximin", "utilitarian", "none"]
+"""
+How the exact egalitarian algorithms choose among the solutions achieving the optimal minimum utility.
+Many solutions typically achieve it, and the solver would return an arbitrary one of them.
+- "leximin": Maximize the second-lowest utility among those solutions, then the third-lowest, and so on.
+- "utilitarian": Maximize total utility among those solutions.
+- "none": Return the solver's arbitrary choice.
+"""
+_TIEBREAK_DISPLAY_SUFFIX: dict[str, str] = {"leximin": "", "utilitarian": "(utilitarian tiebreak)", "none": "(no tiebreak)"}
+
+
+def _exact_egalitarian_solution(
+    rated_votes: pd.DataFrame,
+    slate_size: int,
+    coalition_size_bounds: Optional[tuple[int, int]],
+    tiebreak: EgalitarianTiebreak,
+) -> tuple[list[str], list[str]]:
+    """
+    Jointly select a slate and assign each voter to one of its members, maximizing the minimum utility
+    and breaking ties according to `tiebreak`. Solved exactly as a sequence of integer programs.
+
+    # Arguments
+    - `coalition_size_bounds: Optional[tuple[int, int]]`: The minimum and maximum number of voters assigned to
+      each slate member (Monroe), or None for any number of voters (CC). Under CC each voter is assigned to their
+      favorite slate member.
+    - `tiebreak: EgalitarianTiebreak`: How to choose among the solutions achieving the optimal minimum utility
+
+    # Leximin
+    For an assignment, let N(t) be the number of voters with utility <= t, and N<(t) the number with utility < t.
+    The sorted utility vector of one assignment is leximin-better than that of another iff its N is smaller at
+    the lowest threshold where the two differ. So leximin is built up level by level. Given c_prev voters at or
+    below the levels found so far:
+    1. The next level t is the largest achievable (c_prev+1)-th lowest utility.
+    2. c is the smallest achievable number of voters with utility <= t. It is at least c_prev+1, and only needs
+       a second integer program if the solution of step 1 has more.
+    Each level adds the constraints N<(t) <= c_prev and N(t) <= c, which are linear in the assignment variables
+    and hold for every leximin-optimal solution. The levels are read from the data rather than from the
+    solver's objective values, which avoids losing ties to floating point error.
+
+    Once no other slate satisfies the constraints, the slate is leximin-optimal. Under CC, the favorite
+    assignment is then leximin-optimal too, so the search stops. Under Monroe, the remaining levels only
+    determine the assignment, so the search continues on the ballot profile restricted to the slate. It stops
+    once every voter is at or below some level (c = n).
+
+    # Returns
+    - `slate: list[str]`: The selected candidates
+    - `candidate_assignments: list[str]`: The candidate assigned to each voter, in the order of `rated_votes.index`
+    """
+    num_agents, num_statements = rated_votes.shape
+    U = rated_votes.to_numpy()  # Utility matrix
+    big_m = float(U.max() - U.min())  # Upper bound on the difference between any two utilities
+
+    # (level, strict, cap): at most `cap` agents have utility < level (strict) or <= level (not strict)
+    count_constraints: list[tuple[float, bool, int]] = []
+
+    def solve(
+        objective: Literal["kth_lowest", "count", "total", "feasibility"],
+        columns: list[int],
+        rank: int = 0,
+        threshold: Optional[float] = None,
+        excluded_slate: Optional[list[int]] = None,
+    ) -> Optional[tuple[list[int], np.ndarray]]:
+        """
+        Solve one integer program over the statements `columns`, subject to `count_constraints`.
+
+        Objectives:
+        - "kth_lowest": Maximize the (rank+1)-th lowest utility. rank=0 is the minimum utility.
+        - "count": Minimize the number of agents with utility <= `threshold`
+        - "total": Maximize total utility
+        - "feasibility": Find any solution whose slate differs from `excluded_slate`
+
+        Returns the selected statements and the statement assigned to each agent, as indices into the columns of
+        `rated_votes`, or None if a "feasibility" problem is infeasible.
+        """
+        num_cols = len(columns)
+        U_sub = U[:, columns]
+        prob = pulp.LpProblem(
+            f"Egalitarian_{objective}", pulp.LpMinimize if objective == "count" else pulp.LpMaximize
+        )
+
+        # Decision variables
+        x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_cols)]  # Whether to select statement j
+        y = [
+            [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_cols)]  # Agent i assigned to statement j
+            for i in range(num_agents)
+        ]
+        agent_utility = [pulp.lpSum(U_sub[i][j] * y[i][j] for j in range(num_cols)) for i in range(num_agents)]
+
+        if objective == "kth_lowest":
+            z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on the utility of all but `rank` agents
+            prob += z, "KthLowestUtility"
+            if rank == 0:
+                for i in range(num_agents):
+                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
+            else:
+                # w_i = 1 exempts agent i from the bound. At most `rank` agents are exempt.
+                w = [pulp.LpVariable(f"w_{i}", cat="Binary") for i in range(num_agents)]
+                for i in range(num_agents):
+                    prob += z <= agent_utility[i] + big_m * w[i], f"Kth_Lowest_Utility_Bound_{i}"
+                prob += pulp.lpSum(w) <= rank, "Exempt_Agents"
+        elif objective == "count":
+            prob += pulp.lpSum(
+                y[i][j] for i in range(num_agents) for j in range(num_cols) if U_sub[i][j] <= threshold
+            ), "Agents_At_Or_Below_Threshold"
+        elif objective == "total":
+            prob += pulp.lpSum(agent_utility), "TotalUtility"
+        else:
+            prob += pulp.lpSum(x), "Constant"  # Fixed by the slate size constraint
+
+        # Select exactly k statements
+        prob += pulp.lpSum(x) == slate_size, "Select_k_Statements"
+
+        # Each agent is assigned to exactly one statement
+        for i in range(num_agents):
+            prob += pulp.lpSum(y[i]) == 1, f"Assign_Agent_{i}"
+
+        # An agent can only be assigned to a selected statement
+        for i in range(num_agents):
+            for j in range(num_cols):
+                prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+        # Monroe: each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
+        if coalition_size_bounds is not None:
+            min_coalition_size, max_coalition_size = coalition_size_bounds
+            for j in range(num_cols):
+                coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
+                prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
+                prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
+
+        # Bound the number of agents below each level. Comparing against the data directly, rather than
+        # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
+        for c, (level, strict, cap) in enumerate(count_constraints):
+            below = [
+                y[i][j] for i in range(num_agents) for j in range(num_cols)
+                if (U_sub[i][j] < level if strict else U_sub[i][j] <= level)
+            ]
+            if cap == 0:
+                for var in below:
+                    var.upBound = 0
+            elif below and cap < num_agents:
+                prob += pulp.lpSum(below) <= cap, f"Count_{c}"
+
+        if excluded_slate is not None:
+            prob += pulp.lpSum(x[columns.index(j)] for j in excluded_slate) <= slate_size - 1, "Exclude_Slate"
+
+        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+        status = pulp.LpStatus[prob.status]
+        if objective == "feasibility" and status == "Infeasible":
+            return None
+        if status != "Optimal":
+            raise RuntimeError(f"{prob.name} not solved to optimality: {status}")
+
+        slate = [columns[j] for j in range(num_cols) if pulp.value(x[j]) > 0.5]
+        if coalition_size_bounds is None:
+            # Assign each agent to their favorite statement in the slate. This weakly raises every agent's
+            # utility over the solver's assignment, so it is still optimal and satisfies the count constraints.
+            assigned = np.array(slate)[U[:, slate].argmax(axis=1)]
+        else:
+            assigned = np.array([
+                columns[next(j for j in range(num_cols) if pulp.value(y[i][j]) > 0.5)] for i in range(num_agents)
+            ])
+        return slate, assigned
+
+    def agent_utilities(solution: tuple[list[int], np.ndarray]) -> np.ndarray:
+        return U[np.arange(num_agents), solution[1]]
+
+    columns = list(range(num_statements))
+    solution = solve("kth_lowest", columns)
+
+    if tiebreak == "utilitarian":
+        # Forbid assignments below the optimal minimum utility, read from the data rather than the solver's
+        # objective value
+        count_constraints.append((agent_utilities(solution).min(), True, 0))
+        solution = solve("total", columns)
+    elif tiebreak == "leximin":
+        num_settled = 0  # c_prev: the number of agents with utility at or below the levels found so far
+        slate_is_unique = False
+        while True:
+            sorted_utilities = np.sort(agent_utilities(solution))
+            level = sorted_utilities[num_settled]
+            count_constraints.append((level, True, num_settled))
+            num_at_or_below = int((sorted_utilities <= level).sum())
+            if num_at_or_below > num_settled + 1:
+                solution = solve("count", columns, threshold=level)
+                num_at_or_below = int((agent_utilities(solution) <= level).sum())
+            count_constraints.append((level, False, num_at_or_below))
+            num_settled = num_at_or_below
+            if num_settled == num_agents:
+                break
+
+            if not slate_is_unique:
+                slate_is_unique = solve("feasibility", columns, excluded_slate=solution[0]) is None
+                if slate_is_unique:
+                    if coalition_size_bounds is None:
+                        break
+                    columns = solution[0]
+            solution = solve("kth_lowest", columns, rank=num_settled)
+    elif tiebreak != "none":
+        raise ValueError(f"Invalid tiebreak: {tiebreak}")
+
+    slate_ix, assigned_ix = solution
+    return [rated_votes.columns[j] for j in slate_ix], [rated_votes.columns[j] for j in assigned_ix]
+
+
 @dataclass(frozen=True)
 class ExactMinimumUtilityMaximization(VotingAlgorithm):
     """
     Egalitarian Chamberlin-Courant: select the slate maximizing the minimum utility of any voter,
     where each voter is assigned to their favorite candidate in the slate.
 
-    Solved exactly as an integer program. Many slates typically achieve the optimal minimum utility, and
-    the solver would return an arbitrary one of them. So with `utilitarian_tiebreak`, a second integer
-    program selects the slate with the highest total utility among those achieving the optimal minimum.
+    Solved exactly as a sequence of integer programs (see `_exact_egalitarian_solution`). Many slates typically
+    achieve the optimal minimum utility, and the solver would return an arbitrary one of them, so ties are broken
+    according to `tiebreak`.
 
     # Arguments
-    - `utilitarian_tiebreak: bool = True`: Whether to break ties in minimum utility by total utility
+    - `tiebreak: EgalitarianTiebreak = "leximin"`: How to break ties in minimum utility
     """
-    utilitarian_tiebreak: bool = True
+    tiebreak: EgalitarianTiebreak = "leximin"
 
     @property
     def display_name(self) -> str:
-        return f"E-CC-Exact{'' if self.utilitarian_tiebreak else '(no tiebreak)'}"
+        return "E-CC-Exact" + _TIEBREAK_DISPLAY_SUFFIX[self.tiebreak]
 
     @override
     def vote(
@@ -594,63 +798,7 @@ class ExactMinimumUtilityMaximization(VotingAlgorithm):
             - Other columns are returned for debugging and unit testing purposes, not guaranteed to always be present
             - `utility`: The utility of the voter for the candidate
         """
-        num_agents = rated_votes.shape[0]
-        num_statements = rated_votes.shape[1]
-        U = rated_votes.to_numpy()  # Utility matrix
-
-        def solve(objective: Literal["minimum", "total"], min_utility: Optional[float] = None) -> list[str]:
-            """Solve the integer program and return the selected slate.
-
-            If `min_utility` is given, agents may only be assigned to statements giving them at least that utility."""
-            prob = pulp.LpProblem(f"Maximize_{objective}_Utility", pulp.LpMaximize)
-
-            # Decision variables
-            x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
-            y = [
-                [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
-                for i in range(num_agents)
-            ]
-            agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
-
-            if objective == "minimum":
-                z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on every agent's utility
-                prob += z, "MinimumUtility"
-                for i in range(num_agents):
-                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
-            else:
-                prob += pulp.lpSum(agent_utility), "TotalUtility"
-
-            # Select exactly k statements
-            prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
-
-            # Each agent is assigned to exactly one statement
-            for i in range(num_agents):
-                prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
-
-            # An agent can only be assigned to a selected statement
-            for i in range(num_agents):
-                for j in range(num_statements):
-                    prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
-
-            # Forbid assignments below the minimum utility. Comparing against the data directly, rather than
-            # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
-            if min_utility is not None:
-                for i in range(num_agents):
-                    for j in range(num_statements):
-                        if U[i][j] < min_utility:
-                            y[i][j].upBound = 0
-
-            prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
-            if pulp.LpStatus[prob.status] != "Optimal":
-                raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
-
-            return [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
-
-        slate = solve("minimum")
-        if self.utilitarian_tiebreak:
-            # The optimal minimum utility, read from the data rather than the solver's objective value
-            optimal_min_utility = rated_votes.loc[:, slate].max(axis=1).min()
-            slate = solve("total", min_utility=optimal_min_utility)
+        slate, _ = _exact_egalitarian_solution(rated_votes, slate_size, None, self.tiebreak)
 
         # Assign each agent to their favorite statement in the slate
         assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
@@ -1051,14 +1199,19 @@ class ExactMonroe(VotingAlgorithm):
     - `objective: Literal["total", "minimum"] = "total"`: Utility to maximize over the voters' assigned utilities.
       - `"total"`: Utilitarian Monroe
       - `"minimum"`: Egalitarian Monroe. Many solutions typically achieve the optimal minimum utility, and the
-        solver would return an arbitrary one of them. So a second integer program selects the solution with
-        the highest total utility among those achieving the optimal minimum.
+        solver would return an arbitrary one of them, so ties are broken according to `tiebreak`. Solved as a
+        sequence of integer programs (see `_exact_egalitarian_solution`).
+    - `tiebreak: EgalitarianTiebreak = "leximin"`: How to break ties in minimum utility. Only used with
+      `objective="minimum"`.
     """
     objective: Literal["total", "minimum"] = "total"
+    tiebreak: EgalitarianTiebreak = "leximin"
 
     @property
     def display_name(self) -> str:
-        return "E-Monroe-Exact" if self.objective == "minimum" else "U-Monroe-Exact"
+        if self.objective == "minimum":
+            return "E-Monroe-Exact" + _TIEBREAK_DISPLAY_SUFFIX[self.tiebreak]
+        return "U-Monroe-Exact"
 
     @override
     def vote(
@@ -1075,85 +1228,76 @@ class ExactMonroe(VotingAlgorithm):
             - `utility`: The utility of the voter for the candidate
         """
         num_agents = rated_votes.shape[0]
-        num_statements = rated_votes.shape[1]
-        U = rated_votes.to_numpy()  # Utility matrix
 
         min_coalition_size = num_agents // slate_size
         max_coalition_size = -(-num_agents // slate_size)  # ceil(n / k)
 
-        def solve(objective: Literal["minimum", "total"], min_utility: Optional[float] = None) -> tuple[list[str], list[str]]:
-            """Solve the integer program and return the selected slate and each agent's assigned statement.
-
-            If `min_utility` is given, agents may only be assigned to statements giving them at least that utility."""
-            prob = pulp.LpProblem(f"Maximize_{objective}_Monroe_Utility", pulp.LpMaximize)
-
-            # Decision variables
-            x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
-            y = [
-                [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
-                for i in range(num_agents)
-            ]
-            agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
-
-            if objective == "minimum":
-                z = pulp.LpVariable("z", cat="Continuous")  # Lower bound on every agent's utility
-                prob += z, "MinimumUtility"
-                for i in range(num_agents):
-                    prob += z <= agent_utility[i], f"Minimum_Utility_Bound_{i}"
-            else:
-                prob += pulp.lpSum(agent_utility), "TotalUtility"
-
-            # Select exactly k statements
-            prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
-
-            # Each agent is assigned to exactly one statement
-            for i in range(num_agents):
-                prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
-
-            # An agent can only be assigned to a selected statement
-            for i in range(num_agents):
-                for j in range(num_statements):
-                    prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
-
-            # Each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
-            # Combined with each agent being assigned once, exactly (n mod k) statements get the larger size.
-            for j in range(num_statements):
-                coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
-                prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
-                prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
-
-            # Forbid assignments below the minimum utility. Comparing against the data directly, rather than
-            # constraining the solver's continuous utility sums, avoids losing ties to floating point error.
-            if min_utility is not None:
-                for i in range(num_agents):
-                    for j in range(num_statements):
-                        if U[i][j] < min_utility:
-                            y[i][j].upBound = 0
-
-            prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
-            if pulp.LpStatus[prob.status] != "Optimal":
-                raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
-
-            slate = [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
-            candidate_assignments: list[str] = []
-            for i in range(num_agents):
-                for j in range(num_statements):
-                    if pulp.value(y[i][j]) > 0.5:  # Assignment made
-                        candidate_assignments.append(rated_votes.columns[j])
-            return slate, candidate_assignments
-
-        slate, candidate_assignments = solve(self.objective)
         if self.objective == "minimum":
-            # Break ties by total utility. The optimal minimum utility is read from the data rather than the
-            # solver's objective value.
-            optimal_min_utility = min(rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments))
-            slate, candidate_assignments = solve("total", min_utility=optimal_min_utility)
+            slate, candidate_assignments = _exact_egalitarian_solution(
+                rated_votes, slate_size, (min_coalition_size, max_coalition_size), self.tiebreak
+            )
+        else:
+            slate, candidate_assignments = self._solve_total(rated_votes, slate_size, min_coalition_size, max_coalition_size)
 
         assignments: pd.DataFrame = pd.DataFrame(index=rated_votes.index)
         assignments["candidate_id"] = pd.Series(candidate_assignments, index=assignments.index, dtype=str)
         assignments["utility"] = [rated_votes.at[v, c] for v, c in zip(rated_votes.index, candidate_assignments)]
 
         return slate, assignments
+
+    @staticmethod
+    def _solve_total(
+        rated_votes: pd.DataFrame,
+        slate_size: int,
+        min_coalition_size: int,
+        max_coalition_size: int,
+    ) -> tuple[list[str], list[str]]:
+        """Solve the utilitarian integer program and return the selected slate and each agent's assigned statement."""
+        num_agents = rated_votes.shape[0]
+        num_statements = rated_votes.shape[1]
+        U = rated_votes.to_numpy()  # Utility matrix
+
+        prob = pulp.LpProblem("Maximize_total_Monroe_Utility", pulp.LpMaximize)
+
+        # Decision variables
+        x = [pulp.LpVariable(f"x_{j}", cat="Binary") for j in range(num_statements)]  # Whether to select statement j
+        y = [
+            [pulp.LpVariable(f"y_{i}_{j}", cat="Binary") for j in range(num_statements)]  # Agent i assigned to statement j
+            for i in range(num_agents)
+        ]
+        agent_utility = [pulp.lpSum(U[i][j] * y[i][j] for j in range(num_statements)) for i in range(num_agents)]
+        prob += pulp.lpSum(agent_utility), "TotalUtility"
+
+        # Select exactly k statements
+        prob += pulp.lpSum(x[j] for j in range(num_statements)) == slate_size, "Select_k_Statements"
+
+        # Each agent is assigned to exactly one statement
+        for i in range(num_agents):
+            prob += pulp.lpSum(y[i][j] for j in range(num_statements)) == 1, f"Assign_Agent_{i}"
+
+        # An agent can only be assigned to a selected statement
+        for i in range(num_agents):
+            for j in range(num_statements):
+                prob += y[i][j] <= x[j], f"Assign_Agent_{i}_to_Selected_Statement_{j}"
+
+        # Each selected statement gets floor(n/k) or ceil(n/k) agents, and unselected statements get none.
+        # Combined with each agent being assigned once, exactly (n mod k) statements get the larger size.
+        for j in range(num_statements):
+            coalition_size = pulp.lpSum(y[i][j] for i in range(num_agents))
+            prob += coalition_size >= min_coalition_size * x[j], f"Min_Coalition_Size_{j}"
+            prob += coalition_size <= max_coalition_size * x[j], f"Max_Coalition_Size_{j}"
+
+        prob.solve(pulp.PULP_CBC_CMD(msg=0, gapRel=1e-9, gapAbs=1e-12))
+        if pulp.LpStatus[prob.status] != "Optimal":
+            raise RuntimeError(f"{prob.name} not solved to optimality: {pulp.LpStatus[prob.status]}")
+
+        slate = [rated_votes.columns[j] for j in range(num_statements) if pulp.value(x[j]) > 0.5]
+        candidate_assignments: list[str] = []
+        for i in range(num_agents):
+            for j in range(num_statements):
+                if pulp.value(y[i][j]) > 0.5:  # Assignment made
+                    candidate_assignments.append(rated_votes.columns[j])
+        return slate, candidate_assignments
 
 
 @dataclass(frozen=True)
