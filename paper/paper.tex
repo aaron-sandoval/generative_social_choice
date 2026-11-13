@@ -2,17 +2,32 @@
 % This must be in the first 5 lines to tell arXiv to use pdfLaTeX, which is strongly recommended.
 \pdfoutput=1
 
-\documentclass[11pt]{article}
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\usepackage[submission]{aaai2027}  % DO NOT CHANGE THIS
+% The serif, sans-serif, and monospaced fonts are loaded automatically by
+% aaai2027.sty (newtxtext, helvet, courier). DO NOT add \usepackage{times},
+% \usepackage{helvet}, \usepackage{courier}, or any other font package.
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\frenchspacing  % DO NOT CHANGE THIS
 
-\usepackage[preprint]{acl}
+% Keep the \pdfinfo as shown here. There's no need
+% for you to add the /Title and /Author tags.
+\pdfinfo{
+/TemplateVersion (2027.1)
+}
 
-\usepackage{times}
+% Number sections and subsections (the maximum AAAI allows) so that
+% \Cref{sec:...} and \Cref{app:...} references resolve.
+\setcounter{secnumdepth}{2}
+
 \usepackage{latexsym}
-\usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{microtype}
-\usepackage{inconsolata}
-\usepackage{graphicx}
 \usepackage{tablefootnote}
 \usepackage{amsmath}
 \usepackage[capitalize,noabbrev]{cleveref}
@@ -40,12 +55,16 @@
 
 \title{Chamberlin-Courant Elections with Generative Social Choice}
 
-\author{Aaron Sandoval \\
-  Independent \\
-  \texttt{aaron.sandoval10@gmail.com} \\\And
-  Phil Blandfort \\
-  Predictably Weird \\
-  \texttt{predictablyweird.com} \\}
+% Hidden automatically while aaai2027 is loaded with the [submission] option.
+\author{
+    Aaron Sandoval\textsuperscript{\rm 1},
+    Phil Blandfort\textsuperscript{\rm 2}
+}
+\affiliations{
+    \textsuperscript{\rm 1}Independent\\
+    \textsuperscript{\rm 2}Predictably Weird\\
+    aaron.sandoval10@gmail.com, predictablyweird.com
+}
 
 \begin{document}
 \maketitle
@@ -355,7 +374,7 @@ CC & Exact & \Exact{} & \ExactP{} & \ECCExact{} \\
 \hline
 Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
  & Greedy & \UGreedyMonroe{} & -- & \GreedyMonroe{} \\[3pt]
- & \makecell[l]{Interleaved\\[-0.6ex]Greedy} & -- & -- & \Baseline{} \\[2pt]
+ & \makecell[l]{Interleaved\\Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
 \caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: constituency-size constraint (rule), solution method (method), and objective function (columns). We show results for the named entries.}
@@ -564,7 +583,6 @@ Non-radical Utilitarianism
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
-\setlength{\extrarowheight}{2pt}
 \begin{tabular}{lccc}
 \hline
  & \multicolumn{3}{c}{Worst-case time} \\
@@ -763,10 +781,9 @@ AS produced the initial idea for the project, and both authors refined it.
 AS performed the literature review and contextualization of the project, as well as the selection, design, and testing of the axioms, and implemented the Monroe voting algorithm.
 PB developed and implemented the other voting algorithms, did initial design of some axioms, implemented the LLM embeddings, added formal proofs, and ran the embedding and statement count ablation studies.
 Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
-\newpage
+
 \bibliography{gen_social_choice}
 
-\newpage
 \appendix
 % cleveref's own \appendix hook no longer fires under recent LaTeX kernels, so
 % \Cref{app:...} would print "Section"; alias the sectioning counters explicitly.
