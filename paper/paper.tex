@@ -121,7 +121,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
 \begin{itemize}
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
-    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs than baselines that directly optimize minimum utility; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) while axiomatic guarantees are weaker for algorithms that compute a polynomial time approximation, these algorithms perform competitively with an exponential time exact solution on the SWFs.
+    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs than baselines that directly optimize minimum utility; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) algorithms that compute a polynomial time approximation perform competitively with an exponential time exact solution on the SWFs.
     This suggests that these approximate solutions could be practical alternatives in terms of solution quality, though testing on more datasets is necessary.
 \end{itemize}
 
@@ -352,7 +352,8 @@ More specifically, these changes are (i) computing the complete ballot profile $
 
 We compare voting algorithms independently of the rest of the pipeline.
 In GenerativeCC, a voting algorithm selects candidates in a multiwinner election and maps each voter to exactly one winner.
-We implement voting algorithms for range ballots and evaluate them against a set of social choice axioms and the social welfare functions in \Cref{sec:metrics}.
+We implement voting algorithms for range ballots and evaluate them on the social welfare functions in \Cref{sec:metrics}.
+\Cref{app:axioms} additionally evaluates some algorithms against a set of social choice axioms.
 
 \subsection{Algorithms}
 \label{sec:algorithms}
@@ -433,151 +434,9 @@ This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discrimina
 \paragraph{\Baseline{} + CC reassign}
 Similar to \Baseline{} + \EExactMonroe{} reassign, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
 
-\subsection{Axioms}
-\label{sec:axioms}
-
-In addition to the social welfare metrics used in the case study, we evaluate the \textsc{U-CC} voting algorithms against a set of social choice axioms.
-The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected.
-To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums.
-Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice.
-We consider an axiom to have failed only if a counterexample ballot profile that does not contain such a collision can be specified.
-Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector realized by an assignment $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ denote its ascending sort.
-
-\paragraph{Symmetry}
-Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
-
-\paragraph{Independence of Common Scale}
-Linearly scaling all utilities by a positive constant never changes $\omega$.
-
-\paragraph{Monotonicity}
-Increasing (decreasing) a voter’s rating for a winning (losing) candidate never causes that candidate to lose (win).
-
-\paragraph{Individual Pareto Efficiency}
-No $\omega'$ \emph{Pareto-dominates} $\omega$, meaning no $\omega'$ increases total utility without decreasing any individual voter's utility.
-Formally, $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$ with at least one strict inequality.
-
-\paragraph{Sorted Pareto Efficiency \citep{sorted-pareto}}
-No $\omega'$ \emph{sorted-Pareto-dominates} $\omega$, meaning no $\omega'$ has a sorted utility vector that Pareto-dominates that of $\omega$.
-Formally, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$ with at least one strict inequality.
-Sorted Pareto Efficiency implies Individual Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
-
-\paragraph{Generalized Lorenz Efficiency \citep{shorrocks-1983}}
-No $\omega'$ \emph{generalized-Lorenz-dominates} $\omega$, meaning no $\omega'$ has a generalized Lorenz curve that dominates that of $\omega$.
-Formally, $\sum_{\ell=1}^{j}u_{\omega',(\ell)}\ge\sum_{\ell=1}^{j}u_{\omega,(\ell)}$ for all $j$ with at least one strict inequality.
-Equivalently, when all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters without reversing their order \citep[Thm.~1]{kostreva-ogryczak-wierzbicki-2004}.
-Generalized Lorenz Efficiency implies Sorted Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
-
-\paragraph{Egalitarian--Utilitarian Efficiency}
-No $\omega'$ has both greater total and minimum utility.
-
-\paragraph{Non-radical Utilitarianism}
-No $\omega'$ has marginally lower total utility and substantially higher minimum utility.
-More formally, with the selected slate $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
-
-We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}.
-\Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for representative slate generation.
-
-\begin{table}[t]
-\centering
-\begin{tabular}{l|ccc}
-\hline
- & $a_1$ & $a_2$ & $a_3$ \\
-\hline
-Voter 1 & 2 & 3 & 0 \\
-Voter 2 & 2 & 0 & 3 \\
-\hline
-\end{tabular}
-\caption{Example ballot profile where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
-\label{tab:committee-monotonicity-example}
-\end{table}
-
-\begin{table}[t]
-\centering
-\begin{tabular}{l|cc}
-\hline
- & $a_1$ & $a_2$ \\
-\hline
-Voter 1 & 1 & 0 \\
-Voter 2 & 1 & 0 \\
-Voter 3 & 1 & 0 \\
-Voter 4 & 0 & 1 \\
-\hline
-\end{tabular}
-\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of voters 1, 2, and 3.
-Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
-\label{tab:bjr-example}
-\end{table}
-
 \subsection{Results}
 \label{sec:voting-results}
 
-We evaluate voting rules against each axiom using a set of adversarial ballot profiles.
-These profiles are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
-For \Exact{}, we provide formal proofs of satisfaction of some axioms in \Cref{app:exact-axiom-proofs}.
-As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions.
-Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
-Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
-
-\begin{table*}[t]
-\centering
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccc}
-\hline
- & \Exact{} & \ExactP{} & \Greedy{} & \LP{} \\
-\hline
-Independence of Common Scale
-& \Pass
-& \Fail\tablefootnote{The Kolm--Pollak EDE is invariant to a common additive shift of utilities rather than to a common scaling \citep{blackorby-donaldson-1980}; see \Cref{app:exactp-ics}.}
-& \Pass
-& \Pass \\
-
-Symmetry
-& \Pass
-& \Pass
-& \Pass
-& \Fail\tablefootnote{See \Cref{app:lp-worst}.} \\
-
-Monotonicity
-& \Pass
-& \Pass
-& \Pass
-& \Fail\tablefootnote{See \Cref{tab:lp-monotonicity}.} \\
-
-Individual Pareto Efficiency
-& \Pass
-& \Pass
-& \Fail\tablefootnote{Shown by \citet{lackner-skowron-2020} Example 4 for approval ballots, a special case of range ballots for which \Greedy{} is equivalent to sequential Chamberlin--Courant. See also \Cref{tab:failure-greedy-indiv-pareto}.}
-& \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
-
-Sorted Pareto Efficiency
-& \Pass
-& \Pass
-& \Fail
-& \Fail \\
-
-Generalized Lorenz Efficiency
-& \Pass\tablefootnote{Satisfaction depends on the no-ties condition of \Cref{sec:axioms} \citep{kostreva-ogryczak-wierzbicki-2004}.}
-& \Pass\tablefootnote{Shown by \citet[Cor.~2]{kostreva-ogryczak-wierzbicki-2004} for any strictly concave, increasing utility transformation.}
-& \Fail
-& \Fail \\
-
-Egalitarian--Utilitarian Efficiency
-& \Pass
-& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(\kappa=\ln 1.5\).}
-& \Fail
-& \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
-
-Non-radical Utilitarianism
-& \Fail\tablefootnote{See \Cref{app:exact-nru}.}
-& \Fail\tablefootnote{See \Cref{app:exactp-nru}.} %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.}
-& \Fail
-& \Fail \\
-\hline
-\end{tabular}
-\caption{Performance of \textsc{CC} voting algorithms against social choice axioms.}
-\label{tab:voting-axioms}
-\end{table*}
 
 \begin{table}[t]
 \centering
@@ -622,7 +481,7 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
-We also evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
+We evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
 Using the 10 ballot profiles generated from GenerativeCC with LLM embeddings in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this dataset.
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
@@ -666,10 +525,9 @@ These differences are small, however, and \ExactP{} with \(\kappa=7\) and \ECCEx
 The same pattern holds on the ballot profiles of the baseline pipeline (not shown), where \ExactP{} with \(\kappa=7\) gives up 0.006 of the minimum utility of \ECCExact{} and recovers 0.003 of mean utility and 0.006 of bottom-50\% mean utility.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
-We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
+We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well empirically.
 When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
 A modest Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
-While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
 \begin{figure*}[t]
 \centering
@@ -716,15 +574,6 @@ In general, we make no claims about the absolute alignment with human voters of 
 Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups.
 These issues remain significant obstacles to real-world deployment.
 
-\paragraph{Non-radical Utilitarianism}
-This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function.
-A voting rule should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
-However, the choice of minimum utility as the egalitarianism SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
-There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
-This axiom is overly constraining.
-
-Additionally, none of the tested voting algorithms satisfy this axiom despite the Kolm--Pollak transformation being implemented specifically to achieve more egalitarian outcomes.
-Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
 
 \paragraph{Strategic voting}
 Every reasonable single winner voting system with at least three candidates incentivizes strategic voting \citep{gibbards-theorem}.
@@ -736,21 +585,6 @@ Even if a virtual voter could be trained to report its principal's beliefs hones
 Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the voter opinions in the dataset that we test are honest.
 Approval-style ballots may therefore remain attractive in real deployments.
 
-\begin{table}[t]
-\centering
-\begin{tabular}{l|cc}
-\hline
- & $a_1$ & $a_2$ \\
-\hline
-Voter 1 & 0.01 & 0 \\
-Voter 2 & 0.01 & 1 \\
-Voter 3 & 2 & 1 \\
-\hline
-\end{tabular}
-\caption{Example ballot profile demonstrating the strictness of Egalitarian--Utilitarian Efficiency.
-For \(k=1\), only \(a_1\) satisfies the axiom, while \(a_2\) may nevertheless be judged more egalitarian and preferred.}
-\label{tab:egal-util-strict}
-\end{table}
 
 \subsection{Future Work}
 
@@ -999,14 +833,165 @@ The costs have $O(nk\log n)$ bits, so a minimum-cost flow algorithm runs in time
 The same construction computes the leximin assignment for any fixed slate, so enumerating all \(\binom{m}{k}\le 2^m\) slates gives an implementation of \EExactMonroe{} that is exponential only in \(m\), and polynomial in \(n\) and \(k\).
 
 
-\section{Proofs of Axiom Satisfaction and Implications}
-\label{app:axiom-proofs}
-We first prove the implications among efficiency axioms stated in \Cref{sec:axioms}, then prove the axioms satisfied by \Exact{}.
-Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, and $u_\omega\in\mathbb{R}_{\ge0}^n$ is the utility vector of \Cref{sec:axioms}.
-As in \Cref{sec:axioms}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
+\section{Social Choice Axioms}
+\label{app:axioms}
 
-\subsection{Axiom implications} \label{app:axiom-implications}
-We use the dominance relations defined in \Cref{sec:axioms}, and say that an outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
+This appendix defines the social choice axioms we consider (\Cref{app:axiom-definitions}), reports which \textsc{U-CC} voting algorithms satisfy them (\Cref{app:axiom-results}), proves the satisfied axioms and the implications among them (\Cref{app:axiom-proofs}), gives counterexamples for the failures (\Cref{app:voting-failures}), and discusses the limitations of the axioms (\Cref{app:axiom-discussion}).
+
+\subsection{Definitions}
+\label{app:axiom-definitions}
+
+In addition to the social welfare functions of \Cref{sec:metrics}, we evaluate the \textsc{U-CC} voting algorithms of \Cref{sec:algorithms} against a set of social choice axioms.
+The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected.
+To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums.
+Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice.
+We consider an axiom to have failed only if a counterexample ballot profile that does not contain such a collision can be specified.
+Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector realized by an assignment $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ denote its ascending sort.
+
+\paragraph{Symmetry}
+Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
+
+\paragraph{Independence of Common Scale}
+Linearly scaling all utilities by a positive constant never changes $\omega$.
+
+\paragraph{Monotonicity}
+Increasing (decreasing) a voter’s rating for a winning (losing) candidate never causes that candidate to lose (win).
+
+\paragraph{Individual Pareto Efficiency}
+No $\omega'$ \emph{Pareto-dominates} $\omega$, meaning no $\omega'$ increases total utility without decreasing any individual voter's utility.
+Formally, $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$ with at least one strict inequality.
+
+\paragraph{Sorted Pareto Efficiency \citep{sorted-pareto}}
+No $\omega'$ \emph{sorted-Pareto-dominates} $\omega$, meaning no $\omega'$ has a sorted utility vector that Pareto-dominates that of $\omega$.
+Formally, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$ with at least one strict inequality.
+Sorted Pareto Efficiency implies Individual Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
+
+\paragraph{Generalized Lorenz Efficiency \citep{shorrocks-1983}}
+No $\omega'$ \emph{generalized-Lorenz-dominates} $\omega$, meaning no $\omega'$ has a generalized Lorenz curve that dominates that of $\omega$.
+Formally, $\sum_{\ell=1}^{j}u_{\omega',(\ell)}\ge\sum_{\ell=1}^{j}u_{\omega,(\ell)}$ for all $j$ with at least one strict inequality.
+Equivalently, when all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters without reversing their order \citep[Thm.~1]{kostreva-ogryczak-wierzbicki-2004}.
+Generalized Lorenz Efficiency implies Sorted Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
+
+\paragraph{Egalitarian--Utilitarian Efficiency}
+No $\omega'$ has both greater total and minimum utility.
+
+\paragraph{Non-radical Utilitarianism}
+No $\omega'$ has marginally lower total utility and substantially higher minimum utility.
+More formally, with the selected slate $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
+
+We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}.
+\Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for representative slate generation.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l|ccc}
+\hline
+ & $a_1$ & $a_2$ & $a_3$ \\
+\hline
+Voter 1 & 2 & 3 & 0 \\
+Voter 2 & 2 & 0 & 3 \\
+\hline
+\end{tabular}
+\caption{Example ballot profile where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
+\label{tab:committee-monotonicity-example}
+\end{table}
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l|cc}
+\hline
+ & $a_1$ & $a_2$ \\
+\hline
+Voter 1 & 1 & 0 \\
+Voter 2 & 1 & 0 \\
+Voter 3 & 1 & 0 \\
+Voter 4 & 0 & 1 \\
+\hline
+\end{tabular}
+\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of voters 1, 2, and 3.
+Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
+\label{tab:bjr-example}
+\end{table}
+
+\subsection{Results}
+\label{app:axiom-results}
+
+We evaluate voting rules against each axiom using a set of adversarial ballot profiles.
+These profiles are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
+For \Exact{}, we provide formal proofs of satisfaction of some axioms in \Cref{app:exact-axiom-proofs}.
+As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions.
+Results are shown in \Cref{tab:voting-axioms}. %These are best-effort empirical checks rather than formal proofs of satisfaction, so false positives remain possible.
+Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
+\hline
+ & \Exact{} & \ExactP{} & \Greedy{} & \LP{} \\
+\hline
+Independence of Common Scale
+& \Pass
+& \Fail\tablefootnote{The Kolm--Pollak EDE is invariant to a common additive shift of utilities rather than to a common scaling \citep{blackorby-donaldson-1980}; see \Cref{app:exactp-ics}.}
+& \Pass
+& \Pass \\
+
+Symmetry
+& \Pass
+& \Pass
+& \Pass
+& \Fail\tablefootnote{See \Cref{app:lp-worst}.} \\
+
+Monotonicity
+& \Pass
+& \Pass
+& \Pass
+& \Fail\tablefootnote{See \Cref{tab:lp-monotonicity}.} \\
+
+Individual Pareto Efficiency
+& \Pass
+& \Pass
+& \Fail\tablefootnote{Shown by \citet{lackner-skowron-2020} Example 4 for approval ballots, a special case of range ballots for which \Greedy{} is equivalent to sequential Chamberlin--Courant. See also \Cref{tab:failure-greedy-indiv-pareto}.}
+& \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
+
+Sorted Pareto Efficiency
+& \Pass
+& \Pass
+& \Fail
+& \Fail \\
+
+Generalized Lorenz Efficiency
+& \Pass\tablefootnote{Satisfaction depends on the no-ties condition of \Cref{app:axiom-definitions} \citep{kostreva-ogryczak-wierzbicki-2004}.}
+& \Pass\tablefootnote{Shown by \citet[Cor.~2]{kostreva-ogryczak-wierzbicki-2004} for any strictly concave, increasing utility transformation.}
+& \Fail
+& \Fail \\
+
+Egalitarian--Utilitarian Efficiency
+& \Pass
+& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(\kappa=\ln 1.5\).}
+& \Fail
+& \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
+
+Non-radical Utilitarianism
+& \Fail\tablefootnote{See \Cref{app:exact-nru}.}
+& \Fail\tablefootnote{See \Cref{app:exactp-nru}.} %\Pass\tablefootnote{This passes only when utilities are bounded, as in our experiments, and \(p\) is only infinitesimally greater than 1.}
+& \Fail
+& \Fail \\
+\hline
+\end{tabular}
+\caption{Performance of \textsc{CC} voting algorithms against social choice axioms.}
+\label{tab:voting-axioms}
+\end{table*}
+
+\subsection{Proofs of Axiom Satisfaction and Implications}
+\label{app:axiom-proofs}
+We first prove the implications among efficiency axioms stated in \Cref{app:axiom-definitions}, then prove the axioms satisfied by \Exact{}.
+Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, and $u_\omega\in\mathbb{R}_{\ge0}^n$ is the utility vector of \Cref{app:axiom-definitions}.
+As in \Cref{app:axiom-definitions}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
+
+\subsubsection{Axiom implications} \label{app:axiom-implications}
+We use the dominance relations defined in \Cref{app:axiom-definitions}, and say that an outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
 
 \paragraph{Lemma (monotone order statistics)} If $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, then $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$.
 Using the minimax form $u_{\omega,(\ell)}=\min_{|S|=\ell}\max_{i\in S}U_{i,\omega(i)}$, every set $S$ satisfies $\max_{i\in S}U_{i,\omega'(i)}\ge\max_{i\in S}U_{i,\omega(i)}$, so the minimum over $S$ inherits the inequality.
@@ -1021,13 +1006,13 @@ Then some $\omega'$ Pareto-dominates $u_\omega$: $U_{i,\omega'(i)}\ge U_{i,\omeg
 By the Lemma, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$; since sorting preserves the sum, the strictly greater total forces $u_{\omega',(\ell)}>u_{\omega,(\ell)}$ for some $\ell$.
 Hence $u_{\omega'}$ sorted-Pareto-dominates $u_\omega$, contradicting Sorted Pareto Efficiency.
 
-\subsection{\Exact{}} \label{app:exact-axiom-proofs}
+\subsubsection{\Exact{}} \label{app:exact-axiom-proofs}
 \Exact{} returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, assigning each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
 
 \paragraph{Independence of Common Scale} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
 
 \paragraph{Symmetry} $T$ is built from sums and maxima of utility entries, so relabeling voters or candidates permutes the set of optimal solutions identically.
-Under genericity this set is a singleton: the optimal slate is unique, as is each voter's best candidate within it (assumption in \Cref{sec:axioms}).
+Under genericity this set is a singleton: the optimal slate is unique, as is each voter's best candidate within it (assumption in \Cref{app:axiom-definitions}).
 Any correct exact solver returns this unique optimum, and with no alternative optima the result cannot depend on the solver's internal ordering of variables or constraints; only the same tie cases already excluded by the axiom could introduce such dependence.
 Hence permuting $U$ permutes the output identically, leaving $\omega$ unchanged as a map.
 
@@ -1037,12 +1022,12 @@ If $a\notin W^\star$ and we lower $U_{ia}$, then $T(W^\star)$ is unchanged while
 \paragraph{Egalitarian--Utilitarian Efficiency} No solution exceeds $T^\star$ in total utility, so none has both greater total and greater minimum utility.
 
 \paragraph{Generalized Lorenz Efficiency} The final Lorenz ordinate $L_n$ equals total utility.
-A solution generalized-Lorenz-dominating $\omega^\star$ would have $L_n\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility which is impossible by assumption (\Cref{sec:axioms}).
+A solution generalized-Lorenz-dominating $\omega^\star$ would have $L_n\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility which is impossible by assumption (\Cref{app:axiom-definitions}).
 Hence no dominator exists.
 By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficiency follow.
 
 
-%\subsection{Monroe}
+%\subsubsection{Monroe}
 %All three Monroe variants select the same slate by the greedy procedure of \Cref{sec:voting-algorithms} and differ only in their final voter assignment.
 %The selection scores each remaining candidate $c$ by an order statistic (the $\lceil n/k\rceil$-th highest utility) of the column $U_{\cdot c}$ restricted to the currently unassigned voters, adds the maximizer to the slate, and assigns its constituency by sorting those voters' utilities for $c$.
 %Below we prove the axioms marked \Pass{} for all three variants.
@@ -1056,11 +1041,11 @@ By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficien
 %Relabeling the rows or columns of $U$ therefore permutes the selected slate and assignment identically, leaving $\omega$ unchanged as a map (unique under the genericity assumption).
 
 
-\section{Reasoning and Counterexample Ballot Profiles for Axiom Failures}
+\subsection{Counterexamples for Axiom Failures}
 \label{app:voting-failures}
 
-\Cref{tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity} provide representative counterexamples for the observed axiom failures discussed in the main text.
-Table~\ref{tab:egal-util-strict} illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
+\Cref{tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity} provide representative counterexamples for the axiom failures in \Cref{tab:voting-axioms}.
+\Cref{tab:egal-util-strict} (\Cref{app:axiom-discussion}) illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
 
 \begin{table}[t]
 \centering
@@ -1078,7 +1063,7 @@ The selected slates include \(a_1\), while the only slate satisfying the axiom i
 \label{tab:failure-greedy-indiv-pareto}
 \end{table}
 
-\subsection{\Exact{} fails Non-radical Utilitarianism}
+\subsubsection{\Exact{} fails Non-radical Utilitarianism}
 \label{app:exact-nru}
 
 Because \Exact{} maximizes total utility alone, it can prefer a slate with only slightly higher total utility even when an alternative offers a much larger improvement in minimum utility.
@@ -1128,7 +1113,7 @@ The ratio
 can be made arbitrarily large by taking \(\eta\) arbitrarily small.
 Therefore, \Exact{} violates Non-radical Utilitarianism.
 
-\subsection{\ExactP{} fails Non-radical Utilitarianism}
+\subsubsection{\ExactP{} fails Non-radical Utilitarianism}
 \label{app:exactp-nru}
 % Example found by Claude Opus 4.7
 
@@ -1183,14 +1168,14 @@ This is expected of any scalar inequality-averse objective: an arbitrarily large
 %counterexamples for larger \(p\) follow from the same mechanism (a steep region of \(f\) amplifying several small per-voter losses) and can be located by adversarial search.
 %Hence Exact$(p>1)$ fails Non-radical Utilitarianism for all \(p>1\).
 
-\subsection{\ExactP{} fails Independence of Common Scale}
+\subsubsection{\ExactP{} fails Independence of Common Scale}
 \label{app:exactp-ics}
 
 This failure is a known property of the Kolm--Pollak EDE \citep{kolm-1976, blackorby-donaldson-1980}.
 A counterpart to this EDE is the Atkinson family \citep{atkinson-1970}, which satisfies Independence of Common Scale, but fails a similar axiom of Independence of Common Shift: adding a constant to all utilities never changes $\omega$.
 \ExactP{} satisfies this axiom \citep{blackorby-donaldson-1980}.
 
-\subsection{Worst-Case Behavior of \LP{}}
+\subsubsection{Worst-Case Behavior of \LP{}}
 \label{app:lp-worst}
 
 Unlike \Exact{}, the LP relaxation can have a \emph{strictly fractional} optimum.
@@ -1249,7 +1234,7 @@ Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional poi
 
 %All three failures share one mechanism: when the LP relaxation has a fractional optimum, the integral slate is determined by the rounding and tie-breaking rules rather than by the utilities directly, which makes the outcome discontinuous in the ballot profile and dependent on candidate labels.
 
-%\subsection{Worst-Case Behavior of LP}
+%\subsubsection{Worst-Case Behavior of LP}
 
 %\begin{table}[t]
 %\centering
@@ -1271,6 +1256,38 @@ Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional poi
 %Our rounding scheme then breaks ties by candidate order and picks the first two statements, yielding \(\{a_1,a_2\}\).
 %But that slate is Pareto-dominated by \(\{a_1,a_4\}\), so Individual Pareto Efficiency fails.
 %This example also shows why LP can violate symmetry with respect to candidate order: once the relaxation has flattened distinctions between candidates, the final outcome depends on the tie-breaking rule.
+
+\subsection{Discussion}
+\label{app:axiom-discussion}
+
+\Exact{} satisfies every axiom we consider except Non-radical Utilitarianism, while the polynomial-time \Greedy{} and \LP{} fail most of them, despite performing competitively on the social welfare functions (\Cref{sec:voting-results}).
+Applying the Kolm--Pollak transformation to \Exact{} leads to strictly worse axiomatic properties, which may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
+
+\paragraph{Limitations of Non-radical Utilitarianism}
+This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function.
+A voting rule should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
+However, the choice of minimum utility as the egalitarianism SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
+There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
+This axiom is overly constraining.
+
+Additionally, none of the tested voting algorithms satisfy this axiom despite the Kolm--Pollak transformation being implemented specifically to achieve more egalitarian outcomes.
+Overall, this axiom is of limited value towards its design objective of distinguishing voting algorithms that make extreme egalitarian sacrifices in optimization of a utilitarian objective.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l|cc}
+\hline
+ & $a_1$ & $a_2$ \\
+\hline
+Voter 1 & 0.01 & 0 \\
+Voter 2 & 0.01 & 1 \\
+Voter 3 & 2 & 1 \\
+\hline
+\end{tabular}
+\caption{Example ballot profile demonstrating the strictness of Egalitarian--Utilitarian Efficiency.
+For \(k=1\), only \(a_1\) satisfies the axiom, while \(a_2\) may nevertheless be judged more egalitarian and preferred.}
+\label{tab:egal-util-strict}
+\end{table}
 
 \section{Contributions of Generators}
 \label{app:statement-origin}
