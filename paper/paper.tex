@@ -578,11 +578,13 @@ See \Cref{app:lp-complexity}.}} \\
 \ExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves the integer program of \Exact{} with $2m$ additional constituency-size constraints, leaving $O(nm)$ binary variables and $O(nm)$ constraints, so the analysis in \Cref{app:brute-force-vs-exact} applies unchanged.
 Alternatively, enumerating all slates and solving a transportation problem for each gives an exact $O(2^m\cdot\mathrm{poly}(n,m))$ algorithm \citep[Prop.~2]{betzler-2013}.}} \\
 \ExactP{} & \complexity{$O(2^{nm})$\footnotemark[\exactcomplexityfn]} \\
-\ECCExact{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \Exact{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
-\EExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves two integer programs of the same size as that of \ExactMonroe{}: the first maximizes the minimum utility, and the second maximizes total utility among the solutions achieving that minimum.}} \\
+\ECCExact{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves a sequence of at most \(3n+1\) integer programs of about the same size as that of \Exact{}: the first maximizes the minimum utility, and the rest break ties leximin (\Cref{app:exact-lp-formulations}).
+In practice, few are needed, since the leximin-optimal slate is typically unique after the lowest few utility levels.}} \\
+\EExactMonroe{} & \complexity{$O(2^{nm})$\tablefootnote{The implementation solves a sequence of at most \(3n+1\) integer programs of about the same size as that of \ExactMonroe{}: the first maximizes the minimum utility, and the rest break ties leximin (\Cref{app:exact-lp-formulations}).
+Once the slate is determined, the remaining programs only assign voters to it, and have \(nk\) assignment variables.}} \\
 \UGreedyMonroe{} & \complexity{$O(kmn)$} \\
 \GreedyMonroe{} & \complexity{$O(kmn)$} \\
-\makecell[l]{\Baseline{} +\\\EExactMonroe{} reassign} &\complexity{$O(2^{nk})$\tablefootnote{The implementation runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, i.e.\ two integer programs over $nk$ assignment variables.
+\makecell[l]{\Baseline{} +\\\EExactMonroe{} reassign} &\complexity{$O(2^{nk})$\tablefootnote{The implementation runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, i.e.\ a sequence of integer programs over $nk$ assignment variables.
 Because the slate is fixed, the reassignment can also be computed in polynomial time with network flows; see \Cref{app:baseline-reassign-complexity}.}} \\
 \makecell[l]{\Baseline{} +\\CC reassign} & \complexity{$O(kmn)$} \\
 \hline
@@ -629,21 +631,21 @@ Later winners are then chosen only for the remaining voters, and no voter can mo
 
 \paragraph{The constituency size constraint matters little}
 \ExactMonroe{} is within 0.003 of \Exact{} in mean utility, and their minimum utilities are equal within confidence bounds.
-\EExactMonroe{} attains the same minimum utility as \ECCExact{} on all 10 profiles, at a cost of 0.006 in mean utility.
-The reassignment variants in \Cref{fig:sfws-voting-algs-fish} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.002.
+\EExactMonroe{} attains the same minimum utility as \ECCExact{} on all 10 profiles, at a cost of 0.008 in mean utility.
+The reassignment variants in \Cref{fig:sfws-voting-algs-fish} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
 Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for both egalitarian and utilitarian objective functions.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
 \paragraph{Egalitarian and Kolm--Pollak objectives}
 Moving from total to minimum utility trades a small loss in average utility for a larger gain for the worst-off voter.
-On 9 of the 10 profiles (the tenth is unchanged), \ECCExact{} raises the minimum utility over \Exact{}, by 0.087 on average, while lowering mean utility by 0.011 and bottom-50\% mean utility by 0.022.
-The gap is small in part because \ECCExact{} breaks ties in minimum utility by total utility.
+On 9 of the 10 profiles (the tenth is unchanged), \ECCExact{} raises the minimum utility over \Exact{}, by 0.087 on average, while lowering mean utility by 0.013 and bottom-50\% mean utility by 0.025.
+\ECCExact{} breaks ties in minimum utility leximin: among the slates achieving the optimal minimum, it maximizes the second-lowest utility, then the third-lowest, and so on.
 \ExactP{} traces intermediate points between these two rules, and the trade is most favorable near the egalitarian end.
 At \(\kappa=7\), \ExactP{} gives up only 0.007 of the minimum utility of \ECCExact{} (8\% of the gap between \ECCExact{} and \Exact{}).
-In exchange, it recovers 0.005 of mean utility and 0.010 of bottom-50\% mean utility (about 45\% of the gap for each), and it has a slightly lower Gini coefficient.
+In exchange, it recovers 0.007 of mean utility and 0.013 of bottom-50\% mean utility (about half of the gap for each), and it has a slightly lower Gini coefficient.
 A utilitarian objective with a strongly concave transformation thus offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
-These differences are small, however, and the gains of \(\kappa=7\) over \ECCExact{} in mean and bottom-50\% utility are only marginally distinguishable from zero.
-They also do not replicate on the ballot profiles of the baseline pipeline, where \ECCExact{} matches or exceeds \ExactP{} with \(\kappa=7\) on every SWF on average (not shown).
+These differences are small, however, and \ExactP{} with \(\kappa=7\) and \ECCExact{} realize identical voter utilities on 6 of the 10 profiles.
+The same pattern holds on the ballot profiles of the baseline pipeline (not shown), where \ExactP{} with \(\kappa=7\) gives up 0.006 of the minimum utility of \ECCExact{} and recovers 0.003 of mean utility and 0.006 of bottom-50\% mean utility.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
@@ -665,16 +667,16 @@ While applying the transformation to \Exact{} leads to strictly worse axiomatic 
 
 \paragraph{Computing more of the utility matrix is the largest improvement}
 Having all voters rate the baseline's slate and then reassigning them improves every SWF on every profile, except for one profile on which the minimum utility is unchanged.
-\Baseline{} + \EExactMonroe{} reassign recovers 80\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.059 of 0.074), 77\% in bottom-50\% mean utility, and 60\% in minimum utility.
+\Baseline{} + \EExactMonroe{} reassign recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.058 of 0.067), 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
 CC reassignment performs almost identically.
 In our setting (\(n=100\), \(m=30\), \(k=5\)), this requires at most \(n(k-1)/2=200\) discriminative queries beyond the 1,800 used by \Baseline{}, an increase of 11\%.
 The complete ballot profile requires 3,000.
 
 Apart from the cost of greedy selection under the Monroe rule discussed above, this is the largest improvement from any single design choice we vary.
-It exceeds the effect of the objective function (at most 0.014 in mean utility and 0.087 in minimum utility in \Cref{fig:sfws-voting-algs}).
-It also exceeds the effect of the constituency size constraint (at most 0.006 in mean utility) and of exact rather than greedy selection under CC (at most 0.002).
+It exceeds the effect of the objective function (at most 0.018 in mean utility and 0.087 in minimum utility in \Cref{fig:sfws-voting-algs}).
+It also exceeds the effect of the constituency size constraint (at most 0.008 in mean utility) and of exact rather than greedy selection under CC (at most 0.002).
 The same ordering holds on the baseline's ballot profiles.
-\EExactMonroe{}, which also uses the complete ballot profile to select the slate, closes the remaining gap (0.015 in mean utility, 0.18 in minimum utility).
+\EExactMonroe{}, which also uses the complete ballot profile to select the slate, closes the remaining gap (0.009 in mean utility, 0.18 in minimum utility).
 
 \section{Discussion}
 
@@ -861,13 +863,29 @@ After solving the LP relaxation, we select the \(k\) candidates with highest fra
 to the integer program of \Exact{}.
 Each selected candidate is therefore assigned \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters, and each unselected candidate none.
 
-The egalitarian algorithms \ECCExact{} and \EExactMonroe{} solve two integer programs with the constraints of \Exact{} and \ExactMonroe{}, respectively.
+The egalitarian algorithms \ECCExact{} and \EExactMonroe{} solve a sequence of integer programs with the constraints of \Exact{} and \ExactMonroe{}, respectively.
 The first maximizes an auxiliary variable \(z\) subject to the additional constraints
 \[
 z \;\le\; \sum_j U_{ij}\, y_{ij} \quad \forall i,
 \]
 so its optimal value \(z^\star\) is the largest achievable minimum utility.
-The second maximizes total utility \(\sum_i\sum_j U_{ij}\, y_{ij}\) with \(y_{ij}\) fixed to \(0\) wherever \(U_{ij}<z^\star\), i.e.\ among the solutions achieving that minimum.
+
+The remaining programs break ties leximin.
+For an assignment, let \(N(t)=\sum_{i,j:\,U_{ij}\le t} y_{ij}\) be the number of voters with utility at most \(t\), and \(N^<(t)\) the number with utility below \(t\); both are linear in \(y\).
+One sorted utility vector is leximin-better than another exactly when its \(N\) is smaller at the lowest threshold where the two differ.
+The levels \(t_1<t_2<\cdots\) of the leximin-optimal solution are therefore found in turn.
+Let \(c_0=0\), and let \(c_{l-1}\) be the number of voters at or below the levels found so far.
+The next level \(t_l\) is the largest achievable \((c_{l-1}+1)\)-th lowest utility, which an integer program maximizes as \(z\) subject to \(z\le\sum_j U_{ij}y_{ij}+M w_i\) for all \(i\), with binary \(w_i\), \(\sum_i w_i\le c_{l-1}\), and \(M=\max U-\min U\).
+For \(l=1\) this is the program above.
+Then \(c_l\) is the smallest achievable \(N(t_l)\), which needs a second integer program only if the solution found has more than \(c_{l-1}+1\) voters at or below \(t_l\).
+Every later program adds the constraints \(N^<(t_l)\le c_{l-1}\) and \(N(t_l)\le c_l\), which every leximin-optimal solution satisfies.
+Each \(t_l\) is read from the utilities of the solution, rather than from the solver's objective value, to avoid losing ties to floating point error.
+
+After each level, a feasibility program checks whether a different slate also satisfies these constraints.
+If none does, the slate is leximin-optimal.
+For \ECCExact{}, the search then stops, since assigning each voter to their favorite slate member is leximin-optimal for a fixed slate.
+For \EExactMonroe{}, the remaining levels determine only the assignment, so the search continues with the candidates restricted to the slate.
+It stops once every voter is at or below some level (\(c_l=n\)).
 
 %\subsection{Exact vs.\ Brute-force Comparison} \label{app:brute-force-vs-exact}
 
@@ -948,14 +966,14 @@ Thus, while the \LP{} variant we benchmark is formally subject to the $O(2^{nm})
 
 \subsection{Runtime Complexity of \Baseline{} + \EExactMonroe{} reassign}
 \label{app:baseline-reassign-complexity}
-The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the two integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
+The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
 Solved by branch-and-bound, as in our implementation, its worst case is $O(2^{nk})$.
-Because the slate is fixed, the reassignment can also be computed in polynomial time.
-The optimal minimum utility is one of the $nk$ utilities on the slate.
-Whether a threshold $t$ is achievable is a feasibility question for a bipartite flow network in which voter $i$ may only be assigned to slate members $j$ with $U_{ij}\ge t$, and each slate member receives between $\lfloor n/k\rfloor$ and $\lceil n/k\rceil$ voters.
-A binary search over the sorted utilities therefore finds the optimal minimum with $O(\log(nk))$ maximum-flow computations.
-Maximizing total utility among the assignments that respect this threshold is then a minimum-cost flow problem on the same network.
-Both steps run in time polynomial in $n$ and $k$.
+Because the slate is fixed, the reassignment can also be computed in polynomial time, as a minimum-cost flow.
+In the flow network, each voter sends one unit of flow to a slate member, and each slate member receives between $\lfloor n/k\rfloor$ and $\lceil n/k\rceil$ units.
+Let $v_1<\cdots<v_L$ be the distinct utilities on the slate, with $L\le nk$.
+Assigning voter $i$ to slate member $j$ costs $\sum_{l:\,v_l\ge U_{ij}}(n+1)^{L-l}$, so the total cost of an assignment is $\sum_l (n+1)^{L-l} N(v_l)$, with $N$ as in \Cref{app:exact-lp-formulations}.
+Since each $N(v_l)\le n$, minimizing this cost minimizes $N(v_1),N(v_2),\dots$ lexicographically, which is exactly the leximin criterion.
+The costs have $O(nk\log n)$ bits, so a minimum-cost flow algorithm runs in time polynomial in $n$ and $k$.
 
 
 \section{Proofs of Axiom Satisfaction and Implications}
