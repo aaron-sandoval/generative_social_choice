@@ -407,13 +407,13 @@ This uses \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries instead of \(nm\)
 \paragraph{\Baseline{} + \EExactMonroe{} reassign}
 In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full ballot profile.
 Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
-This algorithm and \Baseline{} + CC reassign select the slate using limited quantities of discriminative queries, as does \Baseline{}, followed by full discriminative queries on the slate, and finally a reassignment step.
-Having every voter rate every member of the baseline's slate takes at most \(\frac{1}{2} n (k-1)\) additional discriminative queries, for at most \(\frac{1}{2} n (m + m/k + k - 1)\) in total, compared with \(nm\) for the algorithms that compute the full ballot profile and \(\frac{1}{2} n (m + m/k)\) for the baseline (\Cref{tab:llm-call-comparison}).
-This provides the most savings relative to computing the full ballot profile when \(m \gg k\).
-Holding the slate fixed, this algorithm then reassigns the voters with \EExactMonroe{}: it maximizes the minimum utility subject to the constituency-size constraint, breaking ties by total utility.
+This algorithm selects the slate using \Baseline.
+Then, full discriminative queries are performed on the slate.
+Finally, voters are reassigned with \EExactMonroe{}.
+This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discriminative queries, compared with \(nm\) for the algorithms that compute the full ballot profile and \(\frac{1}{2} n (m + m/k)\) for the baseline (\Cref{tab:llm-call-comparison}).
 
 \paragraph{\Baseline{} + CC reassign}
-As \Baseline{} + \EExactMonroe{} reassign, but each voter is assigned to their favorite member of the slate.
+Similar to \Baseline{} + \EExactMonroe{} reassign, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
 
 \subsection{Axioms}
 \label{sec:axioms}
