@@ -389,6 +389,7 @@ The Monroe rule \citep{monroe-1995} instead assigns each winner an equal-sized c
 \textsc{Greedy} algorithms build the slate one candidate at a time in \(k\) rounds.
 \textsc{Greedy} algorithms proceed differently depending on the constituency size constraint.
 In \textsc{CC-Greedy} algorithms, each round selects the candidate that scores highest on the objective function and assigns every voter to their favorite slate member.
+We do not define \textsc{E-CC-Greedy}: a new winner raises the minimum utility only if it improves every voter at the minimum, so in most rounds all remaining candidates tie on the egalitarian objective and the selection is left to tie-breaking.
 \textsc{Monroe-Greedy} algorithms instead score each remaining candidate only over the voters not yet assigned.
 In each round, a candidate's objective function is computed only over the \(\lceil n/k\rceil\) unassigned voters with the highest utility for it.\footnote{(\(\lfloor n/k\rfloor\) in the last rounds if \(k \nmid n\))}
 Upon selecting a winner, those voters are permanently assigned to that winner.
@@ -602,21 +603,53 @@ Here \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the numb
 \end{figure*}
 
 We also evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
-Using the 20 ballot profiles generated from GenerativeCC in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
-We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this benchmark.
-At \(\kappa=\ln 1.5\approx0.41\), the 10 slates selected by \ExactP{} and \Exact{} share 48 of their 50 statements, and 91.6\% of voters are assigned to the same statement under both rules.
-\Exact{}, \Greedy{}, and \LP{} perform similarly on all metrics.
+Using the 10 ballot profiles generated from GenerativeCC with LLM embeddings in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
+We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this dataset.
+All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
+Since every voting algorithm in \Cref{fig:sfws-voting-algs} runs on the same profiles, we also report on how many profiles a difference holds.
 
-\GreedyMonroe{} --- our adaptation of the \citet{fish-v2} voting algorithm --- and \UGreedyMonroe{} perform much worse than all others on all SWFs.
-All other tested voting algorithms use some sort of global optimization over all candidates and voters, even \Greedy, which reassigns voters after selecting each candidate.
-Such a global optimization requires using more discriminative queries than are used by \citet{fish-v2}.
-This suggests that the performance difference in \Cref{fig:sfws-voting-algs} between the cluster of high-performing voting algorithms and the \textsc{Monroe-Greedy} algorithms stems from the latter group not leveraging the complete ballot profile.
+The algorithms form three clusters based on their performance.
+Cluster 1: the first eight algorithms in \Cref{fig:sfws-voting-algs} perform relatively well on every SWF, within 0.02 of each other in mean utility and within 0.09 in minimum utility.
+Cluster 2: \UGreedyMonroe{}, \GreedyMonroe{}, and \Baseline{} perform much worse on every SWF.
+Cluster 3: The two reassignment variants of \Baseline{} in \Cref{fig:sfws-voting-algs-fish} fall in between (\Cref{sec:expensive-queries}).
 
-We can dismiss other possible causes by comparing various ablations.
-Most of the above difference is recovered by both of the other \GreedyMonroe{} variants.
-After greedy slate selection, either relaxing the Monroe equal-sized constituency constraint or assigning optimally within this constraint produces similar performance.
-The same pattern is evident for utilitarian voting algorithms, as \ExactMonroe performs nearly identically to \Exact.
-Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for a range of egalitarian and utilitarian objective functions.
+\paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
+Polynomial-time \textsc{CC} algorithms need not sacrifice much performance on this benchmark.
+\Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
+\LP{} realizes identical voter utilities as \Exact{} on all 10 profiles, and \Greedy{} on 7 of the 10, with no SWF differing by more than 0.002 on average.
+This is consistent with the near-optimal empirical performance of greedy algorithms for the utilitarian CC rule reported by \citet{skowron-2015}.
+
+\paragraph{\textsc{Monroe-Greedy} algorithms perform poorly compared to \textsc{Monroe-Exact}}
+The \textsc{Monroe-Greedy} algorithms perform significantly worse than their \textsc{Monroe-Exact} counterparts.
+While we are uncertain as to its exact nature, some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
+One possible cause is the absence of global optimization steps in \textsc{Monroe-Greedy} algorithms.
+\textsc{CC-Greedy} algorithms perform multiple optimizations over all voters, reassigning every voter to their favorite slate member after each round.
+However, \textsc{Monroe-Greedy} algorithms permanently assign voters to their first candidate.
+Later winners are then chosen only for the remaining voters, and no voter can move to a winner selected after their assignment.
+
+\paragraph{The constituency size constraint matters little}
+\ExactMonroe{} is within 0.003 of \Exact{} in mean utility, and their minimum utilities are equal within confidence bounds.
+\EExactMonroe{} attains the same minimum utility as \ECCExact{} on all 10 profiles, at a cost of 0.006 in mean utility.
+The reassignment variants in \Cref{fig:sfws-voting-algs-fish} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.002.
+Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for both egalitarian and utilitarian objective functions.
+This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
+
+\paragraph{Egalitarian and Kolm--Pollak objectives}
+Moving from total to minimum utility trades a small loss in average utility for a larger gain for the worst-off voter.
+On 9 of the 10 profiles (the tenth is unchanged), \ECCExact{} raises the minimum utility over \Exact{}, by 0.087 on average, while lowering mean utility by 0.011 and bottom-50\% mean utility by 0.022.
+The gap is small in part because \ECCExact{} breaks ties in minimum utility by total utility.
+\ExactP{} traces intermediate points between these two rules, and the trade is most favorable near the egalitarian end.
+At \(\kappa=7\), \ExactP{} gives up only 0.007 of the minimum utility of \ECCExact{} (8\% of the gap between \ECCExact{} and \Exact{}).
+In exchange, it recovers 0.005 of mean utility and 0.010 of bottom-50\% mean utility (about 45\% of the gap for each), and it has a slightly lower Gini coefficient.
+A utilitarian objective with a strongly concave transformation thus offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
+These differences are small, however, and the gains of \(\kappa=7\) over \ECCExact{} in mean and bottom-50\% utility are only marginally distinguishable from zero.
+They also do not replicate on the ballot profiles of the baseline pipeline, where \ECCExact{} matches or exceeds \ExactP{} with \(\kappa=7\) on every SWF on average (not shown).
+
+The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
+We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
+When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
+A modest Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
+While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
 
 \begin{figure*}[t]
 \centering
@@ -626,14 +659,22 @@ Together, these patterns indicate that \textbf{the Monroe equal-sized constituen
 \end{figure*}
 
 \subsubsection{Voting Algorithms for Expensive Discriminative Queries}
+\label{sec:expensive-queries}
 
-\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the ballot profiles of the baseline pipeline.
+\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
 
-The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
-We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well on both empirical and axiomatic criteria.
-When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
-A modest Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
-While applying the transformation to \Exact{} leads to strictly worse axiomatic properties, this may be worth the ability to smoothly scale towards more egalitarian outcomes in expectation.
+\paragraph{Computing more of the utility matrix is the largest improvement}
+Having all voters rate the baseline's slate and then reassigning them improves every SWF on every profile, except for one profile on which the minimum utility is unchanged.
+\Baseline{} + \EExactMonroe{} reassign recovers 80\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.059 of 0.074), 77\% in bottom-50\% mean utility, and 60\% in minimum utility.
+CC reassignment performs almost identically.
+In our setting (\(n=100\), \(m=30\), \(k=5\)), this requires at most \(n(k-1)/2=200\) discriminative queries beyond the 1,800 used by \Baseline{}, an increase of 11\%.
+The complete ballot profile requires 3,000.
+
+Apart from the cost of greedy selection under the Monroe rule discussed above, this is the largest improvement from any single design choice we vary.
+It exceeds the effect of the objective function (at most 0.014 in mean utility and 0.087 in minimum utility in \Cref{fig:sfws-voting-algs}).
+It also exceeds the effect of the constituency size constraint (at most 0.006 in mean utility) and of exact rather than greedy selection under CC (at most 0.002).
+The same ordering holds on the baseline's ballot profiles.
+\EExactMonroe{}, which also uses the complete ballot profile to select the slate, closes the remaining gap (0.015 in mean utility, 0.18 in minimum utility).
 
 \section{Discussion}
 
