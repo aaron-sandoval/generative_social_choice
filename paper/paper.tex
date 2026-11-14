@@ -255,21 +255,22 @@ However, at the small scale of our experiments, GenerativeCC is slower mostly du
 For both approaches, the number \(m\) of generated candidates is a multiple of the number of statement-generation methods used.
 If \(g\) denotes the number of generators, the baseline produces \(m=k\cdot g\) candidates, while GenerativeCC produces \(m=(c+1)\cdot g\), where \(c\) is the number of clusters.
 
-\begin{table*}[t]
+\begin{table}[t]
 \centering
+{\small
 \begin{tabular}{lcc}
 \hline
-Type of LLM Call & GenerativeCC & Baseline \citep{fish-v2} \\
+Type of LLM Call & GenerativeCC & \makecell{Baseline \\ \citep{fish-v2}} \\
 \hline
 Get opinion embedding & $n$ & -- \\
 Generate a candidate & $m$ & $m$ \\
 Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ \\
 \hline
-\end{tabular}
+\end{tabular}}
 \caption{Number of calls for different types of LLM requests for running the full pipeline, where \(m\) is the number of generated candidates, \(n\) the number of voters, and \(k\) the slate size.
 The baseline requires \(m\) to be a multiple of the slate size, while GenerativeCC allows \(m\) to be chosen more freely so long as \(m\ge k\).}
 \label{tab:llm-call-comparison}
-\end{table*}
+\end{table}
 
 \section{Experimental Setup}
 
