@@ -2257,13 +2257,94 @@ class ResultConfig:
     fish_candidate_pool: Literal["round", "persistent"] = "round"
 
 
-def save_figure(fig: plt.Figure, path: str | Path, fig_format: Literal["png", "pdf"] = "png") -> None:
-    """Save a figure to path with the given format. Extension is set from fig_format if missing."""
+# rcParams for a figure drawn at its printed size in one column (3.3 in) with ~7 pt fonts: line widths,
+# tick sizes and paddings scaled down to match the smaller fonts. Use with `plt.rc_context` around the
+# figure's creation.
+COLUMN_FIGURE_RC = {
+    "lines.linewidth": 0.9,
+    "axes.linewidth": 0.5,
+    "grid.linewidth": 0.5,
+    "xtick.major.width": 0.5,
+    "ytick.major.width": 0.5,
+    "xtick.major.size": 2,
+    "ytick.major.size": 2,
+    "xtick.major.pad": 2,
+    "ytick.major.pad": 1.5,
+    "axes.labelpad": 1.5,
+}
+
+
+def slant_x_tick_labels(axes: Iterable[plt.Axes], rotation: float = 30) -> None:
+    """Rotate the x tick labels of `axes`, anchored at their right end below the tick."""
+    for ax in axes:
+        ax.tick_params(axis="x", labelrotation=rotation)
+        for label in ax.get_xticklabels():
+            label.set_horizontalalignment("right")
+            label.set_rotation_mode("anchor")
+
+
+def place_subplots_in_row(
+    fig: plt.Figure,
+    widths_in: Sequence[Optional[float]],
+    gap_in: float = 0.1,
+    pad_in: float = 0.03,
+    top_in: Optional[float] = None,
+) -> None:
+    """Place the axes of `fig` side by side, each just right of the y-axis labels of the next.
+
+    Gives precise control over the subplot widths in a narrow (e.g. column-width) figure, where a layout
+    engine's uniform spacing wastes room. Call after everything that affects the tick labels and axis
+    labels has been set, since their extents are measured.
+
+    Args:
+        fig: Figure whose axes (in `fig.axes` order) form one row.
+        widths_in: Width of each subplot's data area, in inches. One entry may be None, to give that
+            subplot the width left over.
+        gap_in: Space between a subplot and the y-axis labels of the next one, in inches.
+        pad_in: Space between the figure's edges and the outermost labels, in inches.
+        top_in: Height of the top edge of the subplots above the figure's bottom, in inches. By default,
+            just below the figure's top edge, leaving room for the top tick labels.
+    """
+    axes = fig.axes
+    assert len(widths_in) == len(axes), "widths_in needs one entry per subplot"
+    assert sum(w is None for w in widths_in) <= 1, "at most one subplot can take the remaining width"
+    fig_width, fig_height = fig.get_size_inches()
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    # Width of each subplot's y tick labels and y label, and height of its x tick labels and x label
+    label_widths = [(ax.get_window_extent(renderer).x0 - ax.yaxis.get_tightbbox(renderer).x0) / fig.dpi
+                    for ax in axes]
+    label_height = max((ax.get_window_extent(renderer).y0 - ax.xaxis.get_tightbbox(renderer).y0) / fig.dpi
+                       for ax in axes)
+    remaining = (fig_width - 2 * pad_in - sum(label_widths) - gap_in * (len(axes) - 1)
+                 - sum(w for w in widths_in if w is not None))
+    widths = [remaining if w is None else w for w in widths_in]
+    bottom = pad_in + label_height
+    top = fig_height - 0.06 if top_in is None else top_in
+    x = pad_in
+    for ax, label_width, width in zip(axes, label_widths, widths):
+        x += label_width
+        ax.set_position([x / fig_width, bottom / fig_height, width / fig_width, (top - bottom) / fig_height])
+        x += width + gap_in
+
+
+def save_figure(
+    fig: plt.Figure,
+    path: str | Path,
+    fig_format: Literal["png", "pdf"] = "png",
+    pad_inches: Optional[float] = None,
+) -> None:
+    """Save a figure to path with the given format. Extension is set from fig_format if missing.
+
+    `pad_inches` is the margin around the figure's contents (matplotlib's default is 0.1 in). Set it small
+    for a figure drawn at its printed size, since the margin widens the saved figure and so shrinks it,
+    fonts included, when it is scaled to the printed width."""
     path = Path(path)
     if path.suffix.lower() not in (".png", ".pdf"):
         path = path.with_suffix(f".{fig_format}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, format=fig_format, bbox_inches="tight")
+    pad = {} if pad_inches is None else {"pad_inches": pad_inches}
+    fig.savefig(path, format=fig_format, bbox_inches="tight", **pad)
 
 
 def collect_results_and_plot(
