@@ -7,6 +7,7 @@ from typing import Hashable, Iterable, Literal, Optional, Sequence
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.legend_handler import HandlerTuple
 import json
 import textwrap
 import pandas as pd
@@ -839,6 +840,7 @@ def plot_sorted_utility_CIs(
     colors: Optional[Sequence[str]] = None,
     font_size: Optional[float] = None,
     legend_break_longer_than: Optional[int] = None,
+    combine_legend_entries: bool = False,
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -862,6 +864,9 @@ def plot_sorted_utility_CIs(
         legend_break_longer_than: If given, legend labels longer than this many characters are broken
             onto two lines, between the series name and the rest ("95% CI (n=10)", "(sample mean, n=10)"),
             to keep the legend narrow.
+        combine_legend_entries: If True (and do_CI), each series gets a single legend entry, its mean line
+            drawn over its confidence band, labeled "<name>, n=<samples>", instead of separate entries for
+            the band and the line.
 
     Returns:
         matplotlib Figure object containing the plot
@@ -870,11 +875,15 @@ def plot_sorted_utility_CIs(
         colors = METHOD_COLORS
     if font_size is None:
         font_size = PLOT_FONT_SIZE
+    combine_legend_entries = combine_legend_entries and do_CI
 
-    def legend_label(group_name, rest: str) -> str:
+    def legend_label(group_name, rest: str, sep: str = " ") -> str:
         name = method_display_label(group_name)
-        too_long = legend_break_longer_than is not None and len(f"{name} {rest}") > legend_break_longer_than
-        return f"{name}\n{rest}" if too_long else f"{name} {rest}"
+        too_long = legend_break_longer_than is not None and len(f"{name}{sep}{rest}") > legend_break_longer_than
+        return f"{name}{sep.rstrip()}\n{rest}" if too_long else f"{name}{sep}{rest}"
+
+    # (handle, label) of each series, for combine_legend_entries
+    combined_entries = []
 
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
@@ -1032,30 +1041,40 @@ def plot_sorted_utility_CIs(
         
         # Plot confidence interval as shaded region (only if do_CI is True)
         if do_CI:
-            ax.fill_between(
-                indices, 
-                lower_bounds, 
-                upper_bounds, 
-                alpha=0.3, 
+            band = ax.fill_between(
+                indices,
+                lower_bounds,
+                upper_bounds,
+                alpha=0.3,
                 color=color,
-                label=legend_label(group_name, f"{confidence_level:.0%} CI (n={n_samples})")
+                label=None if combine_legend_entries
+                else legend_label(group_name, f"{confidence_level:.0%} CI (n={n_samples})")
             )
 
         # Plot sample mean trajectory
-        ax.plot(
+        (line,) = ax.plot(
             indices,
             means,
             color=color,
             linewidth=1.5,
-            label=legend_label(group_name, f"(sample mean, n={n_samples})")
+            label=None if combine_legend_entries
+            else legend_label(group_name, f"(sample mean, n={n_samples})")
         )
+        if combine_legend_entries:
+            combined_entries.append(((band, line), legend_label(group_name, f"n={n_samples}", sep=", ")))
 
     # Customize plot
     ax.set_xlabel("Voter index (sorted by utility)", fontsize=font_size)
     ax.set_ylabel(ylabel, fontsize=font_size)
     ax.tick_params(axis='both', labelsize=font_size)
     ax.grid(axis='both', linestyle='--', alpha=0.7)
-    ax.legend(loc='lower left', fontsize=font_size)
+    if combine_legend_entries:
+        handles, labels = zip(*combined_entries)
+        # ndivide=1 draws the line over the band in the same legend key
+        ax.legend(handles, labels, loc='lower left', fontsize=font_size,
+                  handler_map={tuple: HandlerTuple(ndivide=1, pad=0)})
+    else:
+        ax.legend(loc='lower left', fontsize=font_size)
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
