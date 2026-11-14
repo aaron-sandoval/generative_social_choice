@@ -308,13 +308,12 @@ The number of runs differs across methods and is reported in the result figures.
 Across the scalar metrics we consider, GenerativeCC outperforms the baseline of \citet{fish-v2} (\Cref{fig:swf-main}).
 Both distributions are similar in the top half, but a difference grows in the lower tail (\Cref{fig:mth-happiest-main}), indicating superior performance by both egalitarian and utilitarian standards.
 
-\begin{figure*}[t]
-  \begin{center}
-  \includegraphics[width=0.6\textwidth]{figures/scalar_confidence_intervals.pdf}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/scalar_confidence_intervals.pdf}
   \caption{GenerativeCC outperforms the most closely related approach from \citet{fish-v2} on five utilitarian and egalitarian social welfare functions.}
   \label{fig:swf-main}
-  \end{center}
-\end{figure*}
+\end{figure}
 
 \begin{figure*}[t]
   \begin{center}
@@ -473,11 +472,12 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
 
 \begin{figure*}[t]
 \centering
-  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v8.png}
+  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v9.png}
   \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
-  Confidence intervals for all series except \Baseline{} are bootstrapped across 10 ballot profiles generated with GenerativeCC.
+  Confidence intervals for all series except \Baseline{} and its two reassignment variants are bootstrapped across 10 ballot profiles generated with GenerativeCC.
   The \Baseline{} series is copied from \Cref{fig:swf-main}. It was generated from the pipeline of \citet{fish-v2} and is included for reference only.
-  Its results are not directly comparable as other pipeline elements besides the voting algorithm differ.}
+  Its results are not directly comparable as other pipeline elements besides the voting algorithm differ.
+  The reassignment variants (\Cref{sec:expensive-queries}) use the same 15 runs of the baseline pipeline, whose ballot profiles are filled afterwards using additional discriminative queries.}
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
@@ -485,12 +485,12 @@ We evaluate each voting algorithm on the social welfare functions from \Cref{sec
 Using the 10 ballot profiles generated from GenerativeCC with LLM embeddings in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this dataset.
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
-Since every voting algorithm in \Cref{fig:sfws-voting-algs} runs on the same profiles, we also report on how many profiles a difference holds.
+Since every voting algorithm in \Cref{fig:sfws-voting-algs} except \Baseline{} and its reassignment variants runs on the same profiles, we also report on how many profiles a difference holds.
 
 The algorithms form three clusters based on their performance.
 Cluster 1: the first eight algorithms in \Cref{fig:sfws-voting-algs} perform relatively well on every SWF, within 0.02 of each other in mean utility and within 0.09 in minimum utility.
 Cluster 2: \UGreedyMonroe{}, \GreedyMonroe{}, and \Baseline{} perform much worse on every SWF.
-Cluster 3: The two reassignment variants of \Baseline{} in \Cref{fig:sfws-voting-algs-fish} fall in between (\Cref{sec:expensive-queries}).
+Cluster 3: The two reassignment variants of \Baseline{} fall in between (\Cref{sec:expensive-queries}).
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
 Polynomial-time \textsc{CC} algorithms need not sacrifice much performance on this benchmark.
@@ -509,7 +509,7 @@ Later winners are then chosen only for the remaining voters, and no voter can mo
 \paragraph{The constituency size constraint matters little}
 \ExactMonroe{} is within 0.003 of \Exact{} in mean utility, and their minimum utilities are equal within confidence bounds.
 \EExactMonroe{} attains the same minimum utility as \ECCExact{} on all 10 profiles, at a cost of 0.008 in mean utility.
-The reassignment variants in \Cref{fig:sfws-voting-algs-fish} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
+The reassignment variants of \Baseline{} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
 Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for both egalitarian and utilitarian objective functions.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
@@ -529,17 +529,11 @@ We use \Exact{} in the main pipeline because it is feasible at the scale of our 
 When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
 A modest Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
 
-\begin{figure*}[t]
-\centering
-  \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_fish_candidates.png}
-  \caption{Voting algorithm SWF performance on ballot profiles generated by the baseline pipeline. Profiles are filled afterwards using additional discriminative queries. Adding either reassignment step to \Baseline{} recovers most of the performance of \EExactMonroe.}
-  \label{fig:sfws-voting-algs-fish}
-\end{figure*}
-
 \subsubsection{Voting Algorithms for Expensive Discriminative Queries}
 \label{sec:expensive-queries}
 
-\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
+\Cref{fig:sfws-voting-algs} includes the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), on the 15 ballot profiles of the baseline pipeline.
+Below, we compare them with \Baseline{} and with \EExactMonroe{} on the same profiles (not shown).
 
 \paragraph{Computing more of the utility matrix is the largest improvement}
 Having all voters rate the baseline's slate and then reassigning them improves every SWF on every profile, except for one profile on which the minimum utility is unchanged.
@@ -1508,8 +1502,9 @@ The detected differences in variance affect only the baseline, in three ways:
 \end{itemize}
 
 \paragraph{\Cref{fig:sfws-voting-algs,fig:statement-ablation-comparison}.}
-All series except the baseline reuse the 2025 LLM calls of GenerativeCC: the voting algorithms are applied to its ballot profiles, and the statement count ablation selects from its generated statements without new LLM calls.
+All series except the baseline and its two reassignment variants in \Cref{fig:sfws-voting-algs} reuse the 2025 LLM calls of GenerativeCC: the voting algorithms are applied to its ballot profiles, and the statement count ablation selects from its generated statements without new LLM calls.
 Comparisons among these series are therefore unaffected, and \textbf{their comparisons with the baseline are subject to the same considerations as \Cref{fig:swf-main,fig:mth-happiest-main}}, whose baseline they reuse.
+The reassignment variants reuse the same baseline runs, with the ratings the baseline never queried collected afterwards in 2026, so their comparisons with the baseline are unaffected, and their comparisons with the other series are subject to the same considerations.
 
 \paragraph{\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}.}
 All four series were produced in 2025, so drift does not affect them.

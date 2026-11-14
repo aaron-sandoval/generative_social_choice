@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import matplotlib
 import json
+import textwrap
 import pandas as pd
 import numpy as np
 import scipy
@@ -93,6 +94,22 @@ def _method_color_index(label: str) -> int:
     if s.startswith("Baseline "):
         return 5
     return min(6 + (abs(hash(s)) % max(1, len(METHOD_COLORS) - 6)), len(METHOD_COLORS) - 1)
+
+
+# How our pipeline is named in legends. Series are still named "Ours..." in the data (and keyed by that name in
+# METHOD_COLOR_KEY_TO_INDEX); only the displayed label changes.
+OURS_DISPLAY_NAME = "GenerativeCC (ours)"
+
+
+def method_display_label(label) -> str:
+    """Legend label of a method/config name: "Ours" -> "GenerativeCC (ours)", "Ours (X)" -> "GenerativeCC (ours, X)".
+    Other labels are returned unchanged."""
+    s = str(label)
+    if s == "Ours":
+        return OURS_DISPLAY_NAME
+    if s.startswith("Ours (") and s.endswith(")"):
+        return f"{OURS_DISPLAY_NAME[:-1]}, {s[len('Ours ('):]}"
+    return s
 
 
 def _figure_layout(legend_loc: str) -> Optional[str]:
@@ -821,6 +838,7 @@ def plot_sorted_utility_CIs(
     ylabel: str = "Utility",
     colors: Optional[Sequence[str]] = None,
     font_size: Optional[float] = None,
+    legend_break_longer_than: Optional[int] = None,
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -841,7 +859,10 @@ def plot_sorted_utility_CIs(
             (default: True). When False, utilities are used in their original order.
         do_CI: Whether to calculate and plot confidence intervals (default: True).
             When False, only the mean trajectory is plotted without confidence intervals.
-    
+        legend_break_longer_than: If given, legend labels longer than this many characters are broken
+            onto two lines, between the series name and the rest ("95% CI (n=10)", "(sample mean, n=10)"),
+            to keep the legend narrow.
+
     Returns:
         matplotlib Figure object containing the plot
     """
@@ -849,6 +870,12 @@ def plot_sorted_utility_CIs(
         colors = METHOD_COLORS
     if font_size is None:
         font_size = PLOT_FONT_SIZE
+
+    def legend_label(group_name, rest: str) -> str:
+        name = method_display_label(group_name)
+        too_long = legend_break_longer_than is not None and len(f"{name} {rest}") > legend_break_longer_than
+        return f"{name}\n{rest}" if too_long else f"{name} {rest}"
+
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -1011,18 +1038,18 @@ def plot_sorted_utility_CIs(
                 upper_bounds, 
                 alpha=0.3, 
                 color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+                label=legend_label(group_name, f"{confidence_level:.0%} CI (n={n_samples})")
             )
-        
+
         # Plot sample mean trajectory
         ax.plot(
-            indices, 
-            means, 
-            color=color, 
+            indices,
+            means,
+            color=color,
             linewidth=1.5,
-            label=f"{group_name} (sample mean, n={n_samples})"
+            label=legend_label(group_name, f"(sample mean, n={n_samples})")
         )
-    
+
     # Customize plot
     ax.set_xlabel("Voter index (sorted by utility)", fontsize=font_size)
     ax.set_ylabel(ylabel, fontsize=font_size)
@@ -1318,7 +1345,7 @@ def plot_generalized_lorenz_curve(
                 upper_bounds, 
                 alpha=0.3, 
                 color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+                label=f"{method_display_label(group_name)} {confidence_level:.0%} CI (n={n_samples})"
             )
         
         # Plot sample mean trajectory
@@ -1327,7 +1354,7 @@ def plot_generalized_lorenz_curve(
             means, 
             color=color, 
             linewidth=1.5,
-            label=f"{group_name} (sample mean, n={n_samples})"
+            label=f"{method_display_label(group_name)} (sample mean, n={n_samples})"
         )
     
     # Customize plot
@@ -1592,7 +1619,7 @@ def plot_generalized_lorenz_curve_differences(
                 upper_bounds, 
                 alpha=0.3, 
                 color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+                label=f"{method_display_label(group_name)} {confidence_level:.0%} CI (n={n_samples})"
             )
         
         # Plot sample mean trajectory
@@ -1601,7 +1628,7 @@ def plot_generalized_lorenz_curve_differences(
             means, 
             color=color, 
             linewidth=1.5,
-            label=f"{group_name} (sample mean, n={n_samples})"
+            label=f"{method_display_label(group_name)} (sample mean, n={n_samples})"
         )
     
     # Customize plot
@@ -1878,7 +1905,7 @@ def clustered_barplot_with_error_bars(
             # Only add label for legend if it's the first subplot or if legends are different
             show_label = (ax_idx == 0) or (has_secondary and need_separate_legends)
             current_ax.bar(x + offset, means, width, 
-                   label=label if show_label else None, 
+                   label=method_display_label(label) if show_label else None, 
                    color=colors[i % len(colors)])
             
             # Add error bars
@@ -1945,6 +1972,10 @@ def plot_scalar_clustered_confidence_intervals(
         legend_frameon: bool = True,
         fig: Optional[matplotlib.figure.FigureBase] = None,
         width_ratios: Optional[Sequence[float]] = None,
+        marker_size: float = 6,
+        cap_size: float = 4,
+        cap_thick: float = 1,
+        legend_break_longer_than: Optional[int] = None,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
@@ -2005,6 +2036,13 @@ def plot_scalar_clustered_confidence_intervals(
             left to the parent figure (create it with `layout="constrained"`).
         width_ratios: Optional relative widths of the subplots, overriding the default of their numbers of
             clusters (which keeps the cluster spacing equal across subplots).
+        marker_size: Size of the points, in points.
+        cap_size: Length of the error bar caps, in points.
+        cap_thick: Line width of the error bar caps, in points.
+        legend_break_longer_than: If given, legend labels longer than this many characters are broken onto
+            several lines, after each ", " if they contain one (e.g. "GenerativeCC (ours,\n30 statements)"),
+            otherwise before the first " (" (e.g. "Baseline\n(30 statements)"), otherwise between words, to
+            keep the legend narrow.
 
     Returns:
         plt.Figure: The generated matplotlib figure (or `fig`, if given)
@@ -2032,6 +2070,16 @@ def plot_scalar_clustered_confidence_intervals(
         idx = label_positions.get(label, 0) if color_by_position else _method_color_index(label)
         return colors[idx % len(colors)]
     
+    def legend_label(label) -> str:
+        name = method_display_label(label)
+        if legend_break_longer_than is None or len(name) <= legend_break_longer_than:
+            return name
+        if ", " in name:
+            return name.replace(", ", ",\n")
+        if " (" in name:
+            return name.replace(" (", "\n(", 1)
+        return textwrap.fill(name, legend_break_longer_than)
+
     # Each subplot is (DataFrame, y-axis label), in left-to-right order
     panels: list[tuple[pd.DataFrame, Optional[str]]] = [(df, y_label)]
     for extra_df, extra_y_label in (
@@ -2111,8 +2159,8 @@ def plot_scalar_clustered_confidence_intervals(
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
                        fmt='o', color=_color_for(str(label)),
-                       markersize=6, capsize=4, capthick=1,
-                       label=label if show_label else None)
+                       markersize=marker_size, capsize=cap_size, capthick=cap_thick,
+                       label=legend_label(label) if show_label else None)
         
         # Customize plot
         # If the y-label of an additional subplot is None, no y-label is set
