@@ -2289,6 +2289,7 @@ def place_subplots_in_row(
     gap_in: float = 0.1,
     pad_in: float = 0.03,
     top_in: Optional[float] = None,
+    height_in: Optional[float] = None,
 ) -> None:
     """Place the axes of `fig` side by side, each just right of the y-axis labels of the next.
 
@@ -2304,6 +2305,9 @@ def place_subplots_in_row(
         pad_in: Space between the figure's edges and the outermost labels, in inches.
         top_in: Height of the top edge of the subplots above the figure's bottom, in inches. By default,
             just below the figure's top edge, leaving room for the top tick labels.
+        height_in: Height of the subplots' data area, in inches. If given, the figure's height is changed to
+            fit it, keeping the room above the subplots (e.g. for a figure legend anchored to the figure's
+            top edge). By default, the subplots take the height between their labels and `top_in`.
     """
     axes = fig.axes
     assert len(widths_in) == len(axes), "widths_in needs one entry per subplot"
@@ -2321,6 +2325,11 @@ def place_subplots_in_row(
     widths = [remaining if w is None else w for w in widths_in]
     bottom = pad_in + label_height
     top = fig_height - 0.06 if top_in is None else top_in
+    if height_in is not None:
+        # Grow or shrink the figure below the subplots' top edge, keeping the room above it
+        fig_height += bottom + height_in - top
+        fig.set_size_inches(fig_width, fig_height)
+        top = bottom + height_in
     x = pad_in
     for ax, label_width, width in zip(axes, label_widths, widths):
         x += label_width
