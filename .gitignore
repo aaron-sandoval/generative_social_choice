@@ -204,3 +204,6 @@ paper/*.fdb_latexmk
 paper/*.synctex.gz
 paper/*.synctex(busy)
 paper/*.synctex.gz(busy)
+
+# Track figure PDFs used by the paper (overrides the global *.pdf rule above)
+!paper/figures/*.pdf
