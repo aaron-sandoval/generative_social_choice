@@ -7,7 +7,9 @@ from typing import Hashable, Iterable, Literal, Optional, Sequence
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.legend_handler import HandlerTuple
 import json
+import textwrap
 import pandas as pd
 import numpy as np
 import scipy
@@ -93,6 +95,22 @@ def _method_color_index(label: str) -> int:
     if s.startswith("Baseline "):
         return 5
     return min(6 + (abs(hash(s)) % max(1, len(METHOD_COLORS) - 6)), len(METHOD_COLORS) - 1)
+
+
+# How our pipeline is named in legends. Series are still named "Ours..." in the data (and keyed by that name in
+# METHOD_COLOR_KEY_TO_INDEX); only the displayed label changes.
+OURS_DISPLAY_NAME = "GenerativeCC (ours)"
+
+
+def method_display_label(label) -> str:
+    """Legend label of a method/config name: "Ours" -> "GenerativeCC (ours)", "Ours (X)" -> "GenerativeCC (ours, X)".
+    Other labels are returned unchanged."""
+    s = str(label)
+    if s == "Ours":
+        return OURS_DISPLAY_NAME
+    if s.startswith("Ours (") and s.endswith(")"):
+        return f"{OURS_DISPLAY_NAME[:-1]}, {s[len('Ours ('):]}"
+    return s
 
 
 def _figure_layout(legend_loc: str) -> Optional[str]:
@@ -821,6 +839,8 @@ def plot_sorted_utility_CIs(
     ylabel: str = "Utility",
     colors: Optional[Sequence[str]] = None,
     font_size: Optional[float] = None,
+    legend_break_longer_than: Optional[int] = None,
+    combine_legend_entries: bool = False,
 ) -> plt.Figure:
     """
     Plot confidence intervals for sorted utility distributions using bootstrapping.
@@ -841,7 +861,13 @@ def plot_sorted_utility_CIs(
             (default: True). When False, utilities are used in their original order.
         do_CI: Whether to calculate and plot confidence intervals (default: True).
             When False, only the mean trajectory is plotted without confidence intervals.
-    
+        legend_break_longer_than: If given, legend labels longer than this many characters are broken
+            onto two lines, between the series name and the rest ("95% CI (n=10)", "(sample mean, n=10)"),
+            to keep the legend narrow.
+        combine_legend_entries: If True (and do_CI), each series gets a single legend entry, its mean line
+            drawn over its confidence band, labeled "<name>, n=<samples>", instead of separate entries for
+            the band and the line.
+
     Returns:
         matplotlib Figure object containing the plot
     """
@@ -849,6 +875,16 @@ def plot_sorted_utility_CIs(
         colors = METHOD_COLORS
     if font_size is None:
         font_size = PLOT_FONT_SIZE
+    combine_legend_entries = combine_legend_entries and do_CI
+
+    def legend_label(group_name, rest: str, sep: str = " ") -> str:
+        name = method_display_label(group_name)
+        too_long = legend_break_longer_than is not None and len(f"{name}{sep}{rest}") > legend_break_longer_than
+        return f"{name}{sep.rstrip()}\n{rest}" if too_long else f"{name}{sep}{rest}"
+
+    # (handle, label) of each series, for combine_legend_entries
+    combined_entries = []
+
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -1005,30 +1041,40 @@ def plot_sorted_utility_CIs(
         
         # Plot confidence interval as shaded region (only if do_CI is True)
         if do_CI:
-            ax.fill_between(
-                indices, 
-                lower_bounds, 
-                upper_bounds, 
-                alpha=0.3, 
+            band = ax.fill_between(
+                indices,
+                lower_bounds,
+                upper_bounds,
+                alpha=0.3,
                 color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+                label=None if combine_legend_entries
+                else legend_label(group_name, f"{confidence_level:.0%} CI (n={n_samples})")
             )
-        
+
         # Plot sample mean trajectory
-        ax.plot(
-            indices, 
-            means, 
-            color=color, 
+        (line,) = ax.plot(
+            indices,
+            means,
+            color=color,
             linewidth=1.5,
-            label=f"{group_name} (sample mean, n={n_samples})"
+            label=None if combine_legend_entries
+            else legend_label(group_name, f"(sample mean, n={n_samples})")
         )
-    
+        if combine_legend_entries:
+            combined_entries.append(((band, line), legend_label(group_name, f"n={n_samples}", sep=", ")))
+
     # Customize plot
     ax.set_xlabel("Voter index (sorted by utility)", fontsize=font_size)
     ax.set_ylabel(ylabel, fontsize=font_size)
     ax.tick_params(axis='both', labelsize=font_size)
     ax.grid(axis='both', linestyle='--', alpha=0.7)
-    ax.legend(loc='lower left', fontsize=font_size)
+    if combine_legend_entries:
+        handles, labels = zip(*combined_entries)
+        # ndivide=1 draws the line over the band in the same legend key
+        ax.legend(handles, labels, loc='lower left', fontsize=font_size,
+                  handler_map={tuple: HandlerTuple(ndivide=1, pad=0)})
+    else:
+        ax.legend(loc='lower left', fontsize=font_size)
     
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
@@ -1318,7 +1364,7 @@ def plot_generalized_lorenz_curve(
                 upper_bounds, 
                 alpha=0.3, 
                 color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+                label=f"{method_display_label(group_name)} {confidence_level:.0%} CI (n={n_samples})"
             )
         
         # Plot sample mean trajectory
@@ -1327,7 +1373,7 @@ def plot_generalized_lorenz_curve(
             means, 
             color=color, 
             linewidth=1.5,
-            label=f"{group_name} (sample mean, n={n_samples})"
+            label=f"{method_display_label(group_name)} (sample mean, n={n_samples})"
         )
     
     # Customize plot
@@ -1592,7 +1638,7 @@ def plot_generalized_lorenz_curve_differences(
                 upper_bounds, 
                 alpha=0.3, 
                 color=color,
-                label=f"{group_name} {confidence_level:.0%} CI (n={n_samples})"
+                label=f"{method_display_label(group_name)} {confidence_level:.0%} CI (n={n_samples})"
             )
         
         # Plot sample mean trajectory
@@ -1601,7 +1647,7 @@ def plot_generalized_lorenz_curve_differences(
             means, 
             color=color, 
             linewidth=1.5,
-            label=f"{group_name} (sample mean, n={n_samples})"
+            label=f"{method_display_label(group_name)} (sample mean, n={n_samples})"
         )
     
     # Customize plot
@@ -1878,7 +1924,7 @@ def clustered_barplot_with_error_bars(
             # Only add label for legend if it's the first subplot or if legends are different
             show_label = (ax_idx == 0) or (has_secondary and need_separate_legends)
             current_ax.bar(x + offset, means, width, 
-                   label=label if show_label else None, 
+                   label=method_display_label(label) if show_label else None, 
                    color=colors[i % len(colors)])
             
             # Add error bars
@@ -1945,6 +1991,10 @@ def plot_scalar_clustered_confidence_intervals(
         legend_frameon: bool = True,
         fig: Optional[matplotlib.figure.FigureBase] = None,
         width_ratios: Optional[Sequence[float]] = None,
+        marker_size: float = 6,
+        cap_size: float = 4,
+        cap_thick: float = 1,
+        legend_break_longer_than: Optional[int] = None,
         ) -> plt.Figure:
     """
     Clustered scatter plot with vertical confidence intervals.
@@ -2005,6 +2055,13 @@ def plot_scalar_clustered_confidence_intervals(
             left to the parent figure (create it with `layout="constrained"`).
         width_ratios: Optional relative widths of the subplots, overriding the default of their numbers of
             clusters (which keeps the cluster spacing equal across subplots).
+        marker_size: Size of the points, in points.
+        cap_size: Length of the error bar caps, in points.
+        cap_thick: Line width of the error bar caps, in points.
+        legend_break_longer_than: If given, legend labels longer than this many characters are broken onto
+            several lines, after each ", " if they contain one (e.g. "GenerativeCC (ours,\n30 statements)"),
+            otherwise before the first " (" (e.g. "Baseline\n(30 statements)"), otherwise between words, to
+            keep the legend narrow.
 
     Returns:
         plt.Figure: The generated matplotlib figure (or `fig`, if given)
@@ -2032,6 +2089,16 @@ def plot_scalar_clustered_confidence_intervals(
         idx = label_positions.get(label, 0) if color_by_position else _method_color_index(label)
         return colors[idx % len(colors)]
     
+    def legend_label(label) -> str:
+        name = method_display_label(label)
+        if legend_break_longer_than is None or len(name) <= legend_break_longer_than:
+            return name
+        if ", " in name:
+            return name.replace(", ", ",\n")
+        if " (" in name:
+            return name.replace(" (", "\n(", 1)
+        return textwrap.fill(name, legend_break_longer_than)
+
     # Each subplot is (DataFrame, y-axis label), in left-to-right order
     panels: list[tuple[pd.DataFrame, Optional[str]]] = [(df, y_label)]
     for extra_df, extra_y_label in (
@@ -2111,8 +2178,8 @@ def plot_scalar_clustered_confidence_intervals(
             current_ax.errorbar(x_positions, means,
                        yerr=[yerr_lower, yerr_upper],
                        fmt='o', color=_color_for(str(label)),
-                       markersize=6, capsize=4, capthick=1,
-                       label=label if show_label else None)
+                       markersize=marker_size, capsize=cap_size, capthick=cap_thick,
+                       label=legend_label(label) if show_label else None)
         
         # Customize plot
         # If the y-label of an additional subplot is None, no y-label is set
@@ -2190,13 +2257,103 @@ class ResultConfig:
     fish_candidate_pool: Literal["round", "persistent"] = "round"
 
 
-def save_figure(fig: plt.Figure, path: str | Path, fig_format: Literal["png", "pdf"] = "png") -> None:
-    """Save a figure to path with the given format. Extension is set from fig_format if missing."""
+# rcParams for a figure drawn at its printed size in one column (3.3 in) with ~7 pt fonts: line widths,
+# tick sizes and paddings scaled down to match the smaller fonts. Use with `plt.rc_context` around the
+# figure's creation.
+COLUMN_FIGURE_RC = {
+    "lines.linewidth": 0.9,
+    "axes.linewidth": 0.5,
+    "grid.linewidth": 0.5,
+    "xtick.major.width": 0.5,
+    "ytick.major.width": 0.5,
+    "xtick.major.size": 2,
+    "ytick.major.size": 2,
+    "xtick.major.pad": 2,
+    "ytick.major.pad": 1.5,
+    "axes.labelpad": 1.5,
+}
+
+
+def slant_x_tick_labels(axes: Iterable[plt.Axes], rotation: float = 30) -> None:
+    """Rotate the x tick labels of `axes`, anchored at their right end below the tick."""
+    for ax in axes:
+        ax.tick_params(axis="x", labelrotation=rotation)
+        for label in ax.get_xticklabels():
+            label.set_horizontalalignment("right")
+            label.set_rotation_mode("anchor")
+
+
+def place_subplots_in_row(
+    fig: plt.Figure,
+    widths_in: Sequence[Optional[float]],
+    gap_in: float = 0.1,
+    pad_in: float = 0.03,
+    top_in: Optional[float] = None,
+    height_in: Optional[float] = None,
+) -> None:
+    """Place the axes of `fig` side by side, each just right of the y-axis labels of the next.
+
+    Gives precise control over the subplot widths in a narrow (e.g. column-width) figure, where a layout
+    engine's uniform spacing wastes room. Call after everything that affects the tick labels and axis
+    labels has been set, since their extents are measured.
+
+    Args:
+        fig: Figure whose axes (in `fig.axes` order) form one row.
+        widths_in: Width of each subplot's data area, in inches. One entry may be None, to give that
+            subplot the width left over.
+        gap_in: Space between a subplot and the y-axis labels of the next one, in inches.
+        pad_in: Space between the figure's edges and the outermost labels, in inches.
+        top_in: Height of the top edge of the subplots above the figure's bottom, in inches. By default,
+            just below the figure's top edge, leaving room for the top tick labels.
+        height_in: Height of the subplots' data area, in inches. If given, the figure's height is changed to
+            fit it, keeping the room above the subplots (e.g. for a figure legend anchored to the figure's
+            top edge). By default, the subplots take the height between their labels and `top_in`.
+    """
+    axes = fig.axes
+    assert len(widths_in) == len(axes), "widths_in needs one entry per subplot"
+    assert sum(w is None for w in widths_in) <= 1, "at most one subplot can take the remaining width"
+    fig_width, fig_height = fig.get_size_inches()
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    # Width of each subplot's y tick labels and y label, and height of its x tick labels and x label
+    label_widths = [(ax.get_window_extent(renderer).x0 - ax.yaxis.get_tightbbox(renderer).x0) / fig.dpi
+                    for ax in axes]
+    label_height = max((ax.get_window_extent(renderer).y0 - ax.xaxis.get_tightbbox(renderer).y0) / fig.dpi
+                       for ax in axes)
+    remaining = (fig_width - 2 * pad_in - sum(label_widths) - gap_in * (len(axes) - 1)
+                 - sum(w for w in widths_in if w is not None))
+    widths = [remaining if w is None else w for w in widths_in]
+    bottom = pad_in + label_height
+    top = fig_height - 0.06 if top_in is None else top_in
+    if height_in is not None:
+        # Grow or shrink the figure below the subplots' top edge, keeping the room above it
+        fig_height += bottom + height_in - top
+        fig.set_size_inches(fig_width, fig_height)
+        top = bottom + height_in
+    x = pad_in
+    for ax, label_width, width in zip(axes, label_widths, widths):
+        x += label_width
+        ax.set_position([x / fig_width, bottom / fig_height, width / fig_width, (top - bottom) / fig_height])
+        x += width + gap_in
+
+
+def save_figure(
+    fig: plt.Figure,
+    path: str | Path,
+    fig_format: Literal["png", "pdf"] = "png",
+    pad_inches: Optional[float] = None,
+) -> None:
+    """Save a figure to path with the given format. Extension is set from fig_format if missing.
+
+    `pad_inches` is the margin around the figure's contents (matplotlib's default is 0.1 in). Set it small
+    for a figure drawn at its printed size, since the margin widens the saved figure and so shrinks it,
+    fonts included, when it is scaled to the printed width."""
     path = Path(path)
     if path.suffix.lower() not in (".png", ".pdf"):
         path = path.with_suffix(f".{fig_format}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, format=fig_format, bbox_inches="tight")
+    pad = {} if pad_inches is None else {"pad_inches": pad_inches}
+    fig.savefig(path, format=fig_format, bbox_inches="tight", **pad)
 
 
 def collect_results_and_plot(
