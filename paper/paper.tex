@@ -125,34 +125,34 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
     This suggests that these approximate solutions could be practical alternatives in terms of solution quality, though testing on more datasets is necessary.
 \end{itemize}
 
-\section{Related Work}
+\section{Background and Related Work}
 \subsection{AI Systems for Virtual Democracy}
-GenerativeCC builds directly on that of \citet{fish-v2}.
-Their generative social choice system uses virtual voters to both evaluate and generate candidate statements.
-We relax from their Monroe election \citep{monroe-1995} with equal-sized constituencies to a CC election \citep{chamberlin-courant} with no such constraint, improve their LLM-based implementation, and use a suite of social welfare functions to measure performance.
-In parallel work, \citet{gsc-next-gen} also extends the work of \citet{fish-v2} to build a similar LLM system with theoretical guarantees under more realistic assumptions.
+GenerativeCC builds directly on the work of \citet{fish-v2}.
+Their fully proportional representation system \citep{monroe-1995} uses virtual voters to evaluate and generate candidate statements.
+We relax the constraint of equal-sized constituencies, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of social welfare functions to measure performance.
+In parallel work, \citet{gsc-next-gen} build a similar LLM system with theoretical guarantees under more realistic assumptions.
 Among their improvements, they apply the same embedding model for clustering statements as GenerativeCC.
 \citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
-While their system uses ranked ballots, selects a single winning statement, and is tested in small groups of up to 6 voters, ours uses more expressive range ballots, selects a weighted slate of winners, and is tested on a single group of 100 opinions.
-\citet{polis} describe Polis, a digital democracy system that has been deployed at the scale of thousands of voters to provide a suite of summaries and analyses of voter opinion using iterative voter feedback on each others' statements.
+While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 voters, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
+\citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of voters using iterative voter feedback on each others' statements.
 GenerativeCC generates new statements and requires voter input only once, eliminating the bias in Polis related to varying levels and timing of voter participation.
-\citet{bakker-consensus} build a generative social choice system using an opinion-conditioned reward model and statement generation model, each fine tuned using data from over 3000 human participants.
-GenerativeCC uses more scalable in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner rather than a single winner election.
+\citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine tuned using data from over 3000 human participants.
+GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single winner election to reach consensus.
 
-\citet{newberry-moral-parliaments} — and earlier, \citet{bostrom-moral-parliaments-2009} — propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
+\citet{newberry-moral-parliaments} --- and earlier, \citet{bostrom-moral-parliaments-2009} --- propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
 In their approach, various ethical systems with weighted voting power are represented in a simulated parliament, where they bargain and vote on decisions.
 GenerativeCC could be applied to select the members in an LLM-based implementation of such a parliament.
-\citet{conitzer-2017-moral-ai} envision a similar system using AI, where models of individuals' values vote to make moral decisions.
-\citet{noothigattu-2018} and \citet{freedman-kidney-exchange} are the first to apply machine learning and social choice theory to automate ethical decision-making in real applications.
+\citet{conitzer-2017-moral-ai} envision a similar system implemented using AI, where models of individuals' values vote to make moral decisions.
 \citet{ouwerx-parliaments} partially implement a simple automated moral parliament, prompting LLM representatives to make compromises to their stances.
 
 \subsection{Voting Systems}
 \citet{chamberlin-courant} introduce a system for fully proportional representation in multiwinner elections, where each voter is assigned to one representative, each representative holds a weight proportional to their number of assigned voters, and winners are selected to maximize an objective function.
-Our voting algorithms follow this design, but we use range ballots and cardinal utilities instead of their ranked ballots.
+Our voting algorithms follow this design, but we use range ballots instead of their ranked ballots.
 The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
-However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative. Building the slate greedily, as in our \Greedy{} algorithm, achieves at least $1-1/e$ of the optimal total utility \citep{nemhauser-1978, lu-boutilier-2011}.
+However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative.
+\citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by rounding a linear programming relaxation, using pipage rounding to obtain approximation guarantees.
-Our \LP{} algorithm instead selects the $k$ candidates with the largest fractional selection values and assigns each voter to their most preferred selected candidate. This selection method has precedent in participatory budgeting \citep{sreedurga-2022}.
+Our \LP{} algorithm is similar except for its rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
 
 The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
 
@@ -171,7 +171,7 @@ As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, eac
 
 \paragraph{Objective}
 Following \citet{chamberlin-courant,fish-v2}, we model voter utility as their level of agreement with their assigned statement.
-GenerativeCC seeks to maximize total voter utility, or related quantities.
+GenerativeCC uses a utilitarian objective (other objectives are explored in \Cref{sec:algorithms}).
 
 \subsection{Algorithm}
 
@@ -191,7 +191,7 @@ GenerativeCC seeks to maximize total voter utility, or related quantities.
     The main differences are that we compute utilities only after all statements are generated, we compute the full matrix \(U\), and we use a different LLM.}
     \begin{enumerate}
         \item Model each voter's utility function with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
-        The prompt includes \(o_i\) and ends with candidate statement \(a_j\), requesting a 0--4 Likert score.
+        The prompt includes \(o_i\) and ends with candidate \(a_j\), requesting a 0--4 Likert score.
         \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the average weighted by token-probability over the responses 0--4.
         We treat this expected score as voter \(i\)'s agreement with \(a_j\).
         \item Repeat steps (a) and (b) for all \(i\in N\) and \(j\in[m]\).
@@ -207,7 +207,7 @@ GenerativeCC seeks to maximize total voter utility, or related quantities.
 \subsection{Statement Generation Details}
 \label{sec:statement-generation}
 
-We generate candidates in three stages: (i) compute embeddings for all voters, (ii) cluster voters, and (iii) generate statements for the whole population and for individual clusters.
+We generate candidates in three stages: (i) compute embeddings for all voters, (ii) cluster voters, and (iii) generate statements seeded by each cluster and by the whole population.
 
 For embeddings, we consider two notions of similarity.
 
@@ -217,9 +217,7 @@ We embed each opinion summary with OpenAI's \texttt{text-embedding-3-small} and 
 \paragraph{Discriminative distances \citep{fish-v2}}
 We ask voter \(j\) to rate the summary statement of voter \(i\).
 
-In GenerativeCC, we cluster voters with \(k\)-means on the LLM embeddings, using five clusters.
-
-Given a set of opinions, we then generate candidates in two ways.
+In GenerativeCC, we cluster voters with \(k\)-means on the LLM embeddings, using five clusters. Given a set of opinions, we then generate candidates in two ways.
 
 \paragraph{Single-statement generator}
 Generate one statement intended to represent the set of opinions; we run this generator twice.
