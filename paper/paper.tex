@@ -180,10 +180,8 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
     \begin{enumerate}
         \item For each opinion \(o_i\), generate a summary of roughly standard length.
         In our case study, we reuse the summaries from \citet{fish-v2}, each under 50 words.
-        \item Embed each summary %We use OpenAI's \texttt{text-embedding-3-small}.
-        and perform k-means on the embedding vectors to cluster opinions.
+        \item Embed each summary and perform k-means on the embedding vectors to cluster opinions.
         \item Generate candidate statements from the full population and from individual clusters.
-        In our experiments, GPT-4o performs all candidate-generation requests.
         See \Cref{sec:statement-generation} for details.
     \end{enumerate}
 
@@ -207,17 +205,8 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
 \subsection{Statement Generation Details}
 \label{sec:statement-generation}
 
-We generate candidates in three stages: (i) compute embeddings for all voters, (ii) cluster voters, and (iii) generate statements seeded by each cluster and by the whole population.
-
-For embeddings, we consider two notions of similarity.
-
-\paragraph{LLM embeddings}
-We embed each opinion summary with OpenAI's \texttt{text-embedding-3-small} and measure cosine similarity.
-
-\paragraph{Discriminative distances \citep{fish-v2}}
-We ask voter \(j\) to rate the summary statement of voter \(i\).
-
-In GenerativeCC, we cluster voters with \(k\)-means on the LLM embeddings, using five clusters. Given a set of opinions, we then generate candidates in two ways.
+We generate candidates in three stages: (i) embed each voter's opinion summary with OpenAI's \texttt{text-embedding-3-small}, (ii) cluster voters into \(k\) clusters with k-means on these embeddings, and (iii) generate statements seeded by each cluster and by the whole population.
+Given a set of opinions, we generate candidates in two ways.
 
 \paragraph{Single-statement generator}
 Generate one statement intended to represent the set of opinions; we run this generator twice.
@@ -225,33 +214,49 @@ Generate one statement intended to represent the set of opinions; we run this ge
 \paragraph{Batch generator}
 Generate five statements at once, prompted to jointly represent the set of opinions as well as possible.
 
-We apply both generators once to the set of all opinions and once to each of the five clusters.
-This yields
+We apply both generators once to the set of all opinions and once to each of the \(k\) clusters.
+Using the default \(n=100, k=5\) in our experiments, this yields
 \[
 \begin{aligned}
+m&= \\
 &(2\,\text{from single\text{-}statement generator} \\
 &\quad + 5\,\text{from batch generator}) \\
 &\times (1\,\text{population} + 5\,\text{clusters}) \\
 &= 42\,\text{candidate statements}
 \end{aligned}
 \]
-In our experiments, we use GPT-4o with temperature 1 for all generative queries.
-Across runs, all statement generation methods contribute statements that are eventually selected into a final slate.
+We use GPT-4o with temperature 1 for all generative queries.
+Across 10 runs, all four generation methods contribute statements that get selected into a slate.
 \Cref{app:statement-origin} reports the breakdown by generator.
 
 \subsection{Inference Costs and Runtime Complexity}
+\label{sec:inference-costs}
 
 \paragraph{Inference costs}
-For a fixed number of generated candidates, GenerativeCC uses roughly twice as many LLM calls as that of \citet{fish-v2} (see \Cref{tab:llm-call-comparison}).
+\Cref{tab:llm-call-comparison} counts the LLM calls of each type made by GenerativeCC and by the pipeline of \citet{fish-v2}.
+Three differences between the pipelines account for the counts.
+\begin{enumerate}
+    \item \emph{Finding groups of similar voters.}
+    GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings, which requires no further LLM calls.
+    The baseline instead makes discriminative queries where virtual voter \(j\) rates the summary of voter \(i\), and the result is taken as a measure of similarity.
+    \(n(k+2)-3k\) discriminative queries are made for this purpose.
+    \item \emph{Generating candidates.}
+    Each of the baseline's 6 generators makes one generative call per round and produces one statement, so the baseline generates \(m=6k=30\) candidates with the default \(k=5\).
+    \footnote{We measure how the difference in \(m\) (30 vs. 42) affects performance in \Cref{app:statement-ablation-details}.}
+    GenerativeCC makes three generative calls on each of its \(k+1\) sets of opinions (the whole population and \(k\) clusters): two single-statement calls and one batch call that returns five statements.
+    It thus generates \(m=7(k+1)\) candidates with \(3(k+1)\) calls (42 candidates with 18 calls for \(k=5\)).
+    \item \emph{Rating candidates.}
+    GenerativeCC has every voter rate every candidate, for \(nm\) discriminative queries.
+    The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned rate the \(m/k\) new candidates, for \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries in this phase.
+\end{enumerate}
+
+GenerativeCC makes fewer generative queries, but each query uses more output tokens on average.
+It also makes no more tha twice as many discriminative queries.
 
 \paragraph{Runtime complexity}
 In practice, runtime is dominated by LLM calls, which are comparable in cost per call across the baseline and GenerativeCC.
 Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and then runs one of the voting algorithms from \Cref{sec:voting-algorithms}, which may have polynomial or exponential runtime (\Cref{tab:time-complexity}).
 However, at the small scale of our experiments, GenerativeCC is slower mostly due to the linear difference in required LLM inference rather than any difference in voting algorithm runtime.
-
-\paragraph{Number of generated statements}
-For both approaches, the number \(m\) of generated candidates is a multiple of the number of statement-generation methods used.
-If \(g\) denotes the number of generators, the baseline produces \(m=k\cdot g\) candidates, while GenerativeCC produces \(m=(c+1)\cdot g\), where \(c\) is the number of clusters.
 
 \begin{table}[t]
 \centering
@@ -261,12 +266,13 @@ If \(g\) denotes the number of generators, the baseline produces \(m=k\cdot g\) 
 Type of LLM Call & GenerativeCC & \makecell{Baseline \\ \citep{fish-v2}} \\
 \hline
 Get opinion embedding & $n$ & -- \\
-Generate a candidate & $m$ & $m$ \\
+Rate another voter's opinion & -- & $n(k+2) - 3k$ \\
+Generate candidates & $3m/7$ & $m$ \\
 Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ \\
 \hline
 \end{tabular}}
 \caption{Number of calls for different types of LLM requests for running the full pipeline, where \(m\) is the number of generated candidates, \(n\) the number of voters, and \(k\) the slate size.
-The baseline requires \(m\) to be a multiple of the slate size, while GenerativeCC allows \(m\) to be chosen more freely so long as \(m\ge k\).}
+Both rating rows are discriminative queries (\Cref{sec:inference-costs}).}
 \label{tab:llm-call-comparison}
 \end{table}
 
@@ -479,8 +485,8 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
 \end{figure*}
 
 We evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
-Using the 10 ballot profiles generated from GenerativeCC with LLM embeddings in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
-We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this dataset.
+Using the 10 ballot profiles from GenerativeCC used in \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs}.
+We show \ExactP{} with \(\kappa=3\) and \(\kappa=7\).
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
 Since every voting algorithm in \Cref{fig:sfws-voting-algs} runs on the same profiles, we also report on how many profiles a difference holds.
 
