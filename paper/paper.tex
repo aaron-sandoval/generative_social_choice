@@ -50,6 +50,9 @@
 \newcommand{\ECCExact}{\textsc{E-CC-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 \newcommand{\UGreedyMonroe}{\textsc{U-Monroe-Greedy}}
+\newcommand{\BaselineReassign}{\textsc{Baseline + reassign}}
+\newcommand{\BaselineEMonroeReassign}{\textsc{Baseline + E-Monroe-Exact reassign}}
+\newcommand{\BaselineCCReassign}{\textsc{Baseline + CC reassign}}
 
 % Fixed-width, left-aligned box so entries in a centered column align on their first character
 
@@ -428,7 +431,7 @@ The candidates generated in earlier rounds that are not yet on the slate remain 
 One candidate is selected, its voters assigned, and the roudn concludes.
 This uses \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries instead of \(nm\) (\Cref{tab:llm-call-comparison}).
 
-\paragraph{\Baseline{} + \EExactMonroe{} reassign}
+\paragraph{\BaselineEMonroeReassign{}}
 In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full ballot profile.
 Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
 This algorithm selects the slate using \Baseline.
@@ -436,8 +439,8 @@ Then, full discriminative queries are performed on the slate.
 Finally, voters are reassigned with \EExactMonroe{}.
 This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discriminative queries, compared with \(nm\) for the algorithms that compute the full ballot profile and \(\frac{1}{2} n (m + m/k)\) for the baseline (\Cref{tab:llm-call-comparison}).
 
-\paragraph{\Baseline{} + CC reassign}
-Similar to \Baseline{} + \EExactMonroe{} reassign, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
+\paragraph{\BaselineCCReassign{}}
+Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
 
 \subsection{Results}
 \label{sec:voting-results}
@@ -465,9 +468,9 @@ Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate'
 \EExactMonroe{} & \(n,m\)\footnotemark[\monroecomplexityfn] & -- & \(k\) \\ \hline
 \UGreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
 \GreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\\EExactMonroe{} reassign} & \(n,k\)\tablefootnote{Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
+\makecell[l]{\Baseline{} +\\\textsc{E-Monroe-Exact reassign}} & \(n,k\)\tablefootnote{Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
 With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.} & \(m\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\CC reassign} & -- & \(n,m,k\) & -- \\
+\makecell[l]{\Baseline{} +\\\textsc{CC reassign}} & -- & \(n,m,k\) & -- \\
 \hline
 \end{tabular}
 \caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
@@ -535,16 +538,16 @@ A modest Kolm--Pollak transformation may also be attractive in providing probabl
   \label{fig:sfws-voting-algs-fish}
 \end{figure}
 
-\subsubsection{\textsc{Baseline + reassign} Algorithms}
+\subsubsection{\BaselineReassign{} Algorithms}
 \label{sec:expensive-queries}
 
-\Cref{fig:sfws-voting-algs-fish} compares \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
+\Cref{fig:sfws-voting-algs-fish} compares \BaselineEMonroeReassign{} and \BaselineCCReassign{} (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
 Since \Baseline{} has only the unassigned voters rate the candidates generated in each round, these profiles are incomplete; we fill them afterwards using additional discriminative queries, so that \EExactMonroe{} runs on the complete ballot profile.
 Cluster 3: \textsc{Monroe-Greedy + reassign} algorithms fall in between clusters 1 and 2.
 
 \paragraph{Computing more of the utility matrix is the largest improvement}
 Having all voters rate the baseline's slate and then reassigning them improves every SWF on every profile, except for one profile on which the minimum utility is unchanged.
-\Baseline{} + \EExactMonroe{} reassign recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.058 of 0.067), 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
+\BaselineEMonroeReassign{} recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.058 of 0.067), 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
 CC reassignment performs almost identically.
 As with the constituency size constraint in \Cref{fig:sfws-voting-algs}, the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
 In our setting (\(n=100\), \(m=30\), \(k=5\)), this requires at most \(n(k-1)/2=200\) discriminative queries beyond the 1,800 used by \Baseline{}, an increase of 11\%.
@@ -824,7 +827,7 @@ It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the \LP{} variant we benchmark has a worst case exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
 
-\subsection{Runtime Complexity of \Baseline{} + \EExactMonroe{} reassign}
+\subsection{Runtime Complexity of \BaselineEMonroeReassign{}}
 \label{app:baseline-reassign-complexity}
 The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
 Solved by branch-and-bound, as in our implementation, its worst-case running time is exponential in \(n\) and \(k\) and does not depend on \(m\), by the argument of \Cref{app:brute-force-vs-exact} with the \(k\) slate members in place of the \(m\) candidates.
