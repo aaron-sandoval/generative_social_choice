@@ -491,10 +491,9 @@ Using the 10 ballot profiles from GenerativeCC used in \Cref{fig:swf-main}, we p
 We show \ExactP{} with \(\kappa=3\) and \(\kappa=7\).
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
 
-The algorithms form three clusters based on their performance.
+The algorithms form two clusters based on their performance.
 Cluster 1: CC and \textsc{Exact} algorithms perform relatively well on every SWF.
 Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
-Cluster 3: \textsc{Monroe-Greedy + reassign} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
 \Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
@@ -510,7 +509,6 @@ Later winners are then chosen only for the remaining voters, and no voter can mo
 \paragraph{The constituency size constraint matters little}
 \ExactMonroe{} is within 0.003 of \Exact{} in mean utility, and their minimum utilities are equal within confidence bounds.
 \EExactMonroe{} attains the same minimum utility as \ECCExact{} on all 10 profiles, at a cost of 0.008 in mean utility.
-The reassignment variants in \Cref{fig:sfws-voting-algs-fish} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
 Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for both egalitarian and utilitarian objective functions.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
@@ -537,15 +535,18 @@ A modest Kolm--Pollak transformation may also be attractive in providing probabl
   \label{fig:sfws-voting-algs-fish}
 \end{figure}
 
-\subsubsection{Voting Algorithms for Expensive Discriminative Queries}
+\subsubsection{\textsc{Baseline + reassign} Algorithms}
 \label{sec:expensive-queries}
 
-\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
+\Cref{fig:sfws-voting-algs-fish} compares \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
+Since \Baseline{} has only the unassigned voters rate the candidates generated in each round, these profiles are incomplete; we fill them afterwards using additional discriminative queries, so that \EExactMonroe{} runs on the complete ballot profile.
+Cluster 3: \textsc{Monroe-Greedy + reassign} algorithms fall in between clusters 1 and 2.
 
 \paragraph{Computing more of the utility matrix is the largest improvement}
 Having all voters rate the baseline's slate and then reassigning them improves every SWF on every profile, except for one profile on which the minimum utility is unchanged.
 \Baseline{} + \EExactMonroe{} reassign recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.058 of 0.067), 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
 CC reassignment performs almost identically.
+As with the constituency size constraint in \Cref{fig:sfws-voting-algs}, the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
 In our setting (\(n=100\), \(m=30\), \(k=5\)), this requires at most \(n(k-1)/2=200\) discriminative queries beyond the 1,800 used by \Baseline{}, an increase of 11\%.
 The complete ballot profile requires 3,000.
 
