@@ -153,6 +153,8 @@ However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so p
 \citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by rounding a linear programming relaxation, using pipage rounding to obtain approximation guarantees.
 Our \LP{} algorithm is similar except for its rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
+\citet{skowron-2015} test a greedy Monroe approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
+This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
 
 The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
 
@@ -488,21 +490,17 @@ We evaluate each voting algorithm on the social welfare functions from \Cref{sec
 Using the 10 ballot profiles from GenerativeCC used in \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs}.
 We show \ExactP{} with \(\kappa=3\) and \(\kappa=7\).
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
-Since every voting algorithm in \Cref{fig:sfws-voting-algs} runs on the same profiles, we also report on how many profiles a difference holds.
 
 The algorithms form three clusters based on their performance.
-Cluster 1: the first eight algorithms in \Cref{fig:sfws-voting-algs} perform relatively well on every SWF, within 0.02 of each other in mean utility and within 0.09 in minimum utility.
-Cluster 2: \UGreedyMonroe{}, \GreedyMonroe{}, and \Baseline{} perform much worse on every SWF.
-Cluster 3: The two reassignment variants of \Baseline{} in \Cref{fig:sfws-voting-algs-fish} fall in between (\Cref{sec:expensive-queries}).
+Cluster 1: CC and \textsc{Exact} algorithms perform relatively well on every SWF.
+Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
+Cluster 3: \textsc{Monroe-Greedy + reassign} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
-Polynomial-time \textsc{CC} algorithms need not sacrifice much performance on this benchmark.
 \Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
 \LP{} realizes identical voter utilities as \Exact{} on all 10 profiles, and \Greedy{} on 7 of the 10, with no SWF differing by more than 0.002 on average.
-This is consistent with the near-optimal empirical performance of greedy algorithms for the utilitarian CC rule reported by \citet{skowron-2015}.
 
 \paragraph{\textsc{Monroe-Greedy} algorithms perform poorly compared to \textsc{Monroe-Exact}}
-The \textsc{Monroe-Greedy} algorithms perform significantly worse than their \textsc{Monroe-Exact} counterparts.
 While we are uncertain as to its exact nature, some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
 One possible cause is the absence of global optimization steps in \textsc{Monroe-Greedy} algorithms.
 \textsc{CC-Greedy} algorithms perform multiple optimizations over all voters, reassigning every voter to their favorite slate member after each round.
