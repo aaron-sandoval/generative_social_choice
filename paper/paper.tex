@@ -56,7 +56,7 @@
 
 % Fixed-width, left-aligned box so entries in a centered column align on their first character
 
-\title{Chamberlin-Courant Elections with Generative Social Choice}
+\title{GenerativeCC: Chamberlin--Courant Elections with Generative Social Choice}
 
 % Hidden automatically while aaai2027 is loaded with the [submission] option.
 \author{
@@ -73,13 +73,13 @@
 \maketitle
 
 \begin{abstract}
-Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent the complex opinions of a constituency.
-However, prior systems have limitations such as losing diversity by selecting a single statement, using less expressive ranked ballots, or enforcing excessive constraints that limit the representativeness of outputs.
-We build Generative Chamberlin--Courant (GenerativeCC), an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
+Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent a diverse constituency.
+However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit the representativeness of outputs.
+We build GenerativeCC, an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
 The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a weighted slate using a multiwinner range voting algorithm.
 On a dataset of 100 opinions, GenerativeCC outperforms the baseline across all egalitarian and utilitarian social welfare functions.
-Ablation studies indicate that the design features primarily driving improved performance are evaluating all voters against all candidate statements, optimizing globally for a utilitarian objective, and allowing the slate to be weighted rather than enforcing equal-sized constituencies.
-%While the pipeline runs in exponential time, multiple polynomial time alternatives are presented that achieve similar performance.
+The design feature primarily driving improved performance is evaluating more voters against more candidate statements.
+While the pipeline runs in exponential time, we demonstrate that multiple polynomial-time alternatives achieve similar performance.
 GenerativeCC is a practical starting point for virtual democracy systems that represent diverse opinions.
 \end{abstract}
 
@@ -97,16 +97,16 @@ GenerativeCC is a practical starting point for virtual democracy systems that re
 
 Recent progress in AI creates both risks and opportunities for collective decision-making \citep{landemore}.
 One promising direction is \emph{virtual democracy}, in which multiple AIs representing a constituency help aggregate opinions and support decision-making \citep{noothigattu-2018, kahng-virtual-democracy, freedman-kidney-exchange}.
-Recent work has extended this paradigm beyond fixed decision spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}. However, no generative system exists whose  performance has been evaluated on a variety of social welfare functions (SWFs) at a scale of 100+ voters using a realistic dataset of voter opinions.
+Recent work has extended this paradigm beyond fixed decision spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}.
+However, no generative system exists whose performance has been evaluated on a variety of social welfare functions (SWFs) at a scale of 100+ voters using a realistic dataset of voter opinions.
 
-We design and evaluate such a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
-We call this system Generative Chamberlin--Courant (GenerativeCC).
+We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
 The system functionality is illustrated in \Cref{fig:functionality}.
-Under the CC rule, a slate of \(k\) winners is selected, where each voter is assigned to their favorite winner as their representative.
-Each voter fills out a \emph{range ballot}, scoring every candidate statement by their level of agreement.
+Under the CC rule, a slate of \(k\) winners is selected, where each voter is assigned their favorite winner as their representative.
+Each voter fills out a \emph{range ballot}, scoring every candidate statement by their level of agreement from 0--4.
 A voter's utility is their score for their representative.
 For downstream applications, each winner is weighted proportionally to their number of assigned voters.
-The CC rule selects the slate and assignment that maximize total utility.
+The utilitarian CC rule selects the slate and assignment that maximize total utility.
 Because each voter counts only their favorite winner, this rule suits our goal of representing diverse views, rather than selecting statements with the broadest appeal \citep{faliszewski-multiwinner-2017, lu-boutilier-2011}.
 
 We use the generative social choice system of \citet{fish-v2} as our baseline.
@@ -117,15 +117,15 @@ These changes allow for separation of statement generation from slate selection 
 
 We find that GenerativeCC significantly improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
 Polynomial-time approximations of the utilitarian CC rule show only slightly worse performance on this dataset.
-We perform ablation studies which indicate that the improved performance is primarily due to the two main changes listed above, with other changes having a smaller impact.
+We perform ablation studies which indicate that the improved performance is primarily due to the full ballot profile, with other changes having a smaller impact.
 GenerativeCC has applications in virtual democracy, automated deliberation systems, or simply as a tool to fairly summarize large collections of free-form opinions.
 
 \paragraph{Our main contributions are:}
 \begin{itemize}
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
-    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs than baselines that directly optimize minimum utility; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) algorithms that compute a polynomial time approximation perform competitively with an exponential time exact solution on the SWFs.
-    This suggests that these approximate solutions could be practical alternatives in terms of solution quality, though testing on more datasets is necessary.
+    \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the ballot profile, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
+    This suggests that CC voting algorithms offer the most scalability and average performance for large-scale voter representation, though testing on more datasets is necessary.
 \end{itemize}
 
 \section{Background and Related Work}
