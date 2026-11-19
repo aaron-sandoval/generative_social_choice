@@ -50,10 +50,13 @@
 \newcommand{\ECCExact}{\textsc{E-CC-Exact}}
 \newcommand{\GreedyMonroe}{\textsc{E-Monroe-Greedy}}
 \newcommand{\UGreedyMonroe}{\textsc{U-Monroe-Greedy}}
+\newcommand{\BaselineReassign}{\textsc{Baseline + reassign}}
+\newcommand{\BaselineEMonroeReassign}{\textsc{Baseline + E-Monroe-Exact reassign}}
+\newcommand{\BaselineCCReassign}{\textsc{Baseline + CC reassign}}
 
 % Fixed-width, left-aligned box so entries in a centered column align on their first character
 
-\title{Chamberlin-Courant Elections with Generative Social Choice}
+\title{GenerativeCC: Chamberlin--Courant Elections with Generative Social Choice}
 
 % Hidden automatically while aaai2027 is loaded with the [submission] option.
 \author{
@@ -70,13 +73,13 @@
 \maketitle
 
 \begin{abstract}
-Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent the complex opinions of a constituency.
-However, prior systems have limitations such as losing diversity by selecting a single statement, using less expressive ranked ballots, or enforcing excessive constraints that limit the representativeness of outputs.
-We build Generative Chamberlin--Courant (GenerativeCC), an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
+Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent a diverse constituency.
+However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit the representativeness of outputs.
+We build GenerativeCC, an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
 The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a weighted slate using a multiwinner range voting algorithm.
 On a dataset of 100 opinions, GenerativeCC outperforms the baseline across all egalitarian and utilitarian social welfare functions.
-Ablation studies indicate that the design features primarily driving improved performance are evaluating all voters against all candidate statements, optimizing globally for a utilitarian objective, and allowing the slate to be weighted rather than enforcing equal-sized constituencies.
-%While the pipeline runs in exponential time, multiple polynomial time alternatives are presented that achieve similar performance.
+The design feature primarily driving improved performance is evaluating more voters against more candidate statements.
+While the pipeline runs in exponential time, we demonstrate that multiple polynomial-time alternatives achieve similar performance.
 GenerativeCC is a practical starting point for virtual democracy systems that represent diverse opinions.
 \end{abstract}
 
@@ -94,16 +97,16 @@ GenerativeCC is a practical starting point for virtual democracy systems that re
 
 Recent progress in AI creates both risks and opportunities for collective decision-making \citep{landemore}.
 One promising direction is \emph{virtual democracy}, in which multiple AIs representing a constituency help aggregate opinions and support decision-making \citep{noothigattu-2018, kahng-virtual-democracy, freedman-kidney-exchange}.
-Recent work has extended this paradigm beyond fixed decision spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}. However, no generative system exists whose  performance has been evaluated on a variety of social welfare functions (SWFs) at a scale of 100+ voters using a realistic dataset of voter opinions.
+Recent work has extended this paradigm beyond fixed decision spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}.
+However, no generative system exists whose performance has been evaluated on a variety of social welfare functions (SWFs) at a scale of 100+ voters using a realistic dataset of voter opinions.
 
-We design and evaluate such a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
-We call this system Generative Chamberlin--Courant (GenerativeCC).
+We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
 The system functionality is illustrated in \Cref{fig:functionality}.
-Under the CC rule, a slate of \(k\) winners is selected, where each voter is assigned to their favorite winner as their representative.
-Each voter fills out a \emph{range ballot}, scoring every candidate statement by their level of agreement.
+Under the CC rule, a slate of \(k\) winners is selected, where each voter is assigned their favorite winner as their representative.
+Each voter fills out a \emph{range ballot}, scoring every candidate statement by their level of agreement from 0--4.
 A voter's utility is their score for their representative.
 For downstream applications, each winner is weighted proportionally to their number of assigned voters.
-The CC rule selects the slate and assignment that maximize total utility.
+The utilitarian CC rule selects the slate and assignment that maximize total utility.
 Because each voter counts only their favorite winner, this rule suits our goal of representing diverse views, rather than selecting statements with the broadest appeal \citep{faliszewski-multiwinner-2017, lu-boutilier-2011}.
 
 We use the generative social choice system of \citet{fish-v2} as our baseline.
@@ -114,15 +117,15 @@ These changes allow for separation of statement generation from slate selection 
 
 We find that GenerativeCC significantly improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
 Polynomial-time approximations of the utilitarian CC rule show only slightly worse performance on this dataset.
-We perform ablation studies which indicate that the improved performance is primarily due to the two main changes listed above, with other changes having a smaller impact.
+We perform ablation studies which indicate that the improved performance is primarily due to the full ballot profile, with other changes having a smaller impact.
 GenerativeCC has applications in virtual democracy, automated deliberation systems, or simply as a tool to fairly summarize large collections of free-form opinions.
 
 \paragraph{Our main contributions are:}
 \begin{itemize}
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
-    \item We evaluate several utilitarian \emph{voting algorithms} against egalitarian baselines on the chatbot personalization dataset and find that (i) the utilitarian algorithms perform better on egalitarian SWFs than baselines that directly optimize minimum utility; (ii) the majority of the improvement in overall pipeline performance is due to the updated voting algorithm; (iii) algorithms that compute a polynomial time approximation perform competitively with an exponential time exact solution on the SWFs.
-    This suggests that these approximate solutions could be practical alternatives in terms of solution quality, though testing on more datasets is necessary.
+    \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the ballot profile, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
+    This suggests that CC voting algorithms offer the most scalability and average performance for large-scale voter representation, though testing on more datasets is necessary.
 \end{itemize}
 
 \section{Background and Related Work}
@@ -153,6 +156,8 @@ However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so p
 \citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by rounding a linear programming relaxation, using pipage rounding to obtain approximation guarantees.
 Our \LP{} algorithm is similar except for its rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
+\citet{skowron-2015} test a greedy Monroe approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
+This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
 
 The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
 
@@ -180,10 +185,8 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
     \begin{enumerate}
         \item For each opinion \(o_i\), generate a summary of roughly standard length.
         In our case study, we reuse the summaries from \citet{fish-v2}, each under 50 words.
-        \item Embed each summary %We use OpenAI's \texttt{text-embedding-3-small}.
-        and perform k-means on the embedding vectors to cluster opinions.
+        \item Embed each summary and perform k-means on the embedding vectors to cluster opinions.
         \item Generate candidate statements from the full population and from individual clusters.
-        In our experiments, GPT-4o performs all candidate-generation requests.
         See \Cref{sec:statement-generation} for details.
     \end{enumerate}
 
@@ -207,17 +210,8 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
 \subsection{Statement Generation Details}
 \label{sec:statement-generation}
 
-We generate candidates in three stages: (i) compute embeddings for all voters, (ii) cluster voters, and (iii) generate statements seeded by each cluster and by the whole population.
-
-For embeddings, we consider two notions of similarity.
-
-\paragraph{LLM embeddings}
-We embed each opinion summary with OpenAI's \texttt{text-embedding-3-small} and measure cosine similarity.
-
-\paragraph{Discriminative distances \citep{fish-v2}}
-We ask voter \(j\) to rate the summary statement of voter \(i\).
-
-In GenerativeCC, we cluster voters with \(k\)-means on the LLM embeddings, using five clusters. Given a set of opinions, we then generate candidates in two ways.
+We generate candidates in three stages: (i) embed each voter's opinion summary with OpenAI's \texttt{text-embedding-3-small}, (ii) cluster voters into \(k\) clusters with k-means on these embeddings, and (iii) generate statements seeded by each cluster and by the whole population.
+Given a set of opinions, we generate candidates in two ways.
 
 \paragraph{Single-statement generator}
 Generate one statement intended to represent the set of opinions; we run this generator twice.
@@ -225,33 +219,49 @@ Generate one statement intended to represent the set of opinions; we run this ge
 \paragraph{Batch generator}
 Generate five statements at once, prompted to jointly represent the set of opinions as well as possible.
 
-We apply both generators once to the set of all opinions and once to each of the five clusters.
-This yields
+We apply both generators once to the set of all opinions and once to each of the \(k\) clusters.
+Using the default \(n=100, k=5\) in our experiments, this yields
 \[
 \begin{aligned}
+m&= \\
 &(2\,\text{from single\text{-}statement generator} \\
 &\quad + 5\,\text{from batch generator}) \\
 &\times (1\,\text{population} + 5\,\text{clusters}) \\
 &= 42\,\text{candidate statements}
 \end{aligned}
 \]
-In our experiments, we use GPT-4o with temperature 1 for all generative queries.
-Across runs, all statement generation methods contribute statements that are eventually selected into a final slate.
+We use GPT-4o with temperature 1 for all generative queries.
+Across 10 runs, all four generation methods contribute statements that get selected into a slate.
 \Cref{app:statement-origin} reports the breakdown by generator.
 
 \subsection{Inference Costs and Runtime Complexity}
+\label{sec:inference-costs}
 
 \paragraph{Inference costs}
-For a fixed number of generated candidates, GenerativeCC uses roughly twice as many LLM calls as that of \citet{fish-v2} (see \Cref{tab:llm-call-comparison}).
+\Cref{tab:llm-call-comparison} counts the LLM calls of each type made by GenerativeCC and by the pipeline of \citet{fish-v2}.
+Three differences between the pipelines account for the counts.
+\begin{enumerate}
+    \item \emph{Finding groups of similar voters.}
+    GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings, which requires no further LLM calls.
+    The baseline instead makes discriminative queries where virtual voter \(j\) rates the summary of voter \(i\), and the result is taken as a measure of similarity.
+    \(n(k+2)-3k\) discriminative queries are made for this purpose.
+    \item \emph{Generating candidates.}
+    Each of the baseline's 6 generators makes one generative call per round and produces one statement, so the baseline generates \(m=6k=30\) candidates with the default \(k=5\).
+    \footnote{We measure how the difference in \(m\) (30 vs. 42) affects performance in \Cref{app:statement-ablation-details}.}
+    GenerativeCC makes three generative calls on each of its \(k+1\) sets of opinions (the whole population and \(k\) clusters): two single-statement calls and one batch call that returns five statements.
+    It thus generates \(m=7(k+1)\) candidates with \(3(k+1)\) calls (42 candidates with 18 calls for \(k=5\)).
+    \item \emph{Rating candidates.}
+    GenerativeCC has every voter rate every candidate, for \(nm\) discriminative queries.
+    The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned rate the \(m/k\) new candidates, for \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries in this phase.
+\end{enumerate}
+
+GenerativeCC makes fewer generative queries, but each query uses more output tokens on average.
+It also makes no more tha twice as many discriminative queries.
 
 \paragraph{Runtime complexity}
 In practice, runtime is dominated by LLM calls, which are comparable in cost per call across the baseline and GenerativeCC.
 Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and then runs one of the voting algorithms from \Cref{sec:voting-algorithms}, which may have polynomial or exponential runtime (\Cref{tab:time-complexity}).
 However, at the small scale of our experiments, GenerativeCC is slower mostly due to the linear difference in required LLM inference rather than any difference in voting algorithm runtime.
-
-\paragraph{Number of generated statements}
-For both approaches, the number \(m\) of generated candidates is a multiple of the number of statement-generation methods used.
-If \(g\) denotes the number of generators, the baseline produces \(m=k\cdot g\) candidates, while GenerativeCC produces \(m=(c+1)\cdot g\), where \(c\) is the number of clusters.
 
 \begin{table}[t]
 \centering
@@ -261,12 +271,13 @@ If \(g\) denotes the number of generators, the baseline produces \(m=k\cdot g\) 
 Type of LLM Call & GenerativeCC & \makecell{Baseline \\ \citep{fish-v2}} \\
 \hline
 Get opinion embedding & $n$ & -- \\
-Generate a candidate & $m$ & $m$ \\
+Rate another voter's opinion & -- & $n(k+2) - 3k$ \\
+Generate candidates & $3m/7$ & $m$ \\
 Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ \\
 \hline
 \end{tabular}}
 \caption{Number of calls for different types of LLM requests for running the full pipeline, where \(m\) is the number of generated candidates, \(n\) the number of voters, and \(k\) the slate size.
-The baseline requires \(m\) to be a multiple of the slate size, while GenerativeCC allows \(m\) to be chosen more freely so long as \(m\ge k\).}
+Both rating rows are discriminative queries (\Cref{sec:inference-costs}).}
 \label{tab:llm-call-comparison}
 \end{table}
 
@@ -278,7 +289,7 @@ Throughout, we compare against results obtained by running their pipeline under 
 \subsection{Input Data}
 
 The chatbot personalization dataset contains survey responses from a representative sample of 100 U.S.\ residents.
-In addition to free-form responses, the survey asks participants to rate one of seven seed statements about chatbot personalization on a 0--4 Likert scale.
+In addition to free-form responses, the survey asks participants to rate seven seed statements on the topic on a 0--4 Likert scale.
 For details, see Section 5 of \citet{fish-v2}.
 
 Rather than using the original survey responses directly, we use the summarized participant responses released by \citet{fish-v2}.\footnote{The original data are available at \url{https://github.com/generative-social-choice/chatbot_personalization}.}
@@ -417,19 +428,23 @@ After solving the relaxed program, it selects the \(k\) candidates with largest 
 The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation.
 In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters, and only the unassigned voters rate them.
 The candidates generated in earlier rounds that are not yet on the slate remain eligible.
-One candidate is selected, its voters assigned, and the roudn concludes.
-This uses \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries instead of \(nm\) (\Cref{tab:llm-call-comparison}).
+One candidate is selected, its voters assigned, and the round concludes.
+This uses \(\frac{1}{2} n (m + m/k)\) discriminative queries, the fewest of any algorithm we test (\Cref{tab:llm-call-comparison}).
+If the slate contains one winner generated during each round, then no post-hoc improvements such as reassignment are possible without additional discriminative queries.
+This is because the winner generated in the final round are never rated by the \(n-n/k\) voters already assigned at the start of that round.
+Since no other voter can be assigned to the final winner, all of its currently assigned voters must stay assigned.
+This constraint propagates backwards through the rounds.
 
-\paragraph{\Baseline{} + \EExactMonroe{} reassign}
+\paragraph{\BaselineEMonroeReassign{}}
 In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full ballot profile.
 Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
 This algorithm selects the slate using \Baseline.
 Then, full discriminative queries are performed on the slate.
 Finally, voters are reassigned with \EExactMonroe{}.
-This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discriminative queries, compared with \(nm\) for the algorithms that compute the full ballot profile and \(\frac{1}{2} n (m + m/k)\) for the baseline (\Cref{tab:llm-call-comparison}).
+This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discriminative queries.
 
-\paragraph{\Baseline{} + CC reassign}
-Similar to \Baseline{} + \EExactMonroe{} reassign, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
+\paragraph{\BaselineCCReassign{}}
+Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
 
 \subsection{Results}
 \label{sec:voting-results}
@@ -457,9 +472,9 @@ Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate'
 \EExactMonroe{} & \(n,m\)\footnotemark[\monroecomplexityfn] & -- & \(k\) \\ \hline
 \UGreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
 \GreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\\EExactMonroe{} reassign} & \(n,k\)\tablefootnote{Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
+\makecell[l]{\Baseline{} +\\\textsc{E-Monroe-Exact reassign}} & \(n,k\)\tablefootnote{Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
 With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.} & \(m\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\CC reassign} & -- & \(n,m,k\) & -- \\
+\makecell[l]{\Baseline{} +\\\textsc{CC reassign}} & -- & \(n,m,k\) & -- \\
 \hline
 \end{tabular}
 \caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
@@ -478,78 +493,61 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
   \label{fig:sfws-voting-algs}
 \end{figure*}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/voting_alg_scalar_metrics_fish_candidates.pdf}
+  \caption{Voting algorithm SWF performance on the 15 partial ballot profiles from \Cref{fig:swf-main}, augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding either reassignment step to \Baseline{} recovers most of the performance of \EExactMonroe while requiring far fewer discriminative queries.}
+  \label{fig:sfws-voting-algs-fish}
+\end{figure}
+
 We evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
-Using the 10 ballot profiles generated from GenerativeCC with LLM embeddings in the embedding ablation study (Appendix~\ref{app:embedding-ablation-details}), we produce the results in Figure~\ref{fig:sfws-voting-algs}.
-We show \ExactP{} with stronger inequality aversion \(\kappa=3\) and \(\kappa=7\) because a mild transformation behaves almost identically to \Exact{} on this dataset.
-All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
-Since every voting algorithm in \Cref{fig:sfws-voting-algs} runs on the same profiles, we also report on how many profiles a difference holds.
+Using the 10 GenerativeCC ballot profiles from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs}.
+Using the 15 baseline ballot profiles from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs-fish}.
 
 The algorithms form three clusters based on their performance.
-Cluster 1: the first eight algorithms in \Cref{fig:sfws-voting-algs} perform relatively well on every SWF, within 0.02 of each other in mean utility and within 0.09 in minimum utility.
-Cluster 2: \UGreedyMonroe{}, \GreedyMonroe{}, and \Baseline{} perform much worse on every SWF.
-Cluster 3: The two reassignment variants of \Baseline{} in \Cref{fig:sfws-voting-algs-fish} fall in between (\Cref{sec:expensive-queries}).
+Cluster 1: CC and \textsc{Exact} algorithms perform relatively well on every SWF.
+Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
+Cluster 3: \BaselineReassign algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
+All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
+
+\paragraph{The partial utility matrix is \Baseline's main limiting factor}
+The \BaselineReassign algorithms leverage their additional discriminative queries to recover most of the SWF performance gap among \textsc{E-Monroe} algorithms.
+\BaselineEMonroeReassign{} recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility, 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
+CC reassignment performs almost identically.
+In our setting, this requires at most 11\% more queries than \Baseline, compared to the 67\% more required by \EExactMonroe{}.
+This is the largest improvement from any single design choice we vary.
+It exceeds the effect of the objective function, constituency size constraint, and of exact vs. greedy selection under CC.
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
-Polynomial-time \textsc{CC} algorithms need not sacrifice much performance on this benchmark.
 \Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
 \LP{} realizes identical voter utilities as \Exact{} on all 10 profiles, and \Greedy{} on 7 of the 10, with no SWF differing by more than 0.002 on average.
-This is consistent with the near-optimal empirical performance of greedy algorithms for the utilitarian CC rule reported by \citet{skowron-2015}.
 
-\paragraph{\textsc{Monroe-Greedy} algorithms perform poorly compared to \textsc{Monroe-Exact}}
-The \textsc{Monroe-Greedy} algorithms perform significantly worse than their \textsc{Monroe-Exact} counterparts.
-While we are uncertain as to its exact nature, some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
-One possible cause is the absence of global optimization steps in \textsc{Monroe-Greedy} algorithms.
+\paragraph{\textsc{Monroe-Greedy} algorithms perform poorly}
+Some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
+We are uncertain as to its exact nature.
+One possible cause is the absence of global optimization steps.
 \textsc{CC-Greedy} algorithms perform multiple optimizations over all voters, reassigning every voter to their favorite slate member after each round.
 However, \textsc{Monroe-Greedy} algorithms permanently assign voters to their first candidate.
-Later winners are then chosen only for the remaining voters, and no voter can move to a winner selected after their assignment.
 
-\paragraph{The constituency size constraint matters little}
-\ExactMonroe{} is within 0.003 of \Exact{} in mean utility, and their minimum utilities are equal within confidence bounds.
-\EExactMonroe{} attains the same minimum utility as \ECCExact{} on all 10 profiles, at a cost of 0.008 in mean utility.
-The reassignment variants in \Cref{fig:sfws-voting-algs-fish} show the same pattern: the minimum utilities from Monroe and CC reassignment coincide on all 15 profiles, and their mean utilities differ by 0.003.
+\paragraph{The constituency size constraint has little performance effect}
+Three pairs of algorithms provide evidence.
+\ExactMonroe{} performs almost identically to \Exact{} in all SWFs.
+There is a small but clear drop in performance from \ECCExact{} to \EExactMonroe{}.
+The \BaselineReassign algorithms show a similar pattern.
 Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for both egalitarian and utilitarian objective functions.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
-\paragraph{Egalitarian and Kolm--Pollak objectives}
-Moving from total to minimum utility trades a small loss in average utility for a larger gain for the worst-off voter.
-On 9 of the 10 profiles (the tenth is unchanged), \ECCExact{} raises the minimum utility over \Exact{}, by 0.087 on average, while lowering mean utility by 0.013 and bottom-50\% mean utility by 0.025.
-\ECCExact{} breaks ties in minimum utility leximin: among the slates achieving the optimal minimum, it maximizes the second-lowest utility, then the third-lowest, and so on.
-\ExactP{} traces intermediate points between these two rules, and the trade is most favorable near the egalitarian end.
-At \(\kappa=7\), \ExactP{} gives up only 0.007 of the minimum utility of \ECCExact{} (8\% of the gap between \ECCExact{} and \Exact{}).
-In exchange, it recovers 0.007 of mean utility and 0.013 of bottom-50\% mean utility (about half of the gap for each), and it has a slightly lower Gini coefficient.
-A utilitarian objective with a strongly concave transformation thus offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
-These differences are small, however, and \ExactP{} with \(\kappa=7\) and \ECCExact{} realize identical voter utilities on 6 of the 10 profiles.
-The same pattern holds on the ballot profiles of the baseline pipeline (not shown), where \ExactP{} with \(\kappa=7\) gives up 0.006 of the minimum utility of \ECCExact{} and recovers 0.003 of mean utility and 0.006 of bottom-50\% mean utility.
+\paragraph{\ExactP provides a favorable Pareto front and flexibility}
+\ExactP provides favorable SWF tradeoffs near either end of the egalitarian-utilitarian spectrum.
+At \(\kappa=3\), minimum utility is noticeably boosted compared to \Exact at a very small cost to other SWFs.
+At \(\kappa=7\), minimum utility is nearly matched with \ECCExact with significantly better performance on all other SWFs.
+% With \textsc{Monroe-Greedy} algorithms performing poorly, and \textsc{E-CC} algorithms underspecified and beyond our scope, the remaining polynomial practical approximation of egalitarian
+A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well empirically.
 When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
-A modest Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/voting_alg_scalar_metrics_fish_candidates.pdf}
-  \caption{Voting algorithm SWF performance on ballot profiles generated by the baseline pipeline. Profiles are filled afterwards using additional discriminative queries. Adding either reassignment step to \Baseline{} recovers most of the performance of \EExactMonroe.}
-  \label{fig:sfws-voting-algs-fish}
-\end{figure}
-
-\subsubsection{Voting Algorithms for Expensive Discriminative Queries}
-\label{sec:expensive-queries}
-
-\Cref{fig:sfws-voting-algs-fish} compares the two algorithms for expensive discriminative queries, \Baseline{} + \EExactMonroe{} reassign and \Baseline{} + CC reassign (\Cref{sec:algorithms}), with \Baseline{} and \EExactMonroe{} on the 15 ballot profiles of the baseline pipeline.
-
-\paragraph{Computing more of the utility matrix is the largest improvement}
-Having all voters rate the baseline's slate and then reassigning them improves every SWF on every profile, except for one profile on which the minimum utility is unchanged.
-\Baseline{} + \EExactMonroe{} reassign recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility (0.058 of 0.067), 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
-CC reassignment performs almost identically.
-In our setting (\(n=100\), \(m=30\), \(k=5\)), this requires at most \(n(k-1)/2=200\) discriminative queries beyond the 1,800 used by \Baseline{}, an increase of 11\%.
-The complete ballot profile requires 3,000.
-
-Apart from the cost of greedy selection under the Monroe rule discussed above, this is the largest improvement from any single design choice we vary.
-It exceeds the effect of the objective function (at most 0.018 in mean utility and 0.087 in minimum utility in \Cref{fig:sfws-voting-algs}).
-It also exceeds the effect of the constituency size constraint (at most 0.008 in mean utility) and of exact rather than greedy selection under CC (at most 0.002).
-The same ordering holds on the baseline's ballot profiles.
-\EExactMonroe{}, which also uses the complete ballot profile to select the slate, closes the remaining gap (0.009 in mean utility, 0.18 in minimum utility).
+A Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
 
 \section{Discussion}
 
@@ -819,7 +817,7 @@ It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the \LP{} variant we benchmark has a worst case exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
 
-\subsection{Runtime Complexity of \Baseline{} + \EExactMonroe{} reassign}
+\subsection{Runtime Complexity of \BaselineEMonroeReassign{}}
 \label{app:baseline-reassign-complexity}
 The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
 Solved by branch-and-bound, as in our implementation, its worst-case running time is exponential in \(n\) and \(k\) and does not depend on \(m\), by the argument of \Cref{app:brute-force-vs-exact} with the \(k\) slate members in place of the \(m\) candidates.
