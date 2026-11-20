@@ -76,14 +76,12 @@
 Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent a diverse constituency.
 However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit the representativeness of outputs.
 We build GenerativeCC, an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
-The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a weighted slate using a multiwinner range voting algorithm.
-On a dataset of 100 opinions, GenerativeCC outperforms the baseline across all egalitarian and utilitarian social welfare functions.
-The design feature primarily driving improved performance is evaluating more voters against more candidate statements.
+The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a slate using a multiwinner range voting algorithm, where each voter is assigned to one slate member, and each weight is proportional to the quantity of assigned voters.
+On a dataset of 100 opinions, GenerativeCC outperforms the most closely related method from previous literature across all egalitarian and utilitarian social welfare functions.
+The design feature primarily driving improved performance is that more voters evaluate more candidates, enabling broader optimization.
 While the pipeline runs in exponential time, we demonstrate that multiple polynomial-time alternatives achieve similar performance.
 GenerativeCC is a practical starting point for virtual democracy systems that represent diverse opinions.
 \end{abstract}
-
-\section{Introduction}
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{figures/Opinion_agg_functionality4.pdf}
@@ -95,10 +93,14 @@ GenerativeCC is a practical starting point for virtual democracy systems that re
   \label{fig:functionality}
 \end{figure}
 
+\section{Introduction}
+
 Recent progress in AI creates both risks and opportunities for collective decision-making \citep{landemore}.
-One promising direction is \emph{virtual democracy}, in which multiple AIs representing a constituency help aggregate opinions and support decision-making \citep{noothigattu-2018, kahng-virtual-democracy, freedman-kidney-exchange}.
-Recent work has extended this paradigm beyond fixed decision spaces, building voting systems that include large language models (LLMs) to generate and evaluate new candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, fish-v2, gsc-next-gen}.
-However, no generative system exists whose performance has been evaluated on a variety of social welfare functions (SWFs) at a scale of 100+ voters using a realistic dataset of voter opinions.
+One promising direction is \emph{virtual democracy}, in which AIs represent a human constituency and their opinions are aggregated to inform decisions \citep{noothigattu-2018, kahng-virtual-democracy, freedman-kidney-exchange}.
+Recent work has extended this paradigm beyond fixed decision spaces, building systems that include large language models (LLMs) to generate and evaluate candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, gsc-next-gen}.
+\citet{fish-v2} build one such system and suggest applications in the large-scale alignment of general purpose AI. 
+They build their system primarily to satisfy a novel social choice axiom.
+We focus specifically on large-scale pluralistic alignment and use social welfare functions (SWFs) instead of social choice axioms as the primary performance measures.
 
 We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
 The system functionality is illustrated in \Cref{fig:functionality}.
