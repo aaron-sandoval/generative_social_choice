@@ -84,7 +84,7 @@ GenerativeCC is a practical starting point for virtual democracy systems that re
 \end{abstract}
 
 \begin{figure}[t]
-  \includegraphics[width=\columnwidth]{figures/Opinion_agg_functionality4.pdf}
+  \includegraphics[width=0.95\columnwidth]{figures/Opinion_agg_functionality5.pdf}
   \caption{Overview of GenerativeCC.
   (1) Virtual voters learn to represent individual human opinions using in-context learning (ICL).
   (2) Candidate representative statements are generated from the full population and from clusters of similar voters.
@@ -103,9 +103,8 @@ They build their system primarily to satisfy a novel social choice axiom.
 We focus specifically on large-scale pluralistic alignment and use social welfare functions (SWFs) instead of social choice axioms as the primary performance measures.
 
 We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
-The system functionality is illustrated in \Cref{fig:functionality}.
-Under the CC rule, a slate of \(k\) winners is selected, where each voter is assigned their favorite winner as their representative.
-Each voter fills out a \emph{range ballot}, scoring every candidate statement by their level of agreement from 0--4.
+As illustrated in \Cref{fig:functionality}, LLMs generate a pool of candidate statements seeded by participants' natural language opinions. Each human voter is represented by a \emph{virtual voter}, an LLM given that voter's opinions as context. Virtual voters fill out \emph{range ballots}, scoring every candidate by their level of agreement from 0--4.
+Under the CC rule, a slate of \(k\) winners is selected, and each voter is assigned their favorite winner as their representative.
 A voter's utility is their score for their representative.
 For downstream applications, each winner is weighted proportionally to their number of assigned voters.
 The utilitarian CC rule selects the slate and assignment that maximize total utility.
