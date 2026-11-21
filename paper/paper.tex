@@ -450,9 +450,8 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 \begin{figure*}[t]
 \centering
   \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v8.png}
-  \caption{Mean voting algorithm performance on social welfare functions for a slate size of 5.
-  Confidence intervals for all series except \Baseline{} are bootstrapped across 10 ballot profiles generated with GenerativeCC.
-  The \Baseline{} series is copied from \Cref{fig:swf-main}. It was generated from the pipeline of \citet{fish-v2} and is included for reference only.
+  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 ballot profiles from \Cref{fig:swf-main} generated with GenerativeCC.
+  The \Baseline{} series is generated from the pipeline of \citet{fish-v2} and is included for reference only. 
   Its results are not directly comparable as other pipeline elements besides the voting algorithm differ.}
   \label{fig:sfws-voting-algs}
 \end{figure*}
@@ -460,7 +459,8 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/voting_alg_scalar_metrics_fish_candidates.pdf}
-  \caption{Voting algorithm SWF performance on the 15 partial ballot profiles from \Cref{fig:swf-main}, augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding either reassignment step to \Baseline{} recovers most of the performance of \Exact{} and \EExactMonroe{} while requiring far fewer discriminative queries.}
+  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 ballot profiles from \Cref{fig:swf-main} generated with GenerativeCC.
+  Mean voting algorithm performance for \(k=5\) across the 15 partial ballot profiles from \Cref{fig:swf-main}. The profiles are augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding the corresponding reassignment step to \Baseline{} recovers 60-87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. The requires at most 67\% of the \(nm\) discriminative queries of a full ballot profile.}
   \label{fig:sfws-voting-algs-fish}
 \end{figure}
 
