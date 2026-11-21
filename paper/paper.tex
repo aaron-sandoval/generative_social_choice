@@ -35,8 +35,9 @@
 \usepackage{amssymb}
 \usepackage{makecell}
 
-\newcommand{\Pass}{\textcolor{green}{$\checkmark$}}
-\newcommand{\Fail}{\textcolor{red}{$\times$}}
+% Darkened so the marks meet the WCAG 2.0 contrast ratio of 4.5:1 that the AAAI guide requires.
+\newcommand{\Pass}{\textcolor{green!50!black}{$\checkmark$}}
+\newcommand{\Fail}{\textcolor{red!80!black}{$\times$}}
 \newcommand{\Todo}{\textcolor{orange}{\textbf{?}}}  % placeholder: axiom result to be supplied
 
 % Voting algorithm names are set in small caps.
@@ -946,7 +947,7 @@ Monotonicity
 & \Pass
 & \Pass
 & \Pass
-& \Fail\tablefootnote{See \Cref{tab:lp-monotonicity}.} \\
+& \Fail\tablefootnote{See \Cref{app:lp-worst}.} \\
 
 Individual Pareto Efficiency
 & \Pass
@@ -968,7 +969,7 @@ Generalized Lorenz Efficiency
 
 Egalitarian--Utilitarian Efficiency
 & \Pass
-& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(\kappa=\ln 1.5\).}
+& \Fail\tablefootnote{See \Cref{app:axiom-discussion} for a counterexample at \(\kappa=\ln 1.5\).}
 & \Fail
 & \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
 
@@ -1043,8 +1044,8 @@ By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficien
 \subsection{Counterexamples for Axiom Failures}
 \label{app:voting-failures}
 
-\Cref{tab:failure-exact-nru,tab:failure-exactp-nru,tab:failure-greedy-indiv-pareto,tab:lp-fractional,tab:lp-monotonicity} provide representative counterexamples for the axiom failures in \Cref{tab:voting-axioms}.
-\Cref{tab:egal-util-strict} (\Cref{app:axiom-discussion}) illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
+We give representative counterexamples for the axiom failures in \Cref{tab:voting-axioms}: for \Greedy{} in \Cref{tab:failure-greedy-indiv-pareto}, for \Exact{} and \ExactP{} in \Cref{app:exact-nru,app:exactp-nru}, and for \LP{} in \Cref{app:lp-worst}.
+\Cref{app:axiom-discussion} illustrates that Egalitarian--Utilitarian Efficiency may be overly strict in some cases.
 
 \begin{table}[t]
 \centering
@@ -1383,18 +1384,6 @@ Rating type & \(n\) & \makecell{Bias\\(95\% CI)} \\
 \label{tab:model-drift-ratings}
 \end{table}
 
-\textbf{For ratings of candidate statements, we therefore cannot tell whether the variance of the ratings changed.}
-For nearest-neighbor searches, whose reference covers 33 summaries, we compare variances by the \emph{spread ratio}: the mean squared difference between the 2026 and 2025 ratings divided by that between two 2025 ratings, combined over bins with population weights.
-A ratio of \(1\) means that a 2026 rating varies around a 2025 rating exactly as much as another 2025 rating would.
-The ratio is \(2.03\), with a 95\% confidence interval of \([1.05, 3.62]\) from resampling the rated summaries, since ratings of the same summary are not independent.
-So \textbf{2026 nearest-neighbor searches have higher variance than 2025 ones}.
-
-\paragraph{Generative queries.}
-We use two sets of 2026 generation calls.
-First, we repeat the first-round calls of the three generators with identical first-round inputs 15 times each, with the exact 2025 messages and parameters, and compare their outputs with the 15 outputs of 2025 by cosine distance.
-Second, we repeat 24 logged generation calls of the 2025 runs, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 calls).
-Since most of these calls have only one 2025 output, we use them only to compare quality and format: six fixed voters rate each 2025 output and both 2026 outputs, with all ratings made in 2026 so that drift of the rater cancels.
-
 \begin{table}[t]
 \centering
 \begin{tabular}{lcc}
@@ -1449,6 +1438,18 @@ Subsample of five voters & \(0.016\) & \(0.016\) & \(0.027\) & \(0.88\) & \(0.00
 \caption{Tests of line endings, CRLF vs.\ LF, in the 2026 first-round outputs of \Cref{tab:model-drift-generation}, with 15 CRLF and 30 LF outputs per generator. Columns as in \Cref{tab:model-drift-generation-tests}, with CRLF in place of 2025: the bias test compares the mean distance between groups with the variance of the CRLF outputs.}
 \label{tab:line-endings-generation-tests}
 \end{table*}
+
+\textbf{For ratings of candidate statements, we therefore cannot tell whether the variance of the ratings changed.}
+For nearest-neighbor searches, whose reference covers 33 summaries, we compare variances by the \emph{spread ratio}: the mean squared difference between the 2026 and 2025 ratings divided by that between two 2025 ratings, combined over bins with population weights.
+A ratio of \(1\) means that a 2026 rating varies around a 2025 rating exactly as much as another 2025 rating would.
+The ratio is \(2.03\), with a 95\% confidence interval of \([1.05, 3.62]\) from resampling the rated summaries, since ratings of the same summary are not independent.
+So \textbf{2026 nearest-neighbor searches have higher variance than 2025 ones}.
+
+\paragraph{Generative queries.}
+We use two sets of 2026 generation calls.
+First, we repeat the first-round calls of the three generators with identical first-round inputs 15 times each, with the exact 2025 messages and parameters, and compare their outputs with the 15 outputs of 2025 by cosine distance.
+Second, we repeat 24 logged generation calls of the 2025 runs, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 calls).
+Since most of these calls have only one 2025 output, we use them only to compare quality and format: six fixed voters rate each 2025 output and both 2026 outputs, with all ratings made in 2026 so that drift of the rater cancels.
 
 \Cref{tab:model-drift-generation} shows the variance of the first-round outputs, and \Cref{tab:model-drift-generation-tests} the tests of drift.
 \begin{itemize}
