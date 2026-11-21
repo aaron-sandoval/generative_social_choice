@@ -138,7 +138,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
 \label{sec:problem-formulation}
 
 We solve the task of compressing a large set of opinions into a small weighted slate of representative statements.
-Let \(N=\{1,\ldots,n\}\) be a set of voters, each representing one participant, let \(O=(o_1,\ldots,o_n)\) be the participants' free-form opinions on a topic, and let \(k \ll n\) be the desired slate size.
+Let \(N=\{1,\ldots,n\}\) be a set of voters, each representing one participant, let \(O=(o_1,\ldots,o_n)\) be summaries of the participants' free-form opinions on a topic, and let \(k \ll n\) be the desired slate size.
 The pipeline generates a set \(A=\{a_1,\ldots,a_m\}\) of \(m \ge k\) candidate statements from \(O\), indexed by \([m]=\{1,\ldots,m\}\).
 As in \citet{fish-v2}, it then selects a slate \(W\subseteq A\) of \(k\) statements together with an assignment \(\omega:N\to W\) mapping each voter to one statement on the slate.
 As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
@@ -150,9 +150,9 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
 \subsection{Algorithm}
 
 \begin{enumerate}
-    \item Use participant opinions \(O\) to generate the candidate statements \(A\).
+    \item Use participant opinions to generate the candidate statements \(A\).
     \begin{enumerate}
-        \item For each opinion \(o_i\), generate a summary of roughly standard length.
+        \item Summarize each participant's free-form opinion as \(o_i\), of roughly standard length.
         In our case study, we reuse the summaries from \citet{fish-v2}, each under 50 words.
         \item Embed each summary and perform k-means on the embedding vectors to cluster opinions.
         \item Generate candidate statements from the full population and from individual clusters.
@@ -263,11 +263,11 @@ Throughout, we compare against results obtained by running their pipeline under 
 
 \subsection{Input Data}
 
-The chatbot personalization dataset contains survey responses from a representative sample of 100 U.S.\ residents.
-In addition to free-form responses, the survey asks participants to score seven seed statements on the topic on a 0--4 Likert scale.
+The chatbot personalization dataset contains free-form opinions collected in a survey of a representative sample of 100 U.S.\ residents.
+The survey also asks participants to score seven seed statements on the topic on a 0--4 Likert scale.
 For details, see Section 5 of \citet{fish-v2}.
 
-Rather than using the original survey responses directly, we use the summarized participant responses released by \citet{fish-v2}.\footnote{The original data are available at \url{https://github.com/generative-social-choice/chatbot_personalization}.}
+Rather than using the original free-form opinions directly, we use the summarized opinions released by \citet{fish-v2}.\footnote{The original data are available at \url{https://github.com/generative-social-choice/chatbot_personalization}.}
 
 \subsection{Baseline}
 
