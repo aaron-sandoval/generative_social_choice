@@ -203,11 +203,11 @@ We use GPT-4o with temperature 1 for all generative queries.
 Across 10 runs, all four generation methods contribute statements that get selected into a slate.
 \Cref{app:statement-origin} reports the breakdown by generator.
 
-\subsection{Inference Costs and Runtime Complexity}
+\subsection{LLM Inference Costs}
 \label{sec:inference-costs}
 
-\paragraph{Inference costs}
-\Cref{tab:llm-call-comparison} counts the LLM calls of each type made by GenerativeCC and by the pipeline of \citet{fish-v2}.
+\paragraph{General comparison}
+\Cref{tab:llm-call-comparison} counts each type of LLM call made by GenerativeCC and by the pipeline of \citet{fish-v2}.
 For a general comparison, we express these counts in terms of the number of voters \(n\), the number of generated candidates \(m\), and the slate size \(k\).
 Three phases in the pipelines include LLM calls.
 \begin{enumerate}
@@ -231,11 +231,6 @@ It also makes fewer than twice as many discriminative queries.
 In our case study (\(n=100\), \(k=5\)), the two pipelines generate different numbers of candidates.
 GenerativeCC applies its generators to \(k+1\) sets of opinions (\Cref{sec:statement-generation}), giving \(m=7(k+1)=42\), while each of the baseline's six generators makes one call per round, giving \(m=6k=30\).\footnote{We measure how this difference in \(m\) affects performance in \Cref{app:statement-ablation-details}.}
 The right half of \Cref{tab:llm-call-comparison} gives the resulting call counts.
-
-\paragraph{Runtime complexity}
-In practice, runtime is dominated by LLM inference, which is comparable in cost per call across the baseline and GenerativeCC.
-Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and runs one of the voting algorithms from \Cref{sec:voting-algorithms}.
-Voting algorithm runtime is reasonably short despite its worse algorithmic complexity at the small scale of our experiments, so LLM inference dominates.
 
 \begin{table*}[t]
 \centering
