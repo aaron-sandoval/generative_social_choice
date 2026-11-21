@@ -269,12 +269,12 @@ However, at the small scale of our experiments, GenerativeCC is slower mostly du
 \begin{table}[t]
 \centering
 {\small
-\begin{tabular}{lcc}
+\begin{tabular}{@{}lcc@{}}
 \hline
 Type of LLM Call & GenerativeCC & \makecell{Baseline \\ \citep{fish-v2}} \\
 \hline
 Get opinion embedding & $n$ & -- \\
-Rate another participant's opinion & -- & $n(k+2) - 3k$ \\
+Rate a participant's opinion & -- & $n(k+2) - 3k$ \\
 Generate candidates & $3m/7$ & $m$ \\
 Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ \\
 \hline
@@ -456,10 +456,9 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lccc}
+\begin{tabular}{@{\hspace{4pt}}l*{3}{@{\hspace{8pt}}c}@{\hspace{4pt}}}
 \hline
- & \multicolumn{3}{c}{Worst-case time} \\
+ & \multicolumn{3}{@{\hspace{8pt}}c@{\hspace{4pt}}}{Worst-case time} \\
 Algorithm & Exp. & Poly. & Indep. \\
 \hline
 \Exact{} & \(n,m\)\tablefootnote{Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \ECCExact{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
@@ -927,8 +926,7 @@ Counterexamples for key axiom failures are provided in \Cref{app:voting-failures
 \begin{table*}[t]
 \centering
 \small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccc}
+\begin{tabular}{@{\hspace{4pt}}l*{4}{@{\hspace{8pt}}c}@{\hspace{4pt}}}
 \hline
  & \Exact{} & \ExactP{} & \Greedy{} & \LP{} \\
 \hline
