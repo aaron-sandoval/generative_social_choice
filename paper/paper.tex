@@ -129,7 +129,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
     \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the utility matrix, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
-    This suggests that CC voting algorithms offer the most scalability and average performance for representing large populations, though testing on more datasets is necessary.
+    This suggests that \textsc{CC} voting algorithms offer the most scalability and average performance for representing large populations, though testing on more datasets is necessary.
 \end{itemize}
 
 \section{Pipeline}
@@ -469,7 +469,7 @@ Using the 10 GenerativeCC utility matrices from \Cref{fig:swf-main}, we produce 
 Using the 15 baseline utility matrices from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs-fish}.
 
 The algorithms form three clusters based on their performance.
-Cluster 1: CC and \textsc{Exact} algorithms perform relatively well on every SWF.
+Cluster 1: \textsc{CC} and \textsc{Exact} algorithms perform relatively well on every SWF.
 Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
 Cluster 3: \BaselineReassign{} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over utility matrices.
@@ -665,7 +665,7 @@ This supports the claim that our gains are not primarily due to a larger candida
 
 \section{Voting Algorithm Details}
 
-\subsection{Optimization Problems of the Exact Algorithms and \LP{}}
+\subsection{Optimization Problems of the \textsc{Exact} Algorithms and \LP{}}
 \label{app:exact-lp-formulations}
 
 We solve all integer programs with PuLP/CBC \citep{pulp, john_forrest_cbc}.
