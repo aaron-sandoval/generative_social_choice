@@ -129,7 +129,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
     \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the utility matrix, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
-    This suggests that \textsc{CC} voting algorithms offer the most scalability and average performance for representing large populations, though testing on more datasets is necessary.
+    This suggests that \textsc{CC} voting algorithms offer the most scalability and mean performance for representing large populations, though testing on more datasets is necessary.
 \end{itemize}
 
 \section{Pipeline}
@@ -164,7 +164,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
     \begin{enumerate}
         \item Represent each participant with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
         The prompt includes \(o_i\) and ends with candidate \(a_j\), requesting a 0--4 Likert score.
-        \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the average weighted by token-probability over the responses 0--4.
+        \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the mean weighted by token-probability over the responses 0--4.
         We treat this expected score as voter \(i\)'s agreement with \(a_j\).
         \item Repeat steps (a) and (b) for all \(i\in N\) and \(j\in[m]\).
     \end{enumerate}
@@ -224,7 +224,7 @@ Three phases in the pipelines include LLM calls.
     \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries are made in this phase.
 \end{enumerate}
 
-At matched \(n\), \(m\), and \(k\), GenerativeCC makes fewer generative queries, but each query uses more output tokens on average.
+At matched \(n\), \(m\), and \(k\), GenerativeCC makes fewer generative queries, but the mean number of output tokens per query is higher.
 It also makes fewer than twice as many discriminative queries.
 
 \paragraph{Case study}
@@ -280,7 +280,7 @@ We run the pipeline of \citet{fish-v2} with two modifications for a cleaner comp
 \subsection{Evaluation Metrics}
 \label{sec:metrics}
 
-For each run, we compute the social welfare functions of average utility, average utility among the bottom 50\% of voters, minimum utility, the Gini coefficient \citep{gini}, and mean log utility.
+For each run, we compute the social welfare functions of mean utility, mean utility among the bottom 50\% of voters, minimum utility, the Gini coefficient \citep{gini}, and mean log utility.
 The latter is proportional to the Nash welfare function \citep{nash-welfare}.
 Voter utility is assumed equal to the Likert score returned by the virtual voter's discriminative query for their assigned statement.
 
@@ -290,7 +290,7 @@ The number of runs differs across methods and is reported in the result figures.
 \section{Case Study Results}
 
 \paragraph{Overall performance}
-Across the scalar metrics we consider, GenerativeCC outperforms the baseline of \citet{fish-v2} (\Cref{fig:swf-main}).
+Across the SWFs we consider, GenerativeCC outperforms the baseline of \citet{fish-v2} (\Cref{fig:swf-main}).
 Both distributions are similar in the top half, but a difference grows in the lower tail (\Cref{fig:mth-happiest-main}), indicating superior performance by both egalitarian and utilitarian standards.
 
 \begin{figure}[t]
@@ -472,7 +472,7 @@ The algorithms form three clusters based on their performance.
 Cluster 1: \textsc{CC} and \textsc{Exact} algorithms perform relatively well on every SWF.
 Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
 Cluster 3: \BaselineReassign{} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
-All differences quoted below are in utility on the 0--4 Likert scale, averaged over utility matrices.
+All differences quoted below are in utility on the 0--4 Likert scale, as means over utility matrices.
 
 \paragraph{The partial utility matrix is \Baseline's main limiting factor}
 The \BaselineReassign{} algorithms leverage their additional discriminative queries to recover most of the SWF performance gap among \textsc{E-Monroe} algorithms.
@@ -484,7 +484,7 @@ It exceeds the effect of the objective function, constituency size constraint, a
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
 \Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
-\LP{} realizes identical voter utilities as \Exact{} on all 10 utility matrices, and \Greedy{} on 7 of the 10, with no SWF differing by more than 0.002 on average.
+\LP{} realizes identical voter utilities as \Exact{} on all 10 utility matrices, and \Greedy{} on 7 of the 10, with no mean SWF differing by more than 0.002.
 
 \paragraph{\textsc{Monroe-Greedy} algorithms perform poorly}
 Some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
@@ -652,7 +652,7 @@ For each such query, we retain only 3 randomly selected statements and discard t
 Since this generator is applied once to the full population and once to each of the five clusters, the total number of candidates is reduced by \(6\times 2=12\), bringing the total from 42 down to 30.
 
 \Cref{fig:statement-ablation-comparison} compares the full GenerativeCC pipeline, the ablated pipeline, and the baseline of \citet{fish-v2}.
-The ablation causes little change in performance, and the gap to the baseline remains nearly unchanged across metrics.
+The ablation causes little change in performance, and the gap to the baseline remains nearly unchanged across SWFs.
 This supports the claim that our gains are not primarily due to a larger candidate pool.
 
 \begin{figure*}[t]
@@ -1288,7 +1288,7 @@ We create three samples of 2025 discriminative queries and repeat them in 2026:
 \end{itemize}
 The queries of the earlier baseline runs are repeated with their CRLF line endings, and those of GenerativeCC with LF (\Cref{tab:confounder-systems}).
 Equal numbers of scores per bin do not match the distribution of 2025 scores: among all 27{,}000 scores for candidate statements in the 15 earlier baseline runs, 49\% are above \(3.5\) and 2\% below \(2\), whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below \(2\).
-We therefore compute each estimate as a weighted average of its values within the bins, weighting each bin by its share of all 2025 scores of the same type, so that estimates describe all 2025 scores of a type rather than the sample.
+We therefore compute each estimate as a weighted mean of its values within the bins, weighting each bin by its share of all 2025 scores of the same type, so that estimates describe all 2025 scores of a type rather than the sample.
 
 \Cref{tab:model-drift-ratings} shows the bias, the mean difference between the 2026 and 2025 scores, with 95\% bootstrap confidence intervals from 2{,}000 resamples.
 \textbf{None of the three types of scores shows a detectable bias.}
@@ -1384,12 +1384,12 @@ Since most of these queries have only one 2025 output, we use them only to compa
     At temperature 1, we detect no difference (\(0.145\) vs.\ \(0.148\), \(p = 0.93\)).
     \item \emph{Bias.}
     With the prompts held fixed, the 2026 outputs are no farther from the 2025 outputs than 2025 outputs are from each other for any generator, and at temperature 0 they are closer.
-    The lower variance of 2026 outputs explains why they can be closer: outputs concentrated among the 2025 outputs are closer to them on average than these are to each other.
+    The lower variance of 2026 outputs explains why they can be closer: outputs concentrated among the 2025 outputs have a smaller mean distance to them than these have to each other.
     So \textbf{the 2026 output distribution lies within the spread of the 2025 output distribution}.
     It's possible that the 2026 distribution is biased relative to the 2025 distribution, where the 2026 distribution lies mostly inside the 2025 distribution, but the sample sizes are too small to detect this.
     \item \emph{Quality.}
     Mean agreement with 2026 outputs differs from that with 2025 outputs by \(+0.06\) \([-0.02, +0.16]\), with \textbf{no detectable bias}.
-    Two 2026 outputs of the same prompt differ by \(0.06\) on average.
+    Two 2026 outputs of the same prompt differ by a mean of \(0.06\).
     \item \emph{Format.}
     \textbf{The mean response lengths are similar} (71--86 words per generator in 2025, 71--85 in 2026).
 \end{itemize}
