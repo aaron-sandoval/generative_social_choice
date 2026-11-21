@@ -392,24 +392,22 @@ After solving the relaxed program, it selects the \(k\) candidates with largest 
 \begin{table}[!t]
 \centering
 \footnotesize
-\begin{tabular*}{\columnwidth}{@{\hspace{4pt}}l@{\extracolsep{\fill}}*{3}{@{\hspace{8pt}}c}@{\hspace{4pt}}}
+\begin{tabular*}{\columnwidth}{@{\hspace{4pt}}l@{\extracolsep{\fill}\hspace{8pt}}c@{\extracolsep{0pt}\hspace{12pt}}c@{\hspace{4pt}}}
+ & \multicolumn{2}{@{\hspace{8pt}}c@{\hspace{4pt}}}{\textit{Worst-case time}} \\
+\textit{Algorithm} & \textit{Exp.} & \textit{Poly.} \\
 \hline
- & \multicolumn{3}{@{\hspace{8pt}}c@{\hspace{4pt}}}{Worst-case time} \\
-Algorithm & Exp. & Poly. & Indep. \\
-\hline
-\Exact{} & \(n,m\)\textsuperscript{a} & -- & \(k\) \\ \hline
-\Greedy{} & -- & \(n,m,k\) & -- \\ \hline
-\LP{} & \(n,m\)\textsuperscript{b} & -- & \(k\) \\ \hline
-\ExactMonroe{} & \(n,m\)\textsuperscript{c} & -- & \(k\) \\ \hline
-\ExactP{} & \(n,m\)\textsuperscript{a} & -- & \(k\) \\ \hline
-\ECCExact{} & \(n,m\)\textsuperscript{a} & -- & \(k\) \\ \hline
-\EExactMonroe{} & \(n,m\)\textsuperscript{c} & -- & \(k\) \\ \hline
-\UGreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
-\GreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\\textsc{E-Monroe-Exact reassign}} & \(n,k\)\textsuperscript{d} & \(m\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\\textsc{CC reassign}} & -- & \(n,m,k\) & -- \\
-\hline
-\multicolumn{4}{@{\hspace{4pt}}p{\dimexpr\columnwidth-8pt\relax}@{\hspace{4pt}}}{%
+\Exact{} & \(n,m\)\textsuperscript{a} & -- \\
+\Greedy{} & -- & \(n,m,k\) \\
+\LP{} & \(n,m\)\textsuperscript{b} & -- \\
+\ExactMonroe{} & \(n,m\)\textsuperscript{c} & -- \\
+\ExactP{} & \(n,m\)\textsuperscript{a} & -- \\
+\ECCExact{} & \(n,m\)\textsuperscript{a} & -- \\
+\EExactMonroe{} & \(n,m\)\textsuperscript{c} & -- \\
+\UGreedyMonroe{} & -- & \(n,m,k\) \\
+\GreedyMonroe{} & -- & \(n,m,k\) \\
+\BaselineEMonroeReassign{} & \(n,k\)\textsuperscript{d} & \(m\) \\
+\BaselineCCReassign{} & -- & \(n,m,k\) \\
+\multicolumn{3}{@{\hspace{4pt}}p{\dimexpr\columnwidth-8pt\relax}@{\hspace{4pt}}}{%
 \raggedright\rule{0pt}{2.5ex}\textsuperscript{a}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \ECCExact{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
 Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment directly is exponential only in \(m\), and polynomial in \(n\) and \(k\).\par
 \textsuperscript{b}Solver-dependent.
@@ -421,7 +419,7 @@ Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate'
 With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.}
 \end{tabular*}
 \caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
-Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns, and neither depends on the variables in the \textit{Indep.}\ (independent) column.
+Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns, and neither depends on any variable that appears in neither column.
 These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exact}), not for the underlying problems.}
 \label{tab:time-complexity}
 \end{table}
