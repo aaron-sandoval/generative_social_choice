@@ -132,41 +132,6 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
     This suggests that CC voting algorithms offer the most scalability and average performance for representing large populations, though testing on more datasets is necessary.
 \end{itemize}
 
-\section{Background and Related Work}
-\subsection{AI Systems for Virtual Democracy}
-GenerativeCC builds directly on the work of \citet{fish-v2}.
-Their system uses virtual voters to evaluate and generate candidate statements, then uses an approximation of the Monroe rule \citep{monroe-1995} to select a slate.
-We relax the constraint of equal-sized constituencies, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of SWFs to measure performance.
-\citet{gsc-next-gen} also extend the work of \citet{fish-v2}, building a similar LLM system intending to achieve theoretical guarantees using approximately optimal queries under constraints on statement length.
-We instead test various voting algorithms and focus on SWF performance.
-\citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
-While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
-\citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
-GenerativeCC generates new statements and requires participant input only once, eliminating the bias in Polis related to varying levels and timing of participation.
-\citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine tuned using data from over 3000 human participants.
-GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single winner election to reach consensus.
-
-\citet{newberry-moral-parliaments} --- and earlier, \citet{bostrom-moral-parliaments-2009} --- propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
-In their approach, various ethical systems with weighted voting power are represented in a simulated parliament, where they bargain and vote on decisions.
-GenerativeCC could be applied to select the members in an LLM-based implementation of such a parliament.
-\citet{conitzer-2017-moral-ai} envision a similar system implemented using AI, where models of individuals' values vote to make moral decisions.
-\citet{ouwerx-parliaments} partially implement a simple automated moral parliament, prompting LLM representatives to make compromises to their stances.
-
-\subsection{Voting Systems}
-\citet{chamberlin-courant} introduce a system for fully proportional representation in multiwinner elections, where each voter is assigned to one representative, each representative holds a weight proportional to their number of assigned voters, and winners are selected to maximize an objective function.
-Our voting algorithms follow this design, but we use range ballots instead of their ranked ballots.
-The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
-However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative.
-\citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
-Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by solving an LP relaxation and applying pipage rounding to select winners.
-Our \LP algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
-\citet{skowron-2015} test a greedy Monroe rule approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
-This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
-
-The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
-
-We do not evaluate other common multiwinner rules such as proportional approval voting, Phragm\'{e}n's sequential method \citep{janson_phragmens_2016}, and the method of equal shares \citep{peters_proportional_2022}, since they consider a voter's satisfaction with all winners rather than only with their assigned representative.
-
 \section{Pipeline}
 
 \subsection{Problem Formulation}
@@ -417,6 +382,7 @@ The Monroe rule \citep{monroe-1995} instead assigns each winner an equal-sized c
 
 \paragraph{Solution method}
 \textsc{Exact} algorithms select the slate and assignment that optimize the objective exactly, by solving an integer program (\Cref{app:exact-lp-formulations}).
+This is an NP-hard problem for both the CC and Monroe rules \citep{lu-boutilier-2011, procaccia-2008}.
 \textsc{Greedy} algorithms build the slate one candidate at a time in \(k\) rounds.
 \textsc{Greedy} algorithms proceed differently depending on the constituency size constraint.
 In \textsc{CC-Greedy} algorithms, each round selects the candidate that scores highest on the objective function and assigns every voter to their favorite slate member.
@@ -555,6 +521,41 @@ The voting algorithms fall into two categories: those that scale poorly but offe
 We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well empirically.
 When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
 A Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
+
+\section{Related Work}
+\subsection{AI Systems for Virtual Democracy}
+GenerativeCC builds directly on the work of \citet{fish-v2}.
+Their system uses virtual voters to evaluate and generate candidate statements, then uses an approximation of the Monroe rule \citep{monroe-1995} to select a slate.
+We relax the constraint of equal-sized constituencies, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of SWFs to measure performance.
+\citet{gsc-next-gen} also extend the work of \citet{fish-v2}, building a similar LLM system intending to achieve theoretical guarantees using approximately optimal queries under constraints on statement length.
+We instead test various voting algorithms and focus on SWF performance.
+\citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
+While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
+\citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
+GenerativeCC generates new statements and requires participant input only once, eliminating the bias in Polis related to varying levels and timing of participation.
+\citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine tuned using data from over 3000 human participants.
+GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single winner election to reach consensus.
+
+\citet{newberry-moral-parliaments} --- and earlier, \citet{bostrom-moral-parliaments-2009} --- propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
+In their approach, various ethical systems with weighted voting power are represented in a simulated parliament, where they bargain and vote on decisions.
+GenerativeCC could be applied to select the members in an LLM-based implementation of such a parliament.
+\citet{conitzer-2017-moral-ai} envision a similar system implemented using AI, where models of individuals' values vote to make moral decisions.
+\citet{ouwerx-parliaments} partially implement a simple automated moral parliament, prompting LLM representatives to make compromises to their stances.
+
+\subsection{Voting Systems}
+\citet{chamberlin-courant} introduce a system for fully proportional representation in multiwinner elections, where each voter is assigned to one representative, each representative holds a weight proportional to their number of assigned voters, and winners are selected to maximize an objective function.
+Our voting algorithms follow this design, but we use range ballots instead of their ranked ballots.
+The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
+However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative.
+\citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
+Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by solving an LP relaxation and applying pipage rounding to select winners.
+Our \LP algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
+\citet{skowron-2015} test a greedy Monroe rule approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
+This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
+
+The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
+
+We do not evaluate other common multiwinner rules such as proportional approval voting, Phragm\'{e}n's sequential method \citep{janson_phragmens_2016}, and the method of equal shares \citep{peters_proportional_2022}, since they consider a voter's satisfaction with all winners rather than only with their assigned representative.
 
 \section{Discussion}
 
