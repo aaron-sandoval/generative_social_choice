@@ -117,7 +117,7 @@ We use the generative social choice system of \citet{fish-v2} as our baseline.
 Relative to their work, GenerativeCC makes two main changes.
 First, we allow slate members to represent unequal fractions of the population, rather than enforcing equal constituency sizes. In other words, we use (or approximate) the CC voting rule rather than the Monroe rule \citep{monroe-1995}.
 Second, we evaluate all voters against all generated candidate statements, yielding a full \emph{utility matrix} and enabling global slate optimization.
-These changes allow for separation of statement generation from slate selection and testing of a broader set of voting rules.
+These changes allow for separation of statement generation from slate selection and testing of a broader set of voting algorithms.
 
 We find that GenerativeCC significantly improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
 Polynomial-time approximations of the utilitarian CC rule show only slightly worse performance on this dataset.
@@ -172,7 +172,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
     \item Apply a voting algorithm to \(U\) to select a winning slate \(W\subseteq A\) of size \(k\) and an assignment \(\omega:N\to W\).
     \begin{enumerate}
         \item Unless otherwise noted, we select the slate that maximizes total utility using an exact integer-programming formulation solved with PuLP/CBC \citep{pulp, john_forrest_cbc}.
-        We compare several alternative voting rules in \Cref{sec:voting-algorithms}.
+        We compare several alternative voting algorithms in \Cref{sec:voting-algorithms}.
     \end{enumerate}
 \end{enumerate}
 
@@ -424,7 +424,7 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
 \end{table}
 
 \paragraph{\Baseline{} \citep{fish-v2}}
-The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation.
+The baseline pipeline selects its slate with the same voting algorithm as \GreedyMonroe{}, but interleaves selection with statement generation.
 In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters and added to the candidate pool, and the unassigned voters score them.
 One candidate is selected, its voters assigned, and the round ends.
 This uses \(\frac{1}{2} n (m + m/k)\) discriminative queries, the fewest of any algorithm we test (\Cref{tab:llm-call-comparison}).
@@ -589,7 +589,7 @@ For example, the experimental design of \citet{habermas-machine} could be adapte
 We studied the task of compressing many free-form opinions into a small, weighted slate of representative statements.
 The goal was not to achieve consensus in a single step, but to concisely model diversity for potential downstream applications.
 
-We presented GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voting, and multiwinner range voting methods to select representative statements and assign voters.
+We presented GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voting, and multiwinner range voting algorithms to select representative statements and assign voters.
 On the chatbot personalization benchmark, this pipeline improves on the closest prior system across all selected social welfare functions.
 Ablation results suggest that the improvement is mostly due to evaluating more voters against more candidates and optimizing assignment globally.
 
@@ -727,7 +727,7 @@ For \EExactMonroe{}, the remaining levels determine only the assignment, so the 
 It stops once every voter is at or below some level (\(c_l=n\)).
 
 \subsection{Runtime Complexity of \Exact{}} \label{app:brute-force-vs-exact}
-The \Exact{} method solves the integer program of \Cref{app:exact-lp-formulations}.
+The \Exact{} algorithm solves the integer program of \Cref{app:exact-lp-formulations}.
 Its complexity follows from three stages: formulating the program, solving it, and extracting the assignment from the solution.
 
 \paragraph{Problem size} The formulation has $m$ selection variables $x_j$ and $nm$ assignment variables $y_{ij}$, for $nm+m$ binary variables in total.
@@ -883,7 +883,7 @@ Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
 \subsection{Results}
 \label{app:axiom-results}
 
-We evaluate voting rules against each axiom using a set of adversarial utility matrices.
+We evaluate voting algorithms against each axiom using a set of adversarial utility matrices.
 These matrices are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
 For \Exact{}, we provide formal proofs of satisfaction of some axioms in \Cref{app:exact-axiom-proofs}.
 As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions.
@@ -1192,7 +1192,7 @@ Applying the Kolm--Pollak transformation to \Exact{} leads to strictly worse axi
 
 \paragraph{Limitations of Non-radical Utilitarianism}
 This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function.
-A voting rule should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
+A voting algorithm should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
 However, the choice of minimum utility as the egalitarianism SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
 There are utility matrices, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
 This axiom is overly constraining.
