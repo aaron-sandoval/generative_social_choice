@@ -331,7 +331,7 @@ We implement voting algorithms for range ballots and evaluate them on the social
 \label{sec:algorithms}
 
 We evaluate \textsc{CC} algorithms as candidates for GenerativeCC, and \textsc{Monroe} algorithms as ablations relative to the baseline of \citet{fish-v2}.
-Most of these algorithms sit in a three-dimensional design space, parametrized by the objective function, the constituency-size constraint, and the solution method (\Cref{tab:algorithm-space}).
+Most of these algorithms sit in a three-dimensional design space, parametrized by the objective function, the constituency size constraint, and the solution method (\Cref{tab:algorithm-space}).
 Their names list their coordinates in this order, e.g.\ \Exact{} maximizes total utility exactly under the CC rule.
 The remaining algorithms do not fit this space and are described afterwards.
 
@@ -350,7 +350,7 @@ Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
  & \makecell[l]{Interleaved\\Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
-\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency-size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates minimum utility, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
+\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates minimum utility, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
 \label{tab:algorithm-space}
 \end{table*}
 
@@ -442,7 +442,7 @@ Finally, voters are reassigned with \EExactMonroe{}.
 This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discriminative queries.
 
 \paragraph{\BaselineCCReassign{}}
-Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and each voter is assigned to their favorite slate member.
+Similar to \BaselineEMonroeReassign{}, but the Monroe constituency size constraint is removed and each voter is assigned to their favorite slate member.
 
 \subsection{Results}
 \label{sec:voting-results}
@@ -498,7 +498,7 @@ Three pairs of algorithms provide supporting evidence.
 \ExactMonroe{} performs almost identically to \Exact{} in all SWFs.
 There is a small but clear drop in performance from \ECCExact{} to \EExactMonroe{}.
 The \BaselineReassign{} algorithms show a similar pattern.
-Together, these indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for either objective function.
+Together, these indicate that \textbf{the Monroe constituency size constraint has only a small negative effect on representation for this dataset} for either objective function.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
 \paragraph{\ExactP{} provides a favorable Pareto front and flexibility}
@@ -695,7 +695,7 @@ y_{ij} \in [0,1] \quad \forall i,j.
 
 After solving the LP relaxation, we select the \(k\) candidates with highest fractional \(x_j\) values and assign each voter to their favorite selected candidate.
 
-\ExactMonroe{} adds the constituency-size constraints
+\ExactMonroe{} adds the constituency size constraints
 \[
 \lfloor n/k\rfloor\, x_j \;\le\; \sum_i y_{ij} \;\le\; \lceil n/k\rceil\, x_j \quad \forall j
 \]
@@ -743,7 +743,7 @@ The simplex method visits each basis at most once, and the number of bases is at
 
 The same argument applies to the other algorithms that solve integer programs.
 \ExactP{} first transforms the \(nm\) utilities, which takes \(O(nm)\) time.
-\ExactMonroe{} adds \(2m\) constituency-size constraints.
+\ExactMonroe{} adds \(2m\) constituency size constraints.
 \ECCExact{} and \EExactMonroe{} solve at most \(3n+1\) integer programs (\Cref{app:exact-lp-formulations}), each with at most \(nm+m+n\) binary variables and a number of constraints polynomial in \(n\) and \(m\).
 
 \paragraph{Comparison with brute force} An alternative exact baseline is to enumerate all \(\binom{m}{k}\) possible slates and compute the optimal assignment for each slate directly.
