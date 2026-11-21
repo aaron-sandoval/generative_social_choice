@@ -810,9 +810,9 @@ This appendix defines the social choice axioms we consider (\Cref{app:axiom-defi
 
 In addition to the social welfare functions of \Cref{sec:metrics}, we evaluate the \textsc{U-CC} voting algorithms of \Cref{sec:algorithms} against a set of social choice axioms.
 The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected.
-To satisfy an axiom, the criteria must hold for all possible utility matrices $U$ and all possible $\omega'$ for each matrix, except for cases where the utilities for multiple slates or candidates have identical sums.
-Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice.
-We consider an axiom to have failed only if a counterexample utility matrix that does not contain such a collision can be specified.
+To satisfy an axiom, the criteria must hold for all possible utility matrices $U$ and all possible $\omega'$ for each matrix, except for cases where the utilities for multiple slates or candidates have identical sums; we call this exclusion the \emph{no-ties condition}.
+Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such ties are exceedingly rare in practice.
+We consider an axiom to have failed only if a counterexample utility matrix that satisfies the no-ties condition can be specified.
 Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector realized by an assignment $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ denote its ascending sort.
 
 \paragraph{Symmetry}
@@ -954,7 +954,7 @@ Non-radical Utilitarianism
 \label{app:axiom-proofs}
 We first prove the implications among efficiency axioms stated in \Cref{app:axiom-definitions}, then prove the axioms satisfied by \Exact{}.
 Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, and $u_\omega\in\mathbb{R}_{\ge0}^n$ is the utility vector of \Cref{app:axiom-definitions}.
-As in \Cref{app:axiom-definitions}, we assume the genericity (no-ties) condition under which each algorithm's output is unique.
+As in \Cref{app:axiom-definitions}, we assume the no-ties condition, under which each algorithm's output is unique.
 
 \subsubsection{Axiom implications} \label{app:axiom-implications}
 We use the dominance relations defined in \Cref{app:axiom-definitions}, and say that an outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
@@ -978,8 +978,8 @@ Hence $u_{\omega'}$ sorted-Pareto-dominates $u_\omega$, contradicting Sorted Par
 \paragraph{Independence of Common Scale} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
 
 \paragraph{Symmetry} $T$ is built from sums and maxima of utility entries, so relabeling voters or candidates permutes the set of optimal solutions identically.
-Under genericity this set is a singleton: the optimal slate is unique, as is each voter's favorite member of it (assumption in \Cref{app:axiom-definitions}).
-Any correct exact solver returns this unique optimum, and with no alternative optima the result cannot depend on the solver's internal ordering of variables or constraints; only the same tie cases already excluded by the axiom could introduce such dependence.
+Under the no-ties condition (\Cref{app:axiom-definitions}) this set is a singleton: the optimal slate is unique, as is each voter's favorite member of it.
+Any correct exact solver returns this unique optimum, and with no alternative optima the result cannot depend on the solver's internal ordering of variables or constraints; only ties, which the no-ties condition excludes, could introduce such dependence.
 Hence permuting $U$ permutes the output identically, leaving $\omega$ unchanged as a map.
 
 \paragraph{Monotonicity} If $a\in W^\star$ and we raise $U_{ia}$, then $T$ is unchanged on slates omitting $a$ and weakly increased on $W^\star$, so $W^\star$ still beats every $a$-free slate and any slate beating it contains $a$; thus $a$ stays a winner.
@@ -988,7 +988,7 @@ If $a\notin W^\star$ and we lower $U_{ia}$, then $T(W^\star)$ is unchanged while
 \paragraph{Egalitarian--Utilitarian Efficiency} No solution exceeds $T^\star$ in total utility, so none has both greater total and greater minimum utility.
 
 \paragraph{Generalized Lorenz Efficiency} The final generalized Lorenz ordinate $\mathrm{GL}_n(\omega)$ (\Cref{app:axiom-definitions}) equals the total utility of $\omega$, so $\mathrm{GL}_n(\omega^\star)=T^\star$.
-An assignment $\omega'$ generalized-Lorenz-dominating $\omega^\star$ would have $\mathrm{GL}_n(\omega')\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility which is impossible by assumption (\Cref{app:axiom-definitions}).
+An assignment $\omega'$ generalized-Lorenz-dominating $\omega^\star$ would have $\mathrm{GL}_n(\omega')\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility, which the no-ties condition (\Cref{app:axiom-definitions}) excludes.
 Hence no dominator exists.
 By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficiency follow.
 
