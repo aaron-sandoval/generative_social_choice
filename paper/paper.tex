@@ -366,6 +366,7 @@ We compare voting algorithms independently of the rest of the pipeline.
 In GenerativeCC, a voting algorithm selects candidates in a multiwinner election and maps each voter to exactly one winner.
 We implement voting algorithms for range ballots and evaluate them on the social welfare functions in \Cref{sec:metrics}.
 \Cref{app:axioms} additionally evaluates some algorithms against a set of social choice axioms.
+\Cref{tab:time-complexity} shows the time complexity for our implementation of each algorithm.
 
 \subsection{Algorithms}
 \label{sec:algorithms}
@@ -428,6 +429,43 @@ Upon selecting a winner, those voters are permanently assigned to that winner.
 but relaxes binary constraints to the interval \([0,1]\).
 After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their most preferred selected candidate.
 
+\begin{table}[!t]
+\centering
+\footnotesize
+\begin{tabular*}{\columnwidth}{@{\hspace{4pt}}l@{\extracolsep{\fill}}*{3}{@{\hspace{8pt}}c}@{\hspace{4pt}}}
+\hline
+ & \multicolumn{3}{@{\hspace{8pt}}c@{\hspace{4pt}}}{Worst-case time} \\
+Algorithm & Exp. & Poly. & Indep. \\
+\hline
+\Exact{} & \(n,m\)\textsuperscript{a} & -- & \(k\) \\ \hline
+\Greedy{} & -- & \(n,m,k\) & -- \\ \hline
+\LP{} & \(n,m\)\textsuperscript{b} & -- & \(k\) \\ \hline
+\ExactMonroe{} & \(n,m\)\textsuperscript{c} & -- & \(k\) \\ \hline
+\ExactP{} & \(n,m\)\textsuperscript{a} & -- & \(k\) \\ \hline
+\ECCExact{} & \(n,m\)\textsuperscript{a} & -- & \(k\) \\ \hline
+\EExactMonroe{} & \(n,m\)\textsuperscript{c} & -- & \(k\) \\ \hline
+\UGreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
+\GreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
+\makecell[l]{\Baseline{} +\\\textsc{E-Monroe-Exact reassign}} & \(n,k\)\textsuperscript{d} & \(m\) & -- \\ \hline
+\makecell[l]{\Baseline{} +\\\textsc{CC reassign}} & -- & \(n,m,k\) & -- \\
+\hline
+\multicolumn{4}{@{\hspace{4pt}}p{\dimexpr\columnwidth-8pt\relax}@{\hspace{4pt}}}{%
+\raggedright\rule{0pt}{2.5ex}\textsuperscript{a}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \ECCExact{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
+Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment directly is exponential only in \(m\), and polynomial in \(n\) and \(k\).\par
+\textsuperscript{b}Solver-dependent.
+The simplex method we use has an exponential worst case; an interior-point method makes \LP{} polynomial in \(n\) and \(m\).
+See \Cref{app:lp-complexity}.\par
+\textsuperscript{c}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \EExactMonroe{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
+Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment as a flow problem is exponential only in \(m\), and polynomial in \(n\) and \(k\) (\citealp[Prop.~2]{betzler-2013}; \Cref{app:baseline-reassign-complexity}).\par
+\textsuperscript{d}Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
+With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.}
+\end{tabular*}
+\caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
+Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns, and neither depends on the variables in the \textit{Indep.}\ (independent) column.
+These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exact}), not for the underlying problems.}
+\label{tab:time-complexity}
+\end{table}
+
 \paragraph{\Baseline{} \citep{fish-v2}}
 The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation.
 In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters, and only the unassigned voters rate them.
@@ -452,40 +490,6 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 
 \subsection{Results}
 \label{sec:voting-results}
-
-
-\begin{table}[t]
-\centering
-\footnotesize
-\begin{tabular}{@{\hspace{4pt}}l*{3}{@{\hspace{8pt}}c}@{\hspace{4pt}}}
-\hline
- & \multicolumn{3}{@{\hspace{8pt}}c@{\hspace{4pt}}}{Worst-case time} \\
-Algorithm & Exp. & Poly. & Indep. \\
-\hline
-\Exact{} & \(n,m\)\tablefootnote{Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \ECCExact{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
-Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment directly is exponential only in \(m\), and polynomial in \(n\) and \(k\).}\xdef\exactcomplexityfn{\number\value{footnote}} & -- & \(k\) \\ \hline
-\Greedy{} & -- & \(n,m,k\) & -- \\ \hline
-\LP{} & \(n,m\)\tablefootnote{Solver-dependent.
-The simplex method we use has an exponential worst case; an interior-point method makes \LP{} polynomial in \(n\) and \(m\).
-See \Cref{app:lp-complexity}.} & -- & \(k\) \\ \hline
-\ExactMonroe{} & \(n,m\)\tablefootnote{Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \EExactMonroe{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
-Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment as a flow problem is exponential only in \(m\), and polynomial in \(n\) and \(k\) (\citealp[Prop.~2]{betzler-2013}; \Cref{app:baseline-reassign-complexity}).}\xdef\monroecomplexityfn{\number\value{footnote}} & -- & \(k\) \\ \hline
-\ExactP{} & \(n,m\)\footnotemark[\exactcomplexityfn] & -- & \(k\) \\ \hline
-\ECCExact{} & \(n,m\)\footnotemark[\exactcomplexityfn] & -- & \(k\) \\ \hline
-\EExactMonroe{} & \(n,m\)\footnotemark[\monroecomplexityfn] & -- & \(k\) \\ \hline
-\UGreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
-\GreedyMonroe{} & -- & \(n,m,k\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\\textsc{E-Monroe-Exact reassign}} & \(n,k\)\tablefootnote{Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
-With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.} & \(m\) & -- \\ \hline
-\makecell[l]{\Baseline{} +\\\textsc{CC reassign}} & -- & \(n,m,k\) & -- \\
-\hline
-\end{tabular}
-\caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
-Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns, and neither depends on the variables in the \textit{Indep.}\ (independent) column.
-These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exact}), not for the underlying problems.}
-\label{tab:time-complexity}
-\end{table}
-
 \begin{figure*}[t]
 \centering
   \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v8.png}
