@@ -418,7 +418,7 @@ See \Cref{app:lp-complexity}.\par
 With the slate fixed, the reassignment is polynomial in \(n\), \(m\), and \(k\) (\Cref{app:baseline-reassign-complexity}).}
 \end{tabular*}
 \caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
-Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns, and neither depends on any variable that appears in neither column.
+Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, and \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns.
 These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exact}), not for the underlying problems.}
 \label{tab:time-complexity}
 \end{table}
@@ -494,11 +494,11 @@ One possible cause is the absence of global optimization steps.
 However, \textsc{Monroe-Greedy} algorithms permanently assign voters to their first candidate.
 
 \paragraph{The constituency size constraint has little performance effect}
-Three pairs of algorithms provide evidence.
+Three pairs of algorithms provide supporting evidence.
 \ExactMonroe{} performs almost identically to \Exact{} in all SWFs.
 There is a small but clear drop in performance from \ECCExact{} to \EExactMonroe{}.
 The \BaselineReassign algorithms show a similar pattern.
-Together, these patterns indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for both egalitarian and utilitarian objective functions.
+Together, these indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for either objective function.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
 \paragraph{\ExactP provides a favorable Pareto front and flexibility}
@@ -517,9 +517,8 @@ A Kolm--Pollak transformation may also be attractive in providing probable (but 
 \subsection{AI Systems for Virtual Democracy}
 GenerativeCC builds directly on the work of \citet{fish-v2}.
 Their system uses virtual voters to evaluate and generate candidate statements, then uses an approximation of the Monroe rule \citep{monroe-1995} to select a slate.
-We relax the constraint of equal-sized constituencies, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of SWFs to measure performance.
-\citet{gsc-next-gen} also extend the work of \citet{fish-v2}, building a similar LLM system intending to achieve theoretical guarantees using approximately optimal queries under constraints on statement length.
-We instead test various voting algorithms and focus on SWF performance.
+We relax the constituency size constraint, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of SWFs to measure performance.
+\citet{gsc-next-gen} also extend the work of \citet{fish-v2}, building a similar LLM system, but focus on achieving theoretical guarantees using approximately optimal queries under constraints on statement length.
 \citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
 While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
 \citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
@@ -564,11 +563,6 @@ Although that should not systematically favor our method over the baseline, we d
 It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here.
 In general, we make no claims about the absolute alignment with human participants of the range votes made by our LLM-based virtual voters.
 
-\paragraph{Inherited limitations from prior work}
-Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups.
-These issues remain significant obstacles to real-world deployment.
-
-
 \paragraph{Strategic voting}
 Every reasonable single winner voting system with at least three candidates incentivizes strategic voting \citep{gibbards-theorem}.
 \citet{preference-overstating} show that in large single winner elections, strategic voters treat range ballots as approval ballots, eliminating their expressivity advantage.
@@ -578,6 +572,9 @@ Even if a virtual voter could be trained to report its principal's beliefs hones
 Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the participant opinions in the dataset that we test are honest.
 Approval-style ballots may therefore remain attractive in real deployments.
 
+\paragraph{Inherited limitations from prior work}
+Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups.
+These issues remain significant obstacles to real-world deployment.
 
 \subsection{Future Work}
 
@@ -590,17 +587,14 @@ For example, the experimental design of \citet{habermas-machine} could be adapte
 
 \section{Conclusion}
 
-We studied representative slate generation: the task of transforming many free-form opinions into a small, weighted slate of representative statements.
-The goal is not to achieve consensus in a single step, but to model  diversity in a form more flexible for its compactness.
+We studied the task of compressing many free-form opinions into a small, weighted slate of representative statements.
+The goal was not to achieve consensus in a single step, but to concisely model diversity for potential downstream applications.
 
-We presented GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voting, and multiwinner range voting methods to select representative statements and assign voters to them.
+We presented GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voting, and multiwinner range voting methods to select representative statements and assign voters.
 On the chatbot personalization benchmark, this pipeline improves on the closest prior system across all selected social welfare functions.
-Ablation results suggest that the improvement is not explained solely by better clustering or by generating more candidates, but by the broader design choice of evaluating all voters against all candidates and optimizing the final slate globally.
+Ablation results suggest that the improvement is mostly explained by evaluating more voters against more candidates and optimizing the final slate globally.
 
-%At the same time, the work remains exploratory.
-%Our evaluation is limited to one dataset, lacks human validation, and inherits broader concerns about robustness, manipulation, and bias in virtual democracy systems.
-%We nevertheless present opinion condensation as a useful subproblem for virtual democracy, and our pipeline as a starting point for focused development.
-While this work remains exploratory and suffers from several limitations (see \Cref{sec:limitations}), we see representative slate generation as a useful subproblem for virtual democracy, and GenerativeCC as a starting point for focused development.
+While this work remains exploratory and is limited to a single dataset, we see representative slate generation as a useful subproblem for virtual democracy, and GenerativeCC as a starting point for focused development.
 
 
 \bibliography{gen_social_choice}
