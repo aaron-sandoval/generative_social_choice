@@ -103,7 +103,7 @@ Recent work has extended this paradigm beyond fixed decision spaces, building sy
 They build their system primarily to satisfy a novel social choice axiom.
 We focus specifically on large-scale pluralistic alignment and use social welfare functions (SWFs) instead of social choice axioms as the primary performance measures.
 
-We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
+We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) voting rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
 As illustrated in \Cref{fig:functionality}, LLMs generate a pool of candidate statements seeded by participants' natural language opinions.
 Each participant is represented by a \emph{virtual voter}, an LLM given that participant's opinions as context.
 Virtual voters fill out \emph{range ballots}, scoring every candidate by their level of agreement from 0--4.
@@ -115,7 +115,7 @@ Because each voter counts only their favorite winner, this rule suits our goal o
 
 We use the generative social choice system of \citet{fish-v2} as our baseline.
 Relative to their work, GenerativeCC makes two main changes.
-First, we allow slate members to represent unequal fractions of the population, rather than enforcing equal constituency sizes as does \citet{monroe-1995}.
+First, we allow slate members to represent unequal fractions of the population, rather than enforcing equal constituency sizes. In other words, we use (or approximate) the CC voting rule rather than the Monroe rule \citep{monroe-1995}.
 Second, we evaluate all voters against all generated candidate statements, yielding a full \emph{ballot profile} and enabling global slate optimization.
 These changes allow for separation of statement generation from slate selection and testing of a broader set of voting rules.
 
@@ -228,9 +228,9 @@ GenerativeCC makes fewer generative queries, but each query uses more output tok
 It also makes no more tha twice as many discriminative queries.
 
 \paragraph{Runtime complexity}
-In practice, runtime is dominated by LLM calls, which are comparable in cost per call across the baseline and GenerativeCC.
-Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and then runs one of the voting algorithms from \Cref{sec:voting-algorithms}, which may have polynomial or exponential runtime (\Cref{tab:time-complexity}).
-However, at the small scale of our experiments, GenerativeCC is slower mostly due to the linear difference in required LLM inference rather than any difference in voting algorithm runtime.
+In practice, runtime is dominated by LLM inference, which is comparable in cost per call across the baseline and GenerativeCC.
+Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and runs one of the voting algorithms from \Cref{sec:voting-algorithms}.
+Voting algorithm runtime is reasonably short despite its worse algorithmic complxity at the small scale of our experiments, so LLM inference .
 
 \begin{table}[t]
 \centering
@@ -456,6 +456,7 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 
 \subsection{Results}
 \label{sec:voting-results}
+
 \begin{figure*}[t]
 \centering
   \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v8.png}
