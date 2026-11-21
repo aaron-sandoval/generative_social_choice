@@ -396,27 +396,26 @@ After solving the relaxed program, it selects the \(k\) candidates with largest 
  & \multicolumn{2}{@{\hspace{8pt}}c@{\hspace{4pt}}}{\textit{Worst-case time}} \\
 \textit{Algorithm} & \textit{Exp.} & \textit{Poly.} \\
 \hline
-\Exact{} & \(n,m\)\textsuperscript{a} & -- \\
+\Exact{} & \(n,m\)\textsuperscript{a,b} & -- \\
 \Greedy{} & -- & \(n,m,k\) \\
-\LP{} & \(n,m\)\textsuperscript{b} & -- \\
-\ExactMonroe{} & \(n,m\)\textsuperscript{c} & -- \\
-\ExactP{} & \(n,m\)\textsuperscript{a} & -- \\
-\ECCExact{} & \(n,m\)\textsuperscript{a} & -- \\
-\EExactMonroe{} & \(n,m\)\textsuperscript{c} & -- \\
+\LP{} & \(n,m\)\textsuperscript{c} & -- \\
+\ExactMonroe{} & \(n,m\)\textsuperscript{a,b} & -- \\
+\ExactP{} & \(n,m\)\textsuperscript{a,b} & -- \\
+\ECCExact{} & \(n,m\)\textsuperscript{a,b,d} & -- \\
+\EExactMonroe{} & \(n,m\)\textsuperscript{a,b,d} & -- \\
 \UGreedyMonroe{} & -- & \(n,m,k\) \\
 \GreedyMonroe{} & -- & \(n,m,k\) \\
-\BaselineEMonroeReassign{} & \(n,k\)\textsuperscript{d} & \(m\) \\
+\BaselineEMonroeReassign{} & \(n,k\)\textsuperscript{a,e} & \(m\) \\
 \BaselineCCReassign{} & -- & \(n,m,k\) \\
 \multicolumn{3}{@{\hspace{4pt}}p{\dimexpr\columnwidth-8pt\relax}@{\hspace{4pt}}}{%
-\raggedright\rule{0pt}{2.5ex}\textsuperscript{a}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \ECCExact{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
-Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment directly is exponential only in \(m\), and polynomial in \(n\) and \(k\).\par
-\textsuperscript{b}Solver-dependent.
+\raggedright\rule{0pt}{2.5ex}\textsuperscript{a}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}).\par
+\textsuperscript{b}Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment directly is exponential only in \(m\), and polynomial in \(n\) and \(k\) (for Monroe assignments, \citealp{betzler-2013}; \Cref{app:baseline-reassign-complexity}).\par
+\textsuperscript{c}Solver-dependent.
 The simplex method we use has an exponential worst case; an interior-point method makes \LP{} polynomial in \(n\) and \(m\).
 See \Cref{app:lp-complexity}.\par
-\textsuperscript{c}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \EExactMonroe{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
-Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment is exponential only in \(m\), and polynomial in \(n\) and \(k\) (\citealp{betzler-2013}; \Cref{app:baseline-reassign-complexity}).\par
-\textsuperscript{d}Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
-With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.}
+\textsuperscript{d}Solves a sequence of integer programs, polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).\par
+\textsuperscript{e}The integer programs range over the baseline's slate only; \(m\) enters only through the baseline's slate selection.
+With the slate fixed, the reassignment is polynomial in \(n\), \(m\), and \(k\) (\Cref{app:baseline-reassign-complexity}).}
 \end{tabular*}
 \caption{Worst-case time complexity of the voting algorithms as implemented, where \(k\) is the slate size, \(m\) the number of candidates, and \(n\) the number of voters.
 Each row represents a complexity of \(O(2^{f}\cdot g)\), where \(f\) is a polynomial in the variables in the \textit{Exp.}\ (exponential) column, \(g\) is a polynomial in the variables in the \textit{Exp.}\ and \textit{Poly.}\ (polynomial) columns, and neither depends on any variable that appears in neither column.
