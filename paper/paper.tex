@@ -350,7 +350,7 @@ Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
  & \makecell[l]{Interleaved\\Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
-\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency-size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates minimum utility, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
+\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency-size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates minimum utility, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
 \label{tab:algorithm-space}
 \end{table*}
 
@@ -435,7 +435,7 @@ This constraint propagates backwards through each round.
 
 \paragraph{\BaselineEMonroeReassign{}}
 In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full ballot profile.
-Still, better SWF performance than that of \Baseline can be attained with relatively few additional queries.
+Still, better SWF performance than that of \Baseline{} can be attained with relatively few additional queries.
 This algorithm selects the slate using \Baseline.
 Then, full discriminative queries are performed on the slate.
 Finally, voters are reassigned with \EExactMonroe{}.
@@ -471,11 +471,11 @@ Using the 15 baseline ballot profiles from \Cref{fig:swf-main}, we produce the r
 The algorithms form three clusters based on their performance.
 Cluster 1: CC and \textsc{Exact} algorithms perform relatively well on every SWF.
 Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
-Cluster 3: \BaselineReassign algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
+Cluster 3: \BaselineReassign{} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
 All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
 
 \paragraph{The partial utility matrix is \Baseline's main limiting factor}
-The \BaselineReassign algorithms leverage their additional discriminative queries to recover most of the SWF performance gap among \textsc{E-Monroe} algorithms.
+The \BaselineReassign{} algorithms leverage their additional discriminative queries to recover most of the SWF performance gap among \textsc{E-Monroe} algorithms.
 \BaselineEMonroeReassign{} recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility, 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
 CC reassignment performs almost identically.
 In our setting, this requires at most 11\% more queries than \Baseline, compared to the 67\% more required by \EExactMonroe{}.
@@ -497,14 +497,14 @@ However, \textsc{Monroe-Greedy} algorithms permanently assign voters to their fi
 Three pairs of algorithms provide supporting evidence.
 \ExactMonroe{} performs almost identically to \Exact{} in all SWFs.
 There is a small but clear drop in performance from \ECCExact{} to \EExactMonroe{}.
-The \BaselineReassign algorithms show a similar pattern.
+The \BaselineReassign{} algorithms show a similar pattern.
 Together, these indicate that \textbf{the Monroe equal-sized constituency constraint has only a small negative effect on representation for this dataset} for either objective function.
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
-\paragraph{\ExactP provides a favorable Pareto front and flexibility}
-\ExactP provides favorable SWF tradeoffs near either end of the egalitarian-utilitarian spectrum.
-At \(\kappa=3\), minimum utility is noticeably boosted compared to \Exact at a very small cost to other SWFs.
-At \(\kappa=7\), minimum utility is nearly matched with \ECCExact with significantly better performance on all other SWFs.
+\paragraph{\ExactP{} provides a favorable Pareto front and flexibility}
+\ExactP{} provides favorable SWF tradeoffs near either end of the egalitarian-utilitarian spectrum.
+At \(\kappa=3\), minimum utility is noticeably boosted compared to \Exact{} at a very small cost to other SWFs.
+At \(\kappa=7\), minimum utility is nearly matched with \ECCExact{} with significantly better performance on all other SWFs.
 % With \textsc{Monroe-Greedy} algorithms performing poorly, and \textsc{E-CC} algorithms underspecified and beyond our scope, the remaining polynomial practical approximation of egalitarian
 A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
 
@@ -539,7 +539,7 @@ The optimal CC slate can be found by solving an integer program \citep{potthoff-
 However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative.
 \citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by solving an LP relaxation and applying pipage rounding to select winners.
-Our \LP algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
+Our \LP{} algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
 \citet{skowron-2015} test a greedy Monroe rule approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
 This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
 
