@@ -375,14 +375,15 @@ Under the CC rule \citep{chamberlin-courant}, each voter is assigned to their fa
 The Monroe rule \citep{monroe-1995} instead assigns each winner an equal-sized constituency of either \(\lfloor n/k\rfloor\) or \(\lceil n/k\rceil\) voters, as in the pipeline of \citet{fish-v2}.
 
 \paragraph{Solution method}
-\textsc{Exact} algorithms select the slate and assignment that optimize the objective exactly, by solving an integer program (\Cref{app:exact-lp-formulations}).
+\textsc{Exact} algorithms optimize the objective exactly by solving an integer program (\Cref{app:exact-lp-formulations}).
 This is an NP-hard problem for both the CC and Monroe rules \citep{lu-boutilier-2011, procaccia-2008}.
-\textsc{Greedy} algorithms build the slate one candidate at a time in \(k\) rounds.
+\textsc{Greedy} algorithms select one candidate at a time over \(k\) rounds.
 \textsc{Greedy} algorithms proceed differently depending on the constituency size constraint.
-In \textsc{CC-Greedy} algorithms, each round selects the candidate that scores highest on the objective function and assigns every voter to their favorite slate member.
-We do not define \textsc{E-CC-Greedy}: a new winner raises the minimum utility only if it improves every voter at the minimum, so in most rounds all remaining candidates tie on the egalitarian objective and the selection is left to tie-breaking.
-\textsc{Monroe-Greedy} algorithms instead score each remaining candidate only over the voters not yet assigned.
-In each round, a candidate's objective function is computed only over the \(\lceil n/k\rceil\) unassigned voters with the highest utility for it.\footnote{(\(\lfloor n/k\rfloor\) in the last rounds if \(k \nmid n\))}
+In \Greedy, each round selects the candidate and assignment that maximizes the objective function.
+All voters are always assigned after round 1.
+In \textsc{Monroe-Greedy} algorithms, only \(\lceil n/k\rceil\) voters are assigned in each round.\footnotemark{}
+Only the voters not yet assigned score candidates.
+A candidate's objective function is computed only over the \(\lceil n/k\rceil\) unassigned voters with the highest utility for it.\footnotemark[\value{footnote}]\footnotetext{(\(\lfloor n/k\rfloor\) in the last rounds if \(k \nmid n\))}
 Upon selecting a winner, those voters are permanently assigned to that winner.
 
 \LP{} approximates \Exact{} with a linear program: it uses the same problem formulation for slate selection and voter assignment as \Exact{},
@@ -505,7 +506,7 @@ This effect is an order of magnitude smaller than the cost of greedy assignment 
 \ExactP{} provides favorable SWF tradeoffs near either end of the egalitarian--utilitarian spectrum.
 At \(\kappa=3\), minimum utility is noticeably boosted compared to \Exact{} at a very small cost to other SWFs.
 At \(\kappa=7\), minimum utility is nearly matched with \ECCExact{} with significantly better performance on all other SWFs.
-A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
+A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
 We use \Exact{} in the main pipeline because it is feasible at the scale of the chatbot personalization dataset and performs well empirically.
