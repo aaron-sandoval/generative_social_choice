@@ -426,18 +426,17 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
 
 \paragraph{\Baseline{} \citep{fish-v2}}
 The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation.
-In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters, and only the unassigned voters rate them.
-The candidates generated in earlier rounds that are not yet on the slate remain eligible.
-One candidate is selected, its voters assigned, and the round concludes.
+In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters and added to the candidate pool, and the unassigned voters rate them.
+One candidate is selected, its voters assigned, and the round ends.
 This uses \(\frac{1}{2} n (m + m/k)\) discriminative queries, the fewest of any algorithm we test (\Cref{tab:llm-call-comparison}).
 If the slate contains one winner generated during each round, then no post-hoc improvements such as reassignment are possible without additional discriminative queries.
-This is because the winner generated in the final round are never rated by the \(n-n/k\) voters already assigned at the start of that round.
-Since no other voter can be assigned to the final winner, all of its currently assigned voters must stay assigned.
-This constraint propagates backwards through the rounds.
+This is because the winner generated in the final round are never rated by the \(n-n/k\) already assigned voters.
+Since no other voter can be assigned to the final winner, it must retain all of its currently assigned voters.
+This constraint propagates backwards through each round.
 
 \paragraph{\BaselineEMonroeReassign{}}
 In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full ballot profile.
-Still, better SWF performance than that of the baseline can be attained with relatively few additional queries.
+Still, better SWF performance than that of \Baseline can be attained with relatively few additional queries.
 This algorithm selects the slate using \Baseline.
 Then, full discriminative queries are performed on the slate.
 Finally, voters are reassigned with \EExactMonroe{}.
@@ -573,10 +572,9 @@ These issues remain significant obstacles to real-world deployment.
 
 \paragraph{Strategic voting}
 Every reasonable single winner voting system with at least three candidates incentivizes strategic voting \citep{gibbards-theorem}.
-\citet{rangevoting-range-voting} shows that single winner range voting achieves lower Bayesian regret than several common voting algorithms under both honest and strategic voting, across a range of synthetic ballot profile distributions.
-However, \citet{preference-overstating} show that in large single winner elections, strategic voters treat range ballots as approval ballots, eliminating their expressivity advantage.
+\citet{preference-overstating} show that in large single winner elections, strategic voters treat range ballots as approval ballots, eliminating their expressivity advantage.
 This likely extends to multiwinner elections.
-Virtual voters may mitigate strategic voting, depending on how they are trained \citet{rangevoting-range-voting, newberry-moral-parliaments}.
+Virtual voters could mitigate strategic voting, depending on how they are trained \citet{rangevoting-range-voting, newberry-moral-parliaments}.
 Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal is still incentivized to misrepresent her beliefs in the training data.
 Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the participant opinions in the dataset that we test are honest.
 Approval-style ballots may therefore remain attractive in real deployments.
