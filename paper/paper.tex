@@ -313,7 +313,7 @@ To investigate the mechanisms behind the performance gap, we run a series of abl
 \Cref{sec:voting-algorithms} documents ablations on the voting algorithms, where we find this to be the dominant source of the performance difference.
 The remaining ablations find relatively small contributions from all other pipeline improvements.
 In \Cref{app:statement-ablation-details} we ablate the difference in \(m\) between pipelines.
-In \Cref{app:embedding-ablation-details}, we ablate the change in embeddings.
+In \Cref{app:embedding-ablation-details}, we ablate the change in opinion similarity measure.
 We do not run any study varying model selection, but we believe model selection unlikely to be a major contributor to the performance difference.
 While \citet{fish-v2} uses three variants of GPT-4, all of our experiments, including those on their pipeline, use GPT-4o mini and GPT-4o.
 It's possible that this could account for a small difference, but only if either pipeline were overfit to the particular models used to test them.
@@ -610,15 +610,15 @@ While this work remains exploratory and is limited to a single dataset, we see r
 
 Author 1 produced the initial idea for the project, and both authors refined it.
 Author 1 performed the literature review and contextualized the project, as well as the selection, design, and testing of the axioms (\Cref{app:axioms}), and implemented some voting algorithms.
-Author 2 developed and implemented the \textsc{U-CC} voting algorithms, did initial design of some axioms, implemented the LLM embeddings, added formal proofs, and ran the embedding and statement count ablation studies.
+Author 2 developed and implemented the \textsc{U-CC} voting algorithms, did initial design of some axioms, implemented the LLM embeddings, added formal proofs, and ran the similarity measure and statement count ablation studies.
 Both authors performed main pipeline experiments, analysis, time complexity analysis, and both wrote the paper.
 
-\section{Embedding Ablation Study Details}
+\section{Similarity Measure Ablation Study Details}
 \label{app:embedding-ablation-details}
 
-\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} show the results of running GenerativeCC and the pipeline of \citet{fish-v2} with different embedding choices on the chatbot personalization dataset.
-In both pipelines, the embeddings only determine the groups of similar voters that a subset of the statement generators are prompted with: the five clusters in GenerativeCC (\Cref{sec:statement-generation}), and the nearest neighbors found by three of the six generators of the baseline.
-The improved LLM embeddings account for only a small portion of the overall difference in performance.
+\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} show the results of running GenerativeCC and the pipeline of \citet{fish-v2} with two opinion similarity measures on the chatbot personalization dataset: similarity of the LLM embeddings of opinion summaries (\Cref{sec:statement-generation}), and the similarity measure of the baseline, which uses discriminative queries (\Cref{sec:inference-costs}).
+In both pipelines, the similarity measure only determines the groups of similar voters that a subset of the statement generators are prompted with: the five clusters in GenerativeCC (\Cref{sec:statement-generation}), and the nearest neighbors found by three of the six generators of the baseline.
+Switching to the LLM embedding similarity measure accounts for only a small portion of the overall difference in performance.
 
 Both baseline series in this ablation use a slightly modified \citet{fish-v2} pipeline with a different voting algorithm due to a mistake in the experiment.
 Each round of slate selection considers only the candidates generated in that round, rather than all previously generated candidates.
@@ -627,7 +627,7 @@ We expect this change to an unrelated part of the pipeline to introduce negligib
 \begin{figure}[t]
   \begin{center}
   \includegraphics[width=\columnwidth]{figures/scalar_confidence_intervals_all_stacked.pdf}
-  \caption{Comparison of SWF performance for an ablation changing only the embeddings in (a) the \citet{fish-v2} baseline (b) GenerativeCC. Using LLM embeddings accounts for only a small portion of the overall SWF performance difference in \Cref{fig:swf-main}.
+  \caption{Comparison of SWF performance for an ablation changing only the opinion similarity measure in (a) the \citet{fish-v2} baseline (b) GenerativeCC. Using the LLM embedding similarity measure accounts for only a small portion of the overall SWF performance difference in \Cref{fig:swf-main}.
 }
   \label{fig:scalar-metrics-embeddings}
   \end{center}
@@ -636,7 +636,7 @@ We expect this change to an unrelated part of the pipeline to introduce negligib
 \begin{figure*}[t]
   \begin{center}
   \includegraphics[width=0.8\textwidth]{figures/sorted_utility_CIs_all.pdf}
-  \caption{While LLM embeddings improve utilities fairly consistently, the effect remains limited at the individual voter level.
+  \caption{While the LLM embedding similarity measure improves utilities fairly consistently, the effect remains limited at the individual voter level.
   Lines are the mean sorted vectors of voter utilities, and bands their 95\% confidence intervals.}
   \label{fig:mth-happiest-embeddings}
   \end{center}
@@ -1397,13 +1397,13 @@ Since most of these queries have only one 2025 output, we use them only to compa
 \subsection{Line endings}
 \label{app:line-endings}
 
-All results in the paper use prompts with LF line endings, except the two baseline series of the embedding ablation (\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}), whose runs used CRLF.
+All results in the paper use prompts with LF line endings, except the two baseline series of the similarity measure ablation (\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}), whose runs used CRLF.
 
 \paragraph{Scoring.}
 A scoring prompt contains a voter's opinion and the scored statement.
 We re-score 40 cells of the GenerativeCC utility matrices, 10 from each utility bin, in 2026 with each combination of line endings in the opinion and in the statement.
 All-LF prompts reproduce the 2025 scores best, with a bias of \(-0.002\) \([-0.047, +0.044]\) and a mean absolute difference of \(0.085\), compared with \(0.116\) to \(0.159\) for the other combinations, so we infer that GenerativeCC used LF.
-A second sample of 120 cells of the GenerativeCC variant with the embeddings of \citet{fish-v2}, scored with all-CRLF and all-LF prompts, gives the same result, with mean absolute differences of \(0.100\) for LF and \(0.114\) for CRLF.
+A second sample of 120 cells of the GenerativeCC variant with the similarity measure of \citet{fish-v2}, scored with all-CRLF and all-LF prompts, gives the same result, with mean absolute differences of \(0.100\) for LF and \(0.114\) for CRLF.
 Prompts formatted as in the earlier baseline runs, with CRLF opinions and LF statements, score \textbf{\(0.073\) \([0.010, 0.134]\) higher than all-LF prompts}, weighted to the distribution of GenerativeCC scores; the difference is largest for scores below \(2\) (\(+0.27\)).
 These estimates come from 40 cells only.
 
@@ -1439,7 +1439,7 @@ Comparisons among these series are therefore unaffected, and \textbf{their compa
 
 \paragraph{\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}.}
 All four series were produced in 2025, so drift does not affect them.
-Both baseline series used CRLF and both GenerativeCC series LF, so the comparisons between the two embeddings within each system are unaffected.
+Both baseline series used CRLF and both GenerativeCC series LF, so the comparisons between the two similarity measures within each system are unaffected.
 Between the systems, the CRLF prompts of the baseline series may raise their scores by about \(0.07\), so \textbf{line endings may favor the baseline series over the GenerativeCC series} in these figures.
 The CRLF prompts also change the content of some of the baseline's generated statements and may change their variance, with no known effect on its performance.
 
