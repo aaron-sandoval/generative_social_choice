@@ -73,10 +73,10 @@
 \maketitle
 
 \begin{abstract}
-Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent a diverse constituency.
-However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit the representativeness of outputs.
-We build GenerativeCC, an LLM-based system that compresses many free-form voter opinions into a small weighted slate of representative statements.
-The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates voter agreement with statements using virtual voters, and (iv) selects a slate using a multiwinner range voting algorithm, where each voter is assigned to one slate member, and each weight is proportional to the quantity of assigned voters.
+Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent populous and diverse constituencies.
+However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit  representativeness.
+We build GenerativeCC, an LLM-based system that compresses many free-form participant opinions into a small weighted slate of representative statements.
+The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates participant agreement with statements using virtual voters, and (iv) selects a slate using a multiwinner range voting algorithm, where each voter is assigned to one slate member, and each weight is proportional to the quantity of assigned voters.
 On a dataset of 100 opinions, GenerativeCC outperforms the most closely related method from previous literature across all egalitarian and utilitarian social welfare functions.
 The design feature primarily driving improved performance is that more voters evaluate more candidates, enabling broader optimization.
 While the pipeline runs in exponential time, we demonstrate that multiple polynomial-time alternatives achieve similar performance.
@@ -103,7 +103,9 @@ They build their system primarily to satisfy a novel social choice axiom.
 We focus specifically on large-scale pluralistic alignment and use social welfare functions (SWFs) instead of social choice axioms as the primary performance measures.
 
 We design and evaluate \emph{GenerativeCC}, a generative system based on the utilitarian Chamberlin--Courant (CC) rule for multiwinner elections \citep{chamberlin-courant} using range ballots.
-As illustrated in \Cref{fig:functionality}, LLMs generate a pool of candidate statements seeded by participants' natural language opinions. Each human voter is represented by a \emph{virtual voter}, an LLM given that voter's opinions as context. Virtual voters fill out \emph{range ballots}, scoring every candidate by their level of agreement from 0--4.
+As illustrated in \Cref{fig:functionality}, LLMs generate a pool of candidate statements seeded by participants' natural language opinions.
+Each participant is represented by a \emph{virtual voter}, an LLM given that participant's opinions as context.
+Virtual voters fill out \emph{range ballots}, scoring every candidate by their level of agreement from 0--4.
 Under the CC rule, a slate of \(k\) winners is selected, and each voter is assigned their favorite winner as their representative.
 A voter's utility is their score for their representative.
 For downstream applications, each winner is weighted proportionally to their number of assigned voters.
@@ -126,7 +128,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
     \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the ballot profile, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
-    This suggests that CC voting algorithms offer the most scalability and average performance for large-scale voter representation, though testing on more datasets is necessary.
+    This suggests that CC voting algorithms offer the most scalability and average performance for representing large populations, though testing on more datasets is necessary.
 \end{itemize}
 
 \section{Background and Related Work}
@@ -137,9 +139,9 @@ We relax the constraint of equal-sized constituencies, test a variety of voting 
 In parallel work, \citet{gsc-next-gen} build a similar LLM system with theoretical guarantees under more realistic assumptions.
 Among their improvements, they apply the same embedding model for clustering statements as GenerativeCC.
 \citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
-While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 voters, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
-\citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of voters using iterative voter feedback on each others' statements.
-GenerativeCC generates new statements and requires voter input only once, eliminating the bias in Polis related to varying levels and timing of voter participation.
+While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
+\citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
+GenerativeCC generates new statements and requires participant input only once, eliminating the bias in Polis related to varying levels and timing of participation.
 \citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine tuned using data from over 3000 human participants.
 GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single winner election to reach consensus.
 
@@ -170,7 +172,7 @@ We do not evaluate other common multiwinner rules such as proportional approval 
 \label{sec:problem-formulation}
 
 We solve the task of compressing a large set of opinions into a small weighted slate of representative statements.
-Let \(N=\{1,\ldots,n\}\) be a set of voters, let \(O=(o_1,\ldots,o_n)\) be their free-form opinions on a topic, and let \(k \ll n\) be the desired slate size.
+Let \(N=\{1,\ldots,n\}\) be a set of voters, each representing one participant, let \(O=(o_1,\ldots,o_n)\) be the participants' free-form opinions on a topic, and let \(k \ll n\) be the desired slate size.
 The pipeline generates a set \(A=\{a_1,\ldots,a_m\}\) of \(m \ge k\) candidate statements from \(O\).
 As in \citet{fish-v2}, it then selects a slate \(W\subseteq A\) of \(k\) statements together with an assignment \(\omega:N\to W\) mapping each voter to one statement on the slate.
 As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
@@ -182,7 +184,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
 \subsection{Algorithm}
 
 \begin{enumerate}
-    \item Use voter opinions \(O\) to generate the candidate statements \(A\).
+    \item Use participant opinions \(O\) to generate the candidate statements \(A\).
     \begin{enumerate}
         \item For each opinion \(o_i\), generate a summary of roughly standard length.
         In our case study, we reuse the summaries from \citet{fish-v2}, each under 50 words.
@@ -194,7 +196,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
     \item Compute the ballot profile \(U\in \mathbb{R}^{n\times m}\) over voters \(N\) and candidate statements \(A\).\footnote{The method for computing \(U\) is nearly identical to that of \citet{fish-v2}.
     The main differences are that we compute utilities only after all statements are generated, we compute the full matrix \(U\), and we use a different LLM.}
     \begin{enumerate}
-        \item Model each voter's utility function with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
+        \item Represent each participant with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
         The prompt includes \(o_i\) and ends with candidate \(a_j\), requesting a 0--4 Likert score.
         \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the average weighted by token-probability over the responses 0--4.
         We treat this expected score as voter \(i\)'s agreement with \(a_j\).
@@ -211,7 +213,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
 \subsection{Statement Generation Details}
 \label{sec:statement-generation}
 
-We generate candidates in three stages: (i) embed each voter's opinion summary with OpenAI's \texttt{text-embedding-3-small}, (ii) cluster voters into \(k\) clusters with k-means on these embeddings, and (iii) generate statements seeded by each cluster and by the whole population.
+We generate candidates in three stages: (i) embed each opinion summary with OpenAI's \texttt{text-embedding-3-small}, (ii) cluster voters into \(k\) clusters with k-means on these embeddings, and (iii) generate statements seeded by each cluster and by the whole population.
 Given a set of opinions, we generate candidates in two ways.
 
 \paragraph{Single-statement generator}
@@ -244,7 +246,7 @@ Three differences between the pipelines account for the counts.
 \begin{enumerate}
     \item \emph{Finding groups of similar voters.}
     GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings, which requires no further LLM calls.
-    The baseline instead makes discriminative queries where virtual voter \(j\) rates the summary of voter \(i\), and the result is taken as a measure of similarity.
+    The baseline instead makes discriminative queries where virtual voter \(j\) rates the summary of participant \(i\), and the result is taken as a measure of similarity.
     \(n(k+2)-3k\) discriminative queries are made for this purpose.
     \item \emph{Generating candidates.}
     Each of the baseline's 6 generators makes one generative call per round and produces one statement, so the baseline generates \(m=6k=30\) candidates with the default \(k=5\).
@@ -272,7 +274,7 @@ However, at the small scale of our experiments, GenerativeCC is slower mostly du
 Type of LLM Call & GenerativeCC & \makecell{Baseline \\ \citep{fish-v2}} \\
 \hline
 Get opinion embedding & $n$ & -- \\
-Rate another voter's opinion & -- & $n(k+2) - 3k$ \\
+Rate another participant's opinion & -- & $n(k+2) - 3k$ \\
 Generate candidates & $3m/7$ & $m$ \\
 Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ \\
 \hline
@@ -564,7 +566,7 @@ Due to limited budget, we use GPT-4o mini for discriminative queries.
 This likely introduces additional noise into the estimated ballot profile.
 Although that should not systematically favor our method over the baseline, we do not perform the kind of direct human validation reported by \citet{fish-v2}.
 It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here.
-In general, we make no claims about the absolute alignment with human voters of the range votes made by our LLM-based virtual voters.
+In general, we make no claims about the absolute alignment with human participants of the range votes made by our LLM-based virtual voters.
 
 \paragraph{Inherited limitations from prior work}
 Like \citet{fish-v2}, we do not solve broader challenges of LLM-mediated democracy, including vulnerability to jailbreaks, manipulation, and potential bias against demographic groups.
@@ -578,7 +580,7 @@ However, \citet{preference-overstating} show that in large single winner electio
 This likely extends to multiwinner elections.
 Virtual voters may mitigate strategic voting, depending on how they are trained \citet{rangevoting-range-voting, newberry-moral-parliaments}.
 Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal is still incentivized to misrepresent her beliefs in the training data.
-Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the voter opinions in the dataset that we test are honest.
+Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the participant opinions in the dataset that we test are honest.
 Approval-style ballots may therefore remain attractive in real deployments.
 
 
@@ -1357,7 +1359,7 @@ We create three samples of 2025 rating calls and repeat them in 2026:
     \item \emph{Baseline candidates} (300 ratings): ratings of candidate statements in the 15 earlier baseline runs, covering all six generators and all five rounds.
     The sample consists of 100 of the 400 cells rated twice in 2025, and 200 further cells, 50 from each bin of the 2025 rating (\(<2\), \(2\)--\(3\), \(3\)--\(3.5\), \(>3.5\)).
     \item \emph{GenerativeCC candidates} (192 ratings): cells of the 10 GenerativeCC utility matrices, stratified by the same bins.
-    \item \emph{Nearest-neighbor search} (152 ratings): the baseline's calls rating another voter's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
+    \item \emph{Nearest-neighbor search} (152 ratings): the baseline's calls rating another participant's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
 \end{itemize}
 The calls of the earlier baseline runs are repeated with their CRLF line endings, and those of GenerativeCC with LF (\Cref{tab:confounder-systems}).
 Equal numbers of ratings per bin do not match the distribution of 2025 ratings: among all 27{,}000 ratings of candidate statements in the 15 earlier baseline runs, 49\% are above \(3.5\) and 2\% below \(2\), whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below \(2\).
