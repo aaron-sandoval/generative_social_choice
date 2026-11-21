@@ -387,7 +387,7 @@ Upon selecting a winner, those voters are permanently assigned to that winner.
 
 \LP{} approximates \Exact{} with a linear program: it uses the same problem formulation for slate selection and voter assignment as \Exact{},
 but relaxes binary constraints to the interval \([0,1]\).
-After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their most preferred selected candidate.
+After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their favorite selected candidate.
 
 \begin{table}[!t]
 \centering
@@ -442,7 +442,7 @@ Finally, voters are reassigned with \EExactMonroe{}.
 This algorithm uses at most \(\frac{1}{2} n (m + m/k + k - 1)\) total discriminative queries.
 
 \paragraph{\BaselineCCReassign{}}
-Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and each voter is assigned to their favorite member of the slate.
+Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and each voter is assigned to their favorite slate member.
 
 \subsection{Results}
 \label{sec:voting-results}
@@ -693,7 +693,7 @@ x_j \in [0,1] \quad \forall j,
 y_{ij} \in [0,1] \quad \forall i,j.
 \]
 
-After solving the LP relaxation, we select the \(k\) candidates with highest fractional \(x_j\) values and assign each voter to their most preferred selected candidate.
+After solving the LP relaxation, we select the \(k\) candidates with highest fractional \(x_j\) values and assign each voter to their favorite selected candidate.
 
 \ExactMonroe{} adds the constituency-size constraints
 \[
@@ -973,12 +973,12 @@ By the Lemma, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$; since so
 Hence $u_{\omega'}$ sorted-Pareto-dominates $u_\omega$, contradicting Sorted Pareto Efficiency.
 
 \subsubsection{\Exact{}} \label{app:exact-axiom-proofs}
-\Exact{} returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, with the assignment $\omega^\star$ of each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
+\Exact{} returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, with the assignment $\omega^\star$ of each voter to their favorite member of $W^\star$; let $T^\star=T(W^\star)$.
 
 \paragraph{Independence of Common Scale} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
 
 \paragraph{Symmetry} $T$ is built from sums and maxima of utility entries, so relabeling voters or candidates permutes the set of optimal solutions identically.
-Under genericity this set is a singleton: the optimal slate is unique, as is each voter's best candidate within it (assumption in \Cref{app:axiom-definitions}).
+Under genericity this set is a singleton: the optimal slate is unique, as is each voter's favorite member of it (assumption in \Cref{app:axiom-definitions}).
 Any correct exact solver returns this unique optimum, and with no alternative optima the result cannot depend on the solver's internal ordering of variables or constraints; only the same tie cases already excluded by the axiom could introduce such dependence.
 Hence permuting $U$ permutes the output identically, leaving $\omega$ unchanged as a map.
 
