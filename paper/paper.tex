@@ -213,14 +213,14 @@ Three phases in the pipelines include LLM calls.
 \begin{enumerate}
     \item \emph{Clustering voters.}
     GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings.
-    The baseline instead makes discriminative queries where virtual voter \(i'\) rates the summary of participant \(i\), and the result is taken as a measure of similarity.
+    The baseline instead makes discriminative queries where virtual voter \(i'\) scores the summary of participant \(i\), and the result is taken as a measure of similarity.
     \(n(k+2)-3k\) discriminative queries are made in this phase.
     \item \emph{Generating candidates.}
     Each of the baseline's generative calls produces one statement, so it makes \(m\) generative calls.
     GenerativeCC produces seven statements for every three generative calls (two single-statement calls and one batch call that returns five statements), so it makes \(3m/7\) generative calls.
-    \item \emph{Rating candidates.}
+    \item \emph{Scoring candidates.}
     GenerativeCC procudes a full utility matrix with \(nm\) discriminative queries.
-    The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned rate the \(m/k\) new candidates.
+    The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned score the \(m/k\) new candidates.
     \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries are made in this phase.
 \end{enumerate}
 
@@ -242,9 +242,9 @@ The right half of \Cref{tab:llm-call-comparison} gives the resulting call counts
 Type of LLM Call & GenerativeCC & Baseline & GenerativeCC (\(m=42\)) & Baseline (\(m=30\)) \\
 \hline
 Get opinion embedding & $n$ & -- & 100 & -- \\
-Rate a participant's opinion & -- & $n(k+2) - 3k$ & -- & 685 \\
+Score a participant's opinion & -- & $n(k+2) - 3k$ & -- & 685 \\
 Generate candidates & $3m/7$ & $m$ & 18 & 30 \\
-Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ & 4200 & 1800 \\
+Score a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ & 4200 & 1800 \\
 \hline
 All discriminative queries & $nm$ & $n(k+2) - 3k + \frac{1}{2} n m (1 + 1/k)$ & 4200 & 2485 \\
 \hline
@@ -252,7 +252,7 @@ All discriminative queries & $nm$ & $n(k+2) - 3k + \frac{1}{2} n m (1 + 1/k)$ & 
 \caption{Number of calls for different types of LLM requests for running the full pipeline of GenerativeCC and of the baseline \citep{fish-v2}.
 Left: general counts, where \(n\) is the number of voters, \(m\) the number of generated candidates, and \(k\) the slate size.
 Right: counts in our case study, where the two pipelines generate different numbers of candidates (\Cref{sec:inference-costs}).
-Both rating rows are discriminative queries.}
+Both scoring rows are discriminative queries.}
 \label{tab:llm-call-comparison}
 \end{table*}
 
@@ -264,7 +264,7 @@ Throughout, we compare against results obtained by running their pipeline under 
 \subsection{Input Data}
 
 The chatbot personalization dataset contains survey responses from a representative sample of 100 U.S.\ residents.
-In addition to free-form responses, the survey asks participants to rate seven seed statements on the topic on a 0--4 Likert scale.
+In addition to free-form responses, the survey asks participants to score seven seed statements on the topic on a 0--4 Likert scale.
 For details, see Section 5 of \citet{fish-v2}.
 
 Rather than using the original survey responses directly, we use the summarized participant responses released by \citet{fish-v2}.\footnote{The original data are available at \url{https://github.com/generative-social-choice/chatbot_personalization}.}
@@ -425,11 +425,11 @@ These are upper bounds for our implementations (see \Cref{app:brute-force-vs-exa
 
 \paragraph{\Baseline{} \citep{fish-v2}}
 The baseline pipeline selects its slate with the same rule as \GreedyMonroe{}, but interleaves selection with statement generation.
-In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters and added to the candidate pool, and the unassigned voters rate them.
+In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opinions of the unassigned voters and added to the candidate pool, and the unassigned voters score them.
 One candidate is selected, its voters assigned, and the round ends.
 This uses \(\frac{1}{2} n (m + m/k)\) discriminative queries, the fewest of any algorithm we test (\Cref{tab:llm-call-comparison}).
 If the slate contains one winner generated during each round, then no post-hoc improvements such as reassignment are possible without additional discriminative queries.
-This is because the winner generated in the final round are never rated by the \(n-n/k\) already assigned voters.
+This is because the winner generated in the final round are never scored by the \(n-n/k\) already assigned voters.
 Since no other voter can be assigned to the final winner, it must retain all of its currently assigned voters.
 This constraint propagates backwards through each round.
 
@@ -822,7 +822,7 @@ Changing the order of voters or statements in the utility matrix $U$ does not ch
 Linearly scaling all utilities by a positive constant never changes $\omega$.
 
 \paragraph{Monotonicity}
-Increasing (decreasing) a voter’s rating for a winning (losing) candidate never causes that candidate to lose (win).
+Increasing (decreasing) a voter’s score for a winning (losing) candidate never causes that candidate to lose (win).
 
 \paragraph{Individual Pareto Efficiency}
 No $\omega'$ \emph{Pareto-dominates} $\omega$, meaning no $\omega'$ increases total utility without decreasing any individual voter's utility.
@@ -1162,9 +1162,9 @@ The same example shows why \LP{} violates Symmetry: the optimal $x$ is invariant
 
 \LP{} also fails Monotonicity.
 \Cref{tab:lp-monotonicity} gives a utility matrix, again with $k=2$, for which the LP optimum is initially integral, $x=(0,1,1,0)$, so \LP{} selects $\{a_2,a_3\}$.
-Now increase voter 1's rating of the winning candidate $a_3$ from $0.04$ to $1.5$.
+Now increase voter 1's score for the winning candidate $a_3$ from $0.04$ to $1.5$.
 This lifts the value of the symmetric fractional point above that of every integral slate ($11.46$ versus $11.33$), so the LP optimum becomes $x=(\tfrac12,\tfrac12,\tfrac12,\tfrac12)$ and rounding returns $\{a_1,a_2\}$.
-The candidate $a_3$ is dropped from the winning slate even though a voter's rating of it \emph{increased}; hence \LP{} violates Monotonicity.
+The candidate $a_3$ is dropped from the winning slate even though a voter's score for it \emph{increased}; hence \LP{} violates Monotonicity.
 
 \begin{table}[t]
 \centering
@@ -1180,7 +1180,7 @@ Voter 4 & 0.05 & 1.02 & 2.23 & 3.32 \\
 \end{tabular}
 \caption{Utility matrix with $k=2$ showing that \LP{} fails Monotonicity.
 As shown, the LP optimum is integral and \LP{} selects $\{a_2,a_3\}$.
-Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional point $x_j=\tfrac12$, after which \LP{} selects $\{a_1,a_2\}$: the winning candidate $a_3$ is dropped despite an increase in its rating.}
+Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional point $x_j=\tfrac12$, after which \LP{} selects $\{a_1,a_2\}$: the winning candidate $a_3$ is dropped despite an increase in its score.}
 \label{tab:lp-monotonicity}
 \end{table}
 
@@ -1272,32 +1272,32 @@ Each sampled 2025 call is repeated in 2026.
 
 \paragraph{Reference: variance within 2025.}
 Since the models are nondeterministic, we compare the differences between 2025 and 2026 outputs with the differences between 2025 outputs of the same prompt.
-For ratings of candidate statements, such repeated prompts are rare: only four candidate statements appear in more than one of the 15 earlier baseline runs, giving 400 (voter, statement) cells rated twice.
-\textbf{Four statements are too few to measure the variance of these ratings.}
-For nearest-neighbor searches, 1{,}453 (voter, summary) pairs, covering 33 summaries, were rated in two different runs.
+For scores of candidate statements, such repeated prompts are rare: only four candidate statements appear in more than one of the 15 earlier baseline runs, giving 400 (voter, statement) cells scored twice.
+\textbf{Four statements are too few to measure the variance of these scores.}
+For nearest-neighbor searches, 1{,}453 (voter, summary) pairs, covering 33 summaries, were scored in two different runs.
 For generation, three of the baseline's generators received identical inputs in the first round of all 15 runs: the two prompted with the opinions of all voters, at temperatures 0 and 1, and the one prompted with a random subsample of five opinions, which is the same in every run.
 We measure the variance of each one's 15 outputs by their mean pairwise cosine distance between \texttt{text-embedding-3-small} embeddings, a proxy measurement of the semantic variance among generated statements (2025 rows of \Cref{tab:model-drift-generation}).
 
 \paragraph{Discriminative queries.}
-We create three samples of 2025 rating calls and repeat them in 2026:
+We create three samples of 2025 scoring calls and repeat them in 2026:
 \begin{itemize}
-    \item \emph{Baseline candidates} (300 ratings): ratings of candidate statements in the 15 earlier baseline runs, covering all six generators and all five rounds.
-    The sample consists of 100 of the 400 cells rated twice in 2025, and 200 further cells, 50 from each bin of the 2025 rating (\(<2\), \(2\)--\(3\), \(3\)--\(3.5\), \(>3.5\)).
-    \item \emph{GenerativeCC candidates} (192 ratings): cells of the 10 GenerativeCC utility matrices, stratified by the same bins.
-    \item \emph{Nearest-neighbor search} (152 ratings): the baseline's calls rating another participant's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
+    \item \emph{Baseline candidates} (300 scores): scores for candidate statements in the 15 earlier baseline runs, covering all six generators and all five rounds.
+    The sample consists of 100 of the 400 cells scored twice in 2025, and 200 further cells, 50 from each bin of the 2025 score (\(<2\), \(2\)--\(3\), \(3\)--\(3.5\), \(>3.5\)).
+    \item \emph{GenerativeCC candidates} (192 scores): cells of the 10 GenerativeCC utility matrices, stratified by the same bins.
+    \item \emph{Nearest-neighbor search} (152 scores): the baseline's calls scoring another participant's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
 \end{itemize}
 The calls of the earlier baseline runs are repeated with their CRLF line endings, and those of GenerativeCC with LF (\Cref{tab:confounder-systems}).
-Equal numbers of ratings per bin do not match the distribution of 2025 ratings: among all 27{,}000 ratings of candidate statements in the 15 earlier baseline runs, 49\% are above \(3.5\) and 2\% below \(2\), whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below \(2\).
-We therefore compute each estimate as a weighted average of its values within the bins, weighting each bin by its share of all 2025 ratings of the same type, so that estimates describe all 2025 ratings of a type rather than the sample.
+Equal numbers of scores per bin do not match the distribution of 2025 scores: among all 27{,}000 scores for candidate statements in the 15 earlier baseline runs, 49\% are above \(3.5\) and 2\% below \(2\), whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below \(2\).
+We therefore compute each estimate as a weighted average of its values within the bins, weighting each bin by its share of all 2025 scores of the same type, so that estimates describe all 2025 scores of a type rather than the sample.
 
-\Cref{tab:model-drift-ratings} shows the bias, the mean difference between the 2026 and 2025 ratings, with 95\% bootstrap confidence intervals from 2{,}000 resamples.
-\textbf{None of the three types of ratings shows a detectable bias.}
+\Cref{tab:model-drift-ratings} shows the bias, the mean difference between the 2026 and 2025 scores, with 95\% bootstrap confidence intervals from 2{,}000 resamples.
+\textbf{None of the three types of scores shows a detectable bias.}
 
 \begin{table}[t]
 \centering
 \begin{tabular}{lcc}
 \hline
-Rating type & \(n\) & \makecell{Bias\\(95\% CI)} \\
+Score type & \(n\) & \makecell{Bias\\(95\% CI)} \\
 \hline
 \makecell[l]{Baseline\\candidates} & 300 & \makecell{\(+0.002\)\\\([-0.017, +0.021]\)} \\
 \hline
@@ -1306,7 +1306,7 @@ Rating type & \(n\) & \makecell{Bias\\(95\% CI)} \\
 \makecell[l]{Nearest-neighbor\\search} & 152 & \makecell{\(+0.031\)\\\([-0.019, +0.084]\)} \\
 \hline
 \end{tabular}
-\caption{Bias: mean difference between 2026 ratings repeating 2025 calls and the original 2025 ratings (2026 \(-\) 2025), on the \(0\)--\(4\) scale, weighted to the population distribution of 2025 ratings, with 95\% bootstrap confidence intervals.}
+\caption{Bias: mean difference between 2026 scores repeating 2025 calls and the original 2025 scores (2026 \(-\) 2025), on the \(0\)--\(4\) scale, weighted to the population distribution of 2025 scores, with 95\% bootstrap confidence intervals.}
 \label{tab:model-drift-ratings}
 \end{table}
 
@@ -1365,17 +1365,17 @@ Subsample of five voters & \(0.016\) & \(0.016\) & \(0.027\) & \(0.88\) & \(0.00
 \label{tab:line-endings-generation-tests}
 \end{table*}
 
-\textbf{For ratings of candidate statements, we therefore cannot tell whether the variance of the ratings changed.}
-For nearest-neighbor searches, whose reference covers 33 summaries, we compare variances by the \emph{spread ratio}: the mean squared difference between the 2026 and 2025 ratings divided by that between two 2025 ratings, combined over bins with population weights.
-A ratio of \(1\) means that a 2026 rating varies around a 2025 rating exactly as much as another 2025 rating would.
-The ratio is \(2.03\), with a 95\% confidence interval of \([1.05, 3.62]\) from resampling the rated summaries, since ratings of the same summary are not independent.
+\textbf{For scores of candidate statements, we therefore cannot tell whether the variance of the scores changed.}
+For nearest-neighbor searches, whose reference covers 33 summaries, we compare variances by the \emph{spread ratio}: the mean squared difference between the 2026 and 2025 scores divided by that between two 2025 scores, combined over bins with population weights.
+A ratio of \(1\) means that a 2026 score varies around a 2025 score exactly as much as another 2025 score would.
+The ratio is \(2.03\), with a 95\% confidence interval of \([1.05, 3.62]\) from resampling the scored summaries, since scores for the same summary are not independent.
 So \textbf{2026 nearest-neighbor searches have higher variance than 2025 ones}.
 
 \paragraph{Generative queries.}
 We use two sets of 2026 generation calls.
 First, we repeat the first-round calls of the three generators with identical first-round inputs 15 times each, with the exact 2025 messages and parameters, and compare their outputs with the 15 outputs of 2025 by cosine distance.
 Second, we repeat 24 logged generation calls of the 2025 runs, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 calls).
-Since most of these calls have only one 2025 output, we use them only to compare quality and format: six fixed voters rate each 2025 output and both 2026 outputs, with all ratings made in 2026 so that drift of the rater cancels.
+Since most of these calls have only one 2025 output, we use them only to compare quality and format: six fixed voters score each 2025 output and both 2026 outputs, with all scores made in 2026 so that drift of the scorer cancels.
 
 \Cref{tab:model-drift-generation} shows the variance of the first-round outputs, and \Cref{tab:model-drift-generation-tests} the tests of drift.
 \begin{itemize}
@@ -1399,12 +1399,12 @@ Since most of these calls have only one 2025 output, we use them only to compare
 
 All results in the paper use prompts with LF line endings, except the two baseline series of the embedding ablation (\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}), whose runs used CRLF.
 
-\paragraph{Ratings.}
-A rating prompt contains a voter's opinion and the rated statement.
-We re-rate 40 cells of the GenerativeCC utility matrices, 10 from each utility bin, in 2026 with each combination of line endings in the opinion and in the statement.
-All-LF prompts reproduce the 2025 ratings best, with a bias of \(-0.002\) \([-0.047, +0.044]\) and a mean absolute difference of \(0.085\), compared with \(0.116\) to \(0.159\) for the other combinations, so we infer that GenerativeCC used LF.
-A second sample of 120 cells of the GenerativeCC variant with the embeddings of \citet{fish-v2}, rated with all-CRLF and all-LF prompts, gives the same result, with mean absolute differences of \(0.100\) for LF and \(0.114\) for CRLF.
-Prompts formatted as in the earlier baseline runs, with CRLF opinions and LF statements, rate \textbf{\(0.073\) \([0.010, 0.134]\) higher than all-LF prompts}, weighted to the distribution of GenerativeCC ratings; the difference is largest for ratings below \(2\) (\(+0.27\)).
+\paragraph{Scoring.}
+A scoring prompt contains a voter's opinion and the scored statement.
+We re-score 40 cells of the GenerativeCC utility matrices, 10 from each utility bin, in 2026 with each combination of line endings in the opinion and in the statement.
+All-LF prompts reproduce the 2025 scores best, with a bias of \(-0.002\) \([-0.047, +0.044]\) and a mean absolute difference of \(0.085\), compared with \(0.116\) to \(0.159\) for the other combinations, so we infer that GenerativeCC used LF.
+A second sample of 120 cells of the GenerativeCC variant with the embeddings of \citet{fish-v2}, scored with all-CRLF and all-LF prompts, gives the same result, with mean absolute differences of \(0.100\) for LF and \(0.114\) for CRLF.
+Prompts formatted as in the earlier baseline runs, with CRLF opinions and LF statements, score \textbf{\(0.073\) \([0.010, 0.134]\) higher than all-LF prompts}, weighted to the distribution of GenerativeCC scores; the difference is largest for scores below \(2\) (\(+0.27\)).
 These estimates come from 40 cells only.
 
 \paragraph{Generation.}
@@ -1419,14 +1419,14 @@ So \textbf{line endings shift the content of the subsampling generator's outputs
 
 \paragraph{\Cref{fig:swf-main,fig:mth-happiest-main}.}
 Both systems use LF prompts, so line endings do not confound this comparison.
-The LLM calls of the two systems come from different periods, but we detect no bias in any type of rating, nor in the content or quality of generated statements.
-This includes the ratings of GenerativeCC candidates, which are repeated with LF prompts, the format of the baseline's 2026 ratings.
+The LLM calls of the two systems come from different periods, but we detect no bias in any type of score, nor in the content or quality of generated statements.
+This includes the scores for GenerativeCC candidates, which are repeated with LF prompts, the format of the baseline's 2026 scores.
 The detected differences in variance affect only the baseline, in three ways:
 \begin{itemize}
-    \item \emph{Ratings of candidate statements.}
+    \item \emph{Scores for candidate statements.}
     We cannot tell whether their variance changed.
-    The baseline selects statements and assigns voters using the same ratings that it reports as utilities.
-    Statements whose ratings are high due to noise are more likely to be selected, so \textbf{any additional noise in these ratings may inflate the baseline's performance on SWFs}.
+    The baseline selects statements and assigns voters using the same scores that it reports as utilities.
+    Statements whose scores are high due to noise are more likely to be selected, so \textbf{any additional noise in these scores may inflate the baseline's performance on SWFs}.
     \item \emph{Nearest-neighbor searches.}
     Their higher variance may give the baseline's nearest-neighbor generators less similar groups of voters, which could \textbf{lower the baseline's performance}; we do not measure this effect.
     \item \emph{Generation.}
@@ -1440,7 +1440,7 @@ Comparisons among these series are therefore unaffected, and \textbf{their compa
 \paragraph{\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}.}
 All four series were produced in 2025, so drift does not affect them.
 Both baseline series used CRLF and both GenerativeCC series LF, so the comparisons between the two embeddings within each system are unaffected.
-Between the systems, the CRLF prompts of the baseline series may raise their ratings by about \(0.07\), so \textbf{line endings may favor the baseline series over the GenerativeCC series} in these figures.
+Between the systems, the CRLF prompts of the baseline series may raise their scores by about \(0.07\), so \textbf{line endings may favor the baseline series over the GenerativeCC series} in these figures.
 The CRLF prompts also change the content of some of the baseline's generated statements and may change their variance, with no known effect on its performance.
 
 \paragraph{Other results.}
