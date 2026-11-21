@@ -116,19 +116,19 @@ Because each voter counts only their favorite winner, this rule suits our goal o
 We use the generative social choice system of \citet{fish-v2} as our baseline.
 Relative to their work, GenerativeCC makes two main changes.
 First, we allow slate members to represent unequal fractions of the population, rather than enforcing equal constituency sizes. In other words, we use (or approximate) the CC voting rule rather than the Monroe rule \citep{monroe-1995}.
-Second, we evaluate all voters against all generated candidate statements, yielding a full \emph{ballot profile} and enabling global slate optimization.
+Second, we evaluate all voters against all generated candidate statements, yielding a full \emph{utility matrix} and enabling global slate optimization.
 These changes allow for separation of statement generation from slate selection and testing of a broader set of voting rules.
 
 We find that GenerativeCC significantly improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
 Polynomial-time approximations of the utilitarian CC rule show only slightly worse performance on this dataset.
-We perform ablation studies which indicate that the improved performance is primarily due to the full ballot profile, with other changes having a smaller impact.
+We perform ablation studies which indicate that the improved performance is primarily due to the full utility matrix, with other changes having a smaller impact.
 GenerativeCC has applications in virtual democracy, automated deliberation systems, or simply as a tool to fairly summarize large collections of free-form opinions.
 
 \paragraph{Our main contributions are:}
 \begin{itemize}
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
-    \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the ballot profile, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
+    \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the utility matrix, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
     This suggests that CC voting algorithms offer the most scalability and average performance for representing large populations, though testing on more datasets is necessary.
 \end{itemize}
 
@@ -159,7 +159,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
         See \Cref{sec:statement-generation} for details.
     \end{enumerate}
 
-    \item Compute the ballot profile \(U\in \mathbb{R}^{n\times m}\) over voters \(N\) and candidate statements \(A\).\footnote{The method for computing \(U\) is nearly identical to that of \citet{fish-v2}.
+    \item Compute the utility matrix \(U\in \mathbb{R}^{n\times m}\) over voters \(N\) and candidate statements \(A\).\footnote{The method for computing \(U\) is nearly identical to that of \citet{fish-v2}.
     The main differences are that we compute utilities only after all statements are generated, we compute the full matrix \(U\), and we use a different LLM.}
     \begin{enumerate}
         \item Represent each participant with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
@@ -219,7 +219,7 @@ Three phases in the pipelines include LLM calls.
     Each of the baseline's generative calls produces one statement, so it makes \(m\) generative calls.
     GenerativeCC produces seven statements for every three generative calls (two single-statement calls and one batch call that returns five statements), so it makes \(3m/7\) generative calls.
     \item \emph{Rating candidates.}
-    GenerativeCC procudes a full ballot profile with \(nm\) discriminative queries.
+    GenerativeCC procudes a full utility matrix with \(nm\) discriminative queries.
     The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned rate the \(m/k\) new candidates.
     \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries are made in this phase.
 \end{enumerate}
@@ -362,11 +362,11 @@ For an inequality aversion parameter \(\kappa>0\), the EDE of utilities \(u_1,\d
 \[
 \mathrm{EDE}_\kappa(u)=-\frac{1}{\kappa}\ln\Bigl(\frac{1}{n}\sum_{i=1}^n e^{-\kappa u_i}\Bigr).
 \]
-\ExactP{} replaces each utility \(U_{ij}\) in the ballot profile with \(f(U_{ij})\), where
+\ExactP{} replaces each utility \(U_{ij}\) in the utility matrix with \(f(U_{ij})\), where
 \[
 f(u)=\frac{1-e^{-\kappa u}}{1-e^{-\kappa}},
 \]
-and then runs \Exact{} on the transformed ballot profile.\footnote{For numerical stability the solver uses equivalent utilities \(-e^{\kappa(c-U_{ij})}\), where \(c=\min_i\max_j U_{ij}\); this is a positive affine transformation of \(f\) and selects the same slate and assignment, but avoids the near-constant values of \(f\) at large \(\kappa\).}
+and then runs \Exact{} on the transformed utility matrix.\footnote{For numerical stability the solver uses equivalent utilities \(-e^{\kappa(c-U_{ij})}\), where \(c=\min_i\max_j U_{ij}\); this is a positive affine transformation of \(f\) and selects the same slate and assignment, but avoids the near-constant values of \(f\) at large \(\kappa\).}
 The total transformed utility \(\sum_i f(U_{i,\omega(i)})\) is a strictly increasing function of the Kolm--Pollak EDE of the original utilities, so the two objectives select the same slate and assignment.
 The parameter \(\kappa\) interpolates between utilitarian social welfare (total utility) as \(\kappa\to0\) and egalitarian social welfare (minimum utility) as \(\kappa\to\infty\).
 
@@ -434,7 +434,7 @@ Since no other voter can be assigned to the final winner, it must retain all of 
 This constraint propagates backwards through each round.
 
 \paragraph{\BaselineEMonroeReassign{}}
-In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full ballot profile.
+In some use cases, discriminative queries may be expensive, and it may be desirable to incur a performance cost to avoid computing a full utility matrix.
 Still, better SWF performance than that of \Baseline{} can be attained with relatively few additional queries.
 This algorithm selects the slate using \Baseline.
 Then, full discriminative queries are performed on the slate.
@@ -450,7 +450,7 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 \begin{figure*}[t]
 \centering
   \includegraphics[width=\textwidth]{figures/voting_alg_scalar_metrics_v8.png}
-  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 ballot profiles from \Cref{fig:swf-main} generated with GenerativeCC.
+  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 utility matrices from \Cref{fig:swf-main} generated with GenerativeCC.
   The \Baseline{} series is generated from the pipeline of \citet{fish-v2} and is included for reference only. 
   Its results are not directly comparable as other pipeline elements besides the voting algorithm differ.}
   \label{fig:sfws-voting-algs}
@@ -459,20 +459,20 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constraint is removed and 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/voting_alg_scalar_metrics_fish_candidates.pdf}
-  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 ballot profiles from \Cref{fig:swf-main} generated with GenerativeCC.
-  Mean voting algorithm performance for \(k=5\) across the 15 partial ballot profiles from \Cref{fig:swf-main}. The profiles are augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding the corresponding reassignment step to \Baseline{} recovers 60-87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. The requires at most 67\% of the \(nm\) discriminative queries of a full ballot profile.}
+  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 utility matrices from \Cref{fig:swf-main} generated with GenerativeCC.
+  Mean voting algorithm performance for \(k=5\) across the 15 partial utility matrices from \Cref{fig:swf-main}. The matrices are augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding the corresponding reassignment step to \Baseline{} recovers 60-87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. The requires at most 67\% of the \(nm\) discriminative queries of a full utility matrix.}
   \label{fig:sfws-voting-algs-fish}
 \end{figure}
 
 We evaluate each voting algorithm on the social welfare functions from \Cref{sec:metrics}.
-Using the 10 GenerativeCC ballot profiles from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs}.
-Using the 15 baseline ballot profiles from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs-fish}.
+Using the 10 GenerativeCC utility matrices from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs}.
+Using the 15 baseline utility matrices from \Cref{fig:swf-main}, we produce the results in Figure~\ref{fig:sfws-voting-algs-fish}.
 
 The algorithms form three clusters based on their performance.
 Cluster 1: CC and \textsc{Exact} algorithms perform relatively well on every SWF.
 Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
 Cluster 3: \BaselineReassign{} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
-All differences quoted below are in utility on the 0--4 Likert scale, averaged over profiles.
+All differences quoted below are in utility on the 0--4 Likert scale, averaged over utility matrices.
 
 \paragraph{The partial utility matrix is \Baseline's main limiting factor}
 The \BaselineReassign{} algorithms leverage their additional discriminative queries to recover most of the SWF performance gap among \textsc{E-Monroe} algorithms.
@@ -484,7 +484,7 @@ It exceeds the effect of the objective function, constituency size constraint, a
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
 \Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
-\LP{} realizes identical voter utilities as \Exact{} on all 10 profiles, and \Greedy{} on 7 of the 10, with no SWF differing by more than 0.002 on average.
+\LP{} realizes identical voter utilities as \Exact{} on all 10 utility matrices, and \Greedy{} on 7 of the 10, with no SWF differing by more than 0.002 on average.
 
 \paragraph{\textsc{Monroe-Greedy} algorithms perform poorly}
 Some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
@@ -557,7 +557,7 @@ Additionally, the small sample sizes (10 runs of GenerativeCC and 15 of the base
 
 \paragraph{Virtual voters use weak LLMs}
 Due to limited budget, we use GPT-4o mini for discriminative queries.
-This likely introduces additional noise into the estimated ballot profile.
+This likely introduces additional noise into the estimated utility matrix.
 Although that should not systematically favor our method over the baseline, we do not perform the kind of direct human validation reported by \citet{fish-v2}.
 It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here.
 In general, we make no claims about the absolute alignment with human participants of the range votes made by our LLM-based virtual voters.
@@ -788,7 +788,7 @@ Thus, while the \LP{} variant we benchmark has a worst case exponential in \(n\)
 
 \subsection{Runtime Complexity of \BaselineEMonroeReassign{}}
 \label{app:baseline-reassign-complexity}
-The reassignment step runs \EExactMonroe{} on the ballot profile restricted to the baseline's slate, so it solves the integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
+The reassignment step runs \EExactMonroe{} on the utility matrix restricted to the baseline's slate, so it solves the integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
 Solved by branch-and-bound, as in our implementation, its worst-case running time is exponential in \(n\) and \(k\) and does not depend on \(m\), by the argument of \Cref{app:brute-force-vs-exact} with the \(k\) slate members in place of the \(m\) candidates.
 Selecting the slate with \Baseline{} takes time polynomial in \(n\), \(m\), and \(k\), so the whole algorithm is exponential in \(n\) and \(k\) and polynomial in \(m\).
 Because the slate is fixed, the reassignment can also be computed in polynomial time, as a minimum-cost flow.
@@ -810,13 +810,13 @@ This appendix defines the social choice axioms we consider (\Cref{app:axiom-defi
 
 In addition to the social welfare functions of \Cref{sec:metrics}, we evaluate the \textsc{U-CC} voting algorithms of \Cref{sec:algorithms} against a set of social choice axioms.
 The axioms are criteria expressed in terms of the algorithm's selected voter assignment $\omega$, and some alternative voter assignment $\omega'$ that was not selected.
-To satisfy an axiom, the criteria must hold for all possible ballot profiles $U$ and all possible $\omega'$ for each profile, except for cases where the utilities for multiple slates or candidates have identical sums.
+To satisfy an axiom, the criteria must hold for all possible utility matrices $U$ and all possible $\omega'$ for each matrix, except for cases where the utilities for multiple slates or candidates have identical sums.
 Since the discriminative query returns floating-point-valued utilities, and all of the voting algorithms under study are additive, such collisions are exceedingly rare in practice.
-We consider an axiom to have failed only if a counterexample ballot profile that does not contain such a collision can be specified.
+We consider an axiom to have failed only if a counterexample utility matrix that does not contain such a collision can be specified.
 Write $u_\omega=(U_{1,\omega(1)},\ldots,U_{n,\omega(n)})$ for the utility vector realized by an assignment $\omega$, and let $u_{\omega,(1)}\le\cdots\le u_{\omega,(n)}$ denote its ascending sort.
 
 \paragraph{Symmetry}
-Changing the order of voters or statements in the ballot profile $U$ does not change $\omega$.
+Changing the order of voters or statements in the utility matrix $U$ does not change $\omega$.
 
 \paragraph{Independence of Common Scale}
 Linearly scaling all utilities by a positive constant never changes $\omega$.
@@ -859,7 +859,7 @@ Voter 1 & 2 & 3 & 0 \\
 Voter 2 & 2 & 0 & 3 \\
 \hline
 \end{tabular}
-\caption{Example ballot profile where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
+\caption{Example utility matrix where violating committee monotonicity is desirable when increasing the slate size from \(k=1\) to \(k=2\).}
 \label{tab:committee-monotonicity-example}
 \end{table}
 
@@ -875,7 +875,7 @@ Voter 3 & 1 & 0 \\
 Voter 4 & 0 & 1 \\
 \hline
 \end{tabular}
-\caption{Example ballot profile with \(k=2\) where enforcing BJR reduces utility for one of voters 1, 2, and 3.
+\caption{Example utility matrix with \(k=2\) where enforcing BJR reduces utility for one of voters 1, 2, and 3.
 Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
 \label{tab:bjr-example}
 \end{table}
@@ -883,8 +883,8 @@ Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
 \subsection{Results}
 \label{app:axiom-results}
 
-We evaluate voting rules against each axiom using a set of adversarial ballot profiles.
-These profiles are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
+We evaluate voting rules against each axiom using a set of adversarial utility matrices.
+These matrices are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
 For \Exact{}, we provide formal proofs of satisfaction of some axioms in \Cref{app:exact-axiom-proofs}.
 As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions.
 Results are shown in \Cref{tab:voting-axioms}.
@@ -1131,7 +1131,7 @@ A counterpart to this EDE is the Atkinson family \citep{atkinson-1970}, which sa
 \label{app:lp-worst}
 
 Unlike \Exact{}, the LP relaxation can have a \emph{strictly fractional} optimum.
-The subsequent rounding step of selecting the $k$ candidates with the largest $x_j$ is then sensitive both to the tie-breaking rule and to small perturbations of the ballot profile.
+The subsequent rounding step of selecting the $k$ candidates with the largest $x_j$ is then sensitive both to the tie-breaking rule and to small perturbations of the utility matrix.
 Importantly, if the fractional optimum assigns equal weights to all statements, \LP{} does not provide any useful information and can end up selecting the worst possible slate.
 
 \begin{table}[t]
@@ -1146,13 +1146,13 @@ Voter 3 & 0.37 & 3.06 & 1.72 & 3.37 \\
 Voter 4 & 1.09 & 0.39 & 3.97 & 2.19 \\
 \hline
 \end{tabular}
-\caption{Profile with $k=2$ whose LP relaxation has a strictly fractional optimum.
+\caption{Utility matrix with $k=2$ whose LP relaxation has a strictly fractional optimum.
 \LP{} selects $\{a_1,a_2\}$, which is Pareto-dominated by $\{a_1,a_4\}$.}
 \label{tab:lp-fractional}
 \end{table}
 
-\Cref{tab:lp-fractional} gives a profile with $k=2$ that exhibits this behavior.
-For this profile every integral $2$-slate has total utility at most $11.62$ (attained by $\{a_1,a_3\}$), whereas the fractional point $x=(\tfrac12,\tfrac12,\tfrac12,\tfrac12)$ attains $11.855$: each voter then receives half of each of their two highest utilities.
+\Cref{tab:lp-fractional} gives a utility matrix with $k=2$ that exhibits this behavior.
+For this matrix every integral $2$-slate has total utility at most $11.62$ (attained by $\{a_1,a_3\}$), whereas the fractional point $x=(\tfrac12,\tfrac12,\tfrac12,\tfrac12)$ attains $11.855$: each voter then receives half of each of their two highest utilities.
 The LP optimum is therefore this fully symmetric fractional point.
 Because all $x_j$ are equal, the rounding step breaks ties by candidate order and returns $\{a_1,a_2\}$, with utility vector $(3.61,2.32,3.06,1.09)$.
 
@@ -1161,7 +1161,7 @@ Hence \LP{} violates Individual Pareto Efficiency, and therefore also Sorted Par
 The same example shows why \LP{} violates Symmetry: the optimal $x$ is invariant under relabeling the candidates, so the selected slate is fixed entirely by the tie-breaking rule, and relabeling the candidates changes the outcome.
 
 \LP{} also fails Monotonicity.
-\Cref{tab:lp-monotonicity} gives a profile, again with $k=2$, for which the LP optimum is initially integral, $x=(0,1,1,0)$, so \LP{} selects $\{a_2,a_3\}$.
+\Cref{tab:lp-monotonicity} gives a utility matrix, again with $k=2$, for which the LP optimum is initially integral, $x=(0,1,1,0)$, so \LP{} selects $\{a_2,a_3\}$.
 Now increase voter 1's rating of the winning candidate $a_3$ from $0.04$ to $1.5$.
 This lifts the value of the symmetric fractional point above that of every integral slate ($11.46$ versus $11.33$), so the LP optimum becomes $x=(\tfrac12,\tfrac12,\tfrac12,\tfrac12)$ and rounding returns $\{a_1,a_2\}$.
 The candidate $a_3$ is dropped from the winning slate even though a voter's rating of it \emph{increased}; hence \LP{} violates Monotonicity.
@@ -1178,7 +1178,7 @@ Voter 3 & 3.68 & 0.11 & 3.60 & 0.17 \\
 Voter 4 & 0.05 & 1.02 & 2.23 & 3.32 \\
 \hline
 \end{tabular}
-\caption{Profile with $k=2$ showing that \LP{} fails Monotonicity.
+\caption{Utility matrix with $k=2$ showing that \LP{} fails Monotonicity.
 As shown, the LP optimum is integral and \LP{} selects $\{a_2,a_3\}$.
 Raising $U_{1,a_3}$ from $0.04$ to $1.5$ makes the LP optimum the fractional point $x_j=\tfrac12$, after which \LP{} selects $\{a_1,a_2\}$: the winning candidate $a_3$ is dropped despite an increase in its rating.}
 \label{tab:lp-monotonicity}
@@ -1194,7 +1194,7 @@ Applying the Kolm--Pollak transformation to \Exact{} leads to strictly worse axi
 This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function.
 A voting rule should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
 However, the choice of minimum utility as the egalitarianism SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
-There are ballot profiles, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
+There are utility matrices, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
 This axiom is overly constraining.
 
 Additionally, none of the tested voting algorithms satisfy this axiom despite the Kolm--Pollak transformation being implemented specifically to achieve more egalitarian outcomes.
@@ -1211,7 +1211,7 @@ Voter 2 & 0.01 & 1 \\
 Voter 3 & 2 & 1 \\
 \hline
 \end{tabular}
-\caption{Example ballot profile demonstrating the strictness of Egalitarian--Utilitarian Efficiency.
+\caption{Example utility matrix demonstrating the strictness of Egalitarian--Utilitarian Efficiency.
 For \(k=1\), only \(a_1\) satisfies the axiom, while \(a_2\) may nevertheless be judged more egalitarian and preferred.}
 \label{tab:egal-util-strict}
 \end{table}
@@ -1434,7 +1434,7 @@ The detected differences in variance affect only the baseline, in three ways:
 \end{itemize}
 
 \paragraph{\Cref{fig:sfws-voting-algs,fig:statement-ablation-comparison}.}
-All series except the baseline reuse the 2025 LLM calls of GenerativeCC: the voting algorithms are applied to its ballot profiles, and the statement count ablation selects from its generated statements without new LLM calls.
+All series except the baseline reuse the 2025 LLM calls of GenerativeCC: the voting algorithms are applied to its utility matrices, and the statement count ablation selects from its generated statements without new LLM calls.
 Comparisons among these series are therefore unaffected, and \textbf{their comparisons with the baseline are subject to the same considerations as \Cref{fig:swf-main,fig:mth-happiest-main}}, whose baseline they reuse.
 
 \paragraph{\Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings}.}
