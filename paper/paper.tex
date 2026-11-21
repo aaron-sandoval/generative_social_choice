@@ -171,7 +171,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
 
     \item Apply a voting algorithm to \(U\) to select a winning slate \(W\subseteq A\) of size \(k\) and an assignment \(\omega:N\to W\).
     \begin{enumerate}
-        \item Unless otherwise noted, we select the slate that maximizes total utility using an exact integer-programming formulation solved with PuLP/CBC \citep{pulp, john_forrest_cbc}.
+        \item Unless otherwise noted, we select the slate that maximizes total utility using an exact integer program (IP) solved with PuLP/CBC \citep{pulp, john_forrest_cbc}.
         We compare several alternative voting algorithms in \Cref{sec:voting-algorithms}.
     \end{enumerate}
 \end{enumerate}
@@ -242,14 +242,14 @@ The right half of \Cref{tab:llm-call-comparison} gives the resulting call counts
 Type of LLM Call & GenerativeCC & Baseline & GenerativeCC (\(m=42\)) & Baseline (\(m=30\)) \\
 \hline
 Get opinion embedding & $n$ & -- & 100 & -- \\
-Score a participant's opinion & -- & $n(k+2) - 3k$ & -- & 685 \\
+Score an opinion summary & -- & $n(k+2) - 3k$ & -- & 685 \\
 Generate candidates & $3m/7$ & $m$ & 18 & 30 \\
 Score a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ & 4200 & 1800 \\
 \hline
 All discriminative queries & $nm$ & $n(k+2) - 3k + \frac{1}{2} n m (1 + 1/k)$ & 4200 & 2485 \\
 \hline
 \end{tabular}}
-\caption{Number of calls for different types of LLM requests for running the full pipeline of GenerativeCC and of the baseline \citep{fish-v2}.
+\caption{Number of LLM calls for different types of requests for running the full pipeline of GenerativeCC and of the baseline \citep{fish-v2}.
 Left: general counts, where \(n\) is the number of voters, \(m\) the number of generated candidates, and \(k\) the slate size.
 Right: counts in our case study, where the two pipelines generate different numbers of candidates (\Cref{sec:inference-costs}).
 Both scoring rows are discriminative queries.}
@@ -350,13 +350,13 @@ Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
  & \makecell[l]{Interleaved\\Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
-\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates minimum utility, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
+\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates leximin, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
 \label{tab:algorithm-space}
 \end{table*}
 
 \paragraph{Objective function}
 Utilitarian (U-) algorithms maximize the total utility \(\sum_i U_{i,\omega(i)}\) of the assignment.
-Egalitarian (E-) algorithms maximize the minimum utility \(\min_i U_{i,\omega(i)}\).
+Egalitarian (E-) algorithms select the leximin-optimal assignment: they maximize the minimum utility \(\min_i U_{i,\omega(i)}\), then the second-lowest utility, and so on.
 Between these, \ExactP{} maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{pollak-1971, kolm-1976} instead of total utility.
 For an inequality aversion parameter \(\kappa>0\), the EDE of utilities \(u_1,\dots,u_n\) is
 \[
@@ -460,7 +460,7 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constituency size constrai
   \centering
   \includegraphics[width=\columnwidth]{figures/voting_alg_scalar_metrics_fish_candidates.pdf}
   \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 utility matrices from \Cref{fig:swf-main} generated with GenerativeCC.
-  Mean voting algorithm performance for \(k=5\) across the 15 partial utility matrices from \Cref{fig:swf-main}. The matrices are augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding the corresponding reassignment step to \Baseline{} recovers 60-87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. The requires at most 67\% of the \(nm\) discriminative queries of a full utility matrix.}
+  Mean voting algorithm SWF performance for \(k=5\) across the 15 partial utility matrices from \Cref{fig:swf-main}. The matrices are augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding the corresponding reassignment step to \Baseline{} recovers 60-87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. The requires at most 67\% of the \(nm\) discriminative queries of a full utility matrix.}
   \label{fig:sfws-voting-algs-fish}
 \end{figure}
 
@@ -470,14 +470,14 @@ Using the 15 baseline utility matrices from \Cref{fig:swf-main}, we produce the 
 
 The algorithms form three clusters based on their performance.
 Cluster 1: \textsc{CC} and \textsc{Exact} algorithms perform relatively well on every SWF.
-Cluster 2: \textsc{Monroe-Greedy} (including \Baseline{}) perform much worse on every SWF.
+Cluster 2: \textsc{Monroe-Greedy} algorithms and \Baseline{} perform much worse on every SWF.
 Cluster 3: \BaselineReassign{} algorithms in \Cref{fig:sfws-voting-algs-fish} fall in between.
 All differences quoted below are in utility on the 0--4 Likert scale, as means over utility matrices.
 
 \paragraph{The partial utility matrix is \Baseline's main limiting factor}
 The \BaselineReassign{} algorithms leverage their additional discriminative queries to recover most of the SWF performance gap among \textsc{E-Monroe} algorithms.
 \BaselineEMonroeReassign{} recovers 87\% of the gap between \Baseline{} and \EExactMonroe{} in mean utility, 81\% in bottom-50\% mean utility, and 60\% in minimum utility.
-CC reassignment performs almost identically.
+\BaselineCCReassign{} performs almost identically.
 In our setting, this requires at most 11\% more queries than \Baseline, compared to the 67\% more required by \EExactMonroe{}.
 This is the largest improvement from any single design choice we vary.
 It exceeds the effect of the objective function, constituency size constraint, and of exact vs. greedy selection under CC.
@@ -502,7 +502,7 @@ Together, these indicate that \textbf{the Monroe constituency size constraint ha
 This effect is an order of magnitude smaller than the cost of greedy assignment under that constraint.
 
 \paragraph{\ExactP{} provides a favorable Pareto front and flexibility}
-\ExactP{} provides favorable SWF tradeoffs near either end of the egalitarian-utilitarian spectrum.
+\ExactP{} provides favorable SWF tradeoffs near either end of the egalitarian--utilitarian spectrum.
 At \(\kappa=3\), minimum utility is noticeably boosted compared to \Exact{} at a very small cost to other SWFs.
 At \(\kappa=7\), minimum utility is nearly matched with \ECCExact{} with significantly better performance on all other SWFs.
 A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
@@ -522,7 +522,7 @@ We relax the constituency size constraint, test a variety of voting algorithms, 
 While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
 \citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
 GenerativeCC generates new statements and requires participant input only once, eliminating the bias in Polis related to varying levels and timing of participation.
-\citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine tuned using data from over 3000 human participants.
+\citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine-tuned using data from over 3000 human participants.
 GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single winner election to reach consensus.
 
 \citet{newberry-moral-parliaments} --- and earlier, \citet{bostrom-moral-parliaments-2009} --- propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
@@ -540,7 +540,7 @@ However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so p
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by solving an LP relaxation and applying pipage rounding to select winners.
 Our \LP{} algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
 \citet{skowron-2015} test a greedy Monroe rule approximation similar to our \BaselineEMonroeReassign{} and find that the reassignment step noticeably improves solution quality for ranked ballots.
-This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
+This is consistent with our finding for range ballots on the \citet{fish-v2} dataset.
 
 The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
 
@@ -560,7 +560,7 @@ Due to limited budget, we use GPT-4o mini for discriminative queries.
 This likely introduces additional noise into the estimated utility matrix.
 Although that should not systematically favor our method over the baseline, we do not perform the kind of direct human validation reported by \citet{fish-v2}.
 It therefore remains possible that part of the observed improvement reflects the specifics of the models and data used here.
-In general, we make no claims about the absolute alignment with human participants of the range votes made by our LLM-based virtual voters.
+In general, we make no claims about the absolute alignment with human participants of the range ballots filled out by our LLM-based virtual voters.
 
 \paragraph{Strategic voting}
 Every reasonable single winner voting system with at least three candidates incentivizes strategic voting \citep{gibbards-theorem}.
@@ -726,7 +726,7 @@ For \ECCExact{}, the search then stops, since assigning each voter to their favo
 For \EExactMonroe{}, the remaining levels determine only the assignment, so the search continues with the candidates restricted to the slate.
 It stops once every voter is at or below some level (\(c_l=n\)).
 
-\subsection{Runtime Complexity of \Exact{}} \label{app:brute-force-vs-exact}
+\subsection{Time Complexity of \Exact{}} \label{app:brute-force-vs-exact}
 The \Exact{} algorithm solves the integer program of \Cref{app:exact-lp-formulations}.
 Its complexity follows from three stages: formulating the program, solving it, and extracting the assignment from the solution.
 
@@ -735,7 +735,7 @@ The constraints are one slate-size constraint, $n$ assignment constraints (one p
 Writing out the objective and these constraints therefore takes $O(nm)$ time, and reading the $O(nm)$ variable values back out to recover the slate and assignment is likewise $O(nm)$.
 
 \paragraph{Solving} The solve step dominates.
-We bound the running time of branch-and-bound with a simplex method that does not cycle, the methods CBC is built on.
+We bound the time complexity of branch-and-bound with a simplex method that does not cycle, the methods CBC is built on.
 CBC adds further techniques, such as presolve, cutting planes, and primal heuristics, which we do not analyze; this is one reason \Cref{tab:time-complexity} marks these bounds as solver-dependent.
 Each branching step fixes one more binary variable, so the search tree has at most \(2^{nm+m+1}\) nodes.
 Each node solves a linear relaxation.
@@ -756,14 +756,14 @@ We do not treat this as the worst-case complexity of the IP-based implementation
 Rather, it is a useful comparison point: both approaches are exact, but they expose different computational bottlenecks.
 In practice, the IP solver's better average-case performance makes it far faster than exhaustive enumeration on the chatbot personalization dataset.
 
-\subsection{Runtime Complexity of \LP{}}
+\subsection{Time Complexity of \LP{}}
 \label{app:lp-complexity}
 \LP{} uses the same formulation as \Exact{}, with the integrality constraints relaxed to $[0,1]$, so it has the same $O(nm)$ variables and $O(nm)$ constraints.
 Its worst-case complexity depends entirely on which linear-programming method the solver applies.
 
 \paragraph{Simplex (as run)} Our experiments use PuLP/CBC, which solves the relaxation with the simplex method.
 Simplex runs in polynomial time on virtually every practical instance, but no polynomial worst-case bound is known for it: adversarial constructions (e.g.\ Klee--Minty cubes) force common pivot rules to visit a number of vertices exponential in the problem size.
-Its running time is bounded by the number of bases, as in \Cref{app:brute-force-vs-exact}, so it is exponential in \(n\) and \(m\), as reported in \Cref{tab:time-complexity}.
+Its time complexity is bounded by the number of bases, as in \Cref{app:brute-force-vs-exact}, so it is exponential in \(n\) and \(m\), as reported in \Cref{tab:time-complexity}.
 Selecting the \(k\) largest fractional values and assigning each voter to their favorite selected candidate is polynomial in \(n\) and \(m\), since \(k\le m\).
 As we run it, \LP{} therefore shares the same exponential worst case as \Exact{}, even though it is fast in practice.
 
@@ -784,12 +784,12 @@ prob.solve(pulp.CPLEX_CMD())
 We decided against using this solver in our experiments because it substantially increased the runtime, even way beyond that of the exact IP solver.
 It seems likely that commercial solvers lead to faster runtime.
 
-Thus, while the \LP{} variant we evaluate has a worst case exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
+Thus, while the \LP{} variant we evaluate has a worst-case time complexity exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
 
-\subsection{Runtime Complexity of \BaselineEMonroeReassign{}}
+\subsection{Time Complexity of \BaselineEMonroeReassign{}}
 \label{app:baseline-reassign-complexity}
 The reassignment step runs \EExactMonroe{} on the utility matrix restricted to the baseline's slate, so it solves the integer programs of \Cref{app:exact-lp-formulations} with the slate fixed and $nk$ assignment variables.
-Solved by branch-and-bound, as in our implementation, its worst-case running time is exponential in \(n\) and \(k\) and does not depend on \(m\), by the argument of \Cref{app:brute-force-vs-exact} with the \(k\) slate members in place of the \(m\) candidates.
+Solved by branch-and-bound, as in our implementation, its worst-case time complexity is exponential in \(n\) and \(k\) and does not depend on \(m\), by the argument of \Cref{app:brute-force-vs-exact} with the \(k\) slate members in place of the \(m\) candidates.
 Selecting the slate with \Baseline{} takes time polynomial in \(n\), \(m\), and \(k\), so the whole algorithm is exponential in \(n\) and \(k\) and polynomial in \(m\).
 Because the slate is fixed, the reassignment can also be computed in polynomial time, as a minimum-cost flow.
 In the flow network, each voter sends one unit of flow to a slate member, and each slate member receives between $\lfloor n/k\rfloor$ and $\lceil n/k\rceil$ units.
@@ -844,7 +844,7 @@ No $\omega'$ has both greater total and minimum utility.
 
 \paragraph{Non-radical Utilitarianism}
 No $\omega'$ has marginally lower total utility and substantially higher minimum utility.
-More formally, with the selected slate $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
+More formally, with the selected assignment $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
 
 We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}.
 \Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for representative slate generation.
@@ -957,7 +957,7 @@ Throughout, a solution is a pair $(W,\omega)$ with $|W|=k$ and $\omega:N\to W$, 
 As in \Cref{app:axiom-definitions}, we assume the no-ties condition, under which each algorithm's output is unique.
 
 \subsubsection{Axiom implications} \label{app:axiom-implications}
-We use the dominance relations defined in \Cref{app:axiom-definitions}, and say that an outcome satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
+We use the dominance relations defined in \Cref{app:axiom-definitions}, and say that a solution satisfies the corresponding efficiency axiom when no $\omega'$ dominates it in that sense.
 
 \paragraph{Lemma (monotone order statistics)} If $U_{i,\omega'(i)}\ge U_{i,\omega(i)}$ for all $i$, then $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$.
 Using the minimax form $u_{\omega,(\ell)}=\min_{|S|=\ell}\max_{i\in S}U_{i,\omega(i)}$, every set $S$ satisfies $\max_{i\in S}U_{i,\omega'(i)}\ge\max_{i\in S}U_{i,\omega(i)}$, so the minimum over $S$ inherits the inequality.
@@ -1009,7 +1009,7 @@ Voter 2 & 3 & 3 & 0 \\
 Voter 3 & 0 & 2 & 0 \\
 \hline
 \end{tabular}
-\caption{Greedy Total Utility Maximization fails Individual Pareto Efficiency for $k=2$.
+\caption{\Greedy{} fails Individual Pareto Efficiency for $k=2$.
 The selected slates include \(a_1\), while the only slate satisfying the axiom is \(\{a_2,a_3\}\).}
 \label{tab:failure-greedy-indiv-pareto}
 \end{table}
@@ -1219,7 +1219,7 @@ For \(k=1\), only \(a_1\) satisfies the axiom, while \(a_2\) may nevertheless be
 \section{Contributions of Generators}
 \label{app:statement-origin}
 
-This appendix reports which statement-generation methods contributed the finally selected statements in GenerativeCC.
+This appendix reports which statement generation methods contributed the finally selected statements in GenerativeCC.
 
 \subsection{Statement Origin in GenerativeCC}
 
@@ -1232,7 +1232,7 @@ Aggregating across runs, the selected statements were generated by:
     \item Batch generator (on all voters): 5
 \end{itemize}
 
-These counts show that all generation modes contribute to the final slates rather than one method dominating completely.
+These counts show that all generation methods contribute to the final slates rather than one method dominating completely.
 (For description of generation methods, refer to \Cref{sec:statement-generation}.)
 
 
@@ -1265,7 +1265,7 @@ Baseline & \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} & Ma
 \subsection{Model drift}
 \label{app:drift}
 
-Even a fixed model snapshot served through an API can behave differently over time, for example through changes to the serving infrastructure \citep{anthropic2025postmortem}; the performance of \texttt{gpt-4o-2024-08-06}, our generator, has been shown to vary with the time of day and week \citep{tschisgale2026periodicity}.
+Even a fixed model snapshot served through an API can behave differently over time, for example through changes to the serving infrastructure \citep{anthropic2025postmortem}; the performance of \texttt{gpt-4o-2024-08-06}, the model used for our generative queries, has been shown to vary with the time of day and week \citep{tschisgale2026periodicity}.
 OpenAI may thus have changed how our snapshots are served between 2025 and 2026, introducing model drift.
 We test whether an LLM call made in 2026 behaves like one more call from 2025, for every type of call whose outputs enter a comparison between the two periods.
 Each sampled 2025 call is repeated in 2026.
