@@ -208,49 +208,60 @@ Across 10 runs, all four generation methods contribute statements that get selec
 
 \paragraph{Inference costs}
 \Cref{tab:llm-call-comparison} counts the LLM calls of each type made by GenerativeCC and by the pipeline of \citet{fish-v2}.
-Three differences between the pipelines account for the counts.
+For a general comparison, we express these counts in terms of the number of voters \(n\), the number of generated candidates \(m\), and the slate size \(k\).
+Three phases in the pipelines include LLM calls.
 \begin{enumerate}
-    \item \emph{Finding groups of similar voters.}
-    GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings, which requires no further LLM calls.
+    \item \emph{Clustering voters.}
+    GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings.
     The baseline instead makes discriminative queries where virtual voter \(j\) rates the summary of participant \(i\), and the result is taken as a measure of similarity.
-    \(n(k+2)-3k\) discriminative queries are made for this purpose.
+    \(n(k+2)-3k\) discriminative queries are made in this phase.
     \item \emph{Generating candidates.}
-    Each of the baseline's 6 generators makes one generative call per round and produces one statement, so the baseline generates \(m=6k=30\) candidates with the default \(k=5\).
-    \footnote{We measure how the difference in \(m\) (30 vs. 42) affects performance in \Cref{app:statement-ablation-details}.}
-    GenerativeCC makes three generative calls on each of its \(k+1\) sets of opinions (the whole population and \(k\) clusters): two single-statement calls and one batch call that returns five statements.
-    It thus generates \(m=7(k+1)\) candidates with \(3(k+1)\) calls (42 candidates with 18 calls for \(k=5\)).
+    Each of the baseline's generative calls produces one statement, so it makes \(m\) generative calls.
+    GenerativeCC produces seven statements for every three generative calls (two single-statement calls and one batch call that returns five statements), so it makes \(3m/7\) generative calls.
     \item \emph{Rating candidates.}
-    GenerativeCC has every voter rate every candidate, for \(nm\) discriminative queries.
-    The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned rate the \(m/k\) new candidates, for \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries in this phase.
+    GenerativeCC procudes a full ballot profile with \(nm\) discriminative queries.
+    The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned rate the \(m/k\) new candidates.
+    \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries are made in this phase.
 \end{enumerate}
 
-GenerativeCC makes fewer generative queries, but each query uses more output tokens on average.
-It also makes no more tha twice as many discriminative queries.
+At matched \(n\), \(m\), and \(k\), GenerativeCC makes fewer generative queries, but each query uses more output tokens on average.
+It also makes fewer than twice as many discriminative queries.
+
+\paragraph{Case study}
+In our case study (\(n=100\), \(k=5\)), the two pipelines generate different numbers of candidates.
+GenerativeCC applies its generators to \(k+1\) sets of opinions (\Cref{sec:statement-generation}), giving \(m=7(k+1)=42\), while each of the baseline's six generators makes one call per round, giving \(m=6k=30\).\footnote{We measure how this difference in \(m\) affects performance in \Cref{app:statement-ablation-details}.}
+The right half of \Cref{tab:llm-call-comparison} gives the resulting call counts.
 
 \paragraph{Runtime complexity}
 In practice, runtime is dominated by LLM inference, which is comparable in cost per call across the baseline and GenerativeCC.
 Beyond LLM inference, GenerativeCC performs \(k\)-means clustering on embeddings and runs one of the voting algorithms from \Cref{sec:voting-algorithms}.
-Voting algorithm runtime is reasonably short despite its worse algorithmic complxity at the small scale of our experiments, so LLM inference .
+Voting algorithm runtime is reasonably short despite its worse algorithmic complexity at the small scale of our experiments, so LLM inference dominates.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 {\small
-\begin{tabular}{@{}lcc@{}}
+\begin{tabular}{@{}l|cc|cc@{}}
 \hline
-Type of LLM Call & GenerativeCC & \makecell{Baseline \\ \citep{fish-v2}} \\
+& \multicolumn{2}{c|}{General} & \multicolumn{2}{c}{Case study (\(n=100\), \(k=5\))} \\
+\cline{2-3}\cline{4-5}
+Type of LLM Call & GenerativeCC & Baseline & GenerativeCC (\(m=42\)) & Baseline (\(m=30\)) \\
 \hline
-Get opinion embedding & $n$ & -- \\
-Rate a participant's opinion & -- & $n(k+2) - 3k$ \\
-Generate candidates & $3m/7$ & $m$ \\
-Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ \\
+Get opinion embedding & $n$ & -- & 100 & -- \\
+Rate a participant's opinion & -- & $n(k+2) - 3k$ & -- & 685 \\
+Generate candidates & $3m/7$ & $m$ & 18 & 30 \\
+Rate a candidate & $nm$ & $\frac{1}{2} n m (1 + 1/k)$ & 4200 & 1800 \\
+\hline
+All discriminative queries & $nm$ & $n(k+2) - 3k + \frac{1}{2} n m (1 + 1/k)$ & 4200 & 2485 \\
 \hline
 \end{tabular}}
-\caption{Number of calls for different types of LLM requests for running the full pipeline, where \(m\) is the number of generated candidates, \(n\) the number of voters, and \(k\) the slate size.
-Both rating rows are discriminative queries (\Cref{sec:inference-costs}).}
+\caption{Number of calls for different types of LLM requests for running the full pipeline of GenerativeCC and of the baseline \citep{fish-v2}.
+Left: general counts, where \(n\) is the number of voters, \(m\) the number of generated candidates, and \(k\) the slate size.
+Right: counts in our case study, where the two pipelines generate different numbers of candidates (\Cref{sec:inference-costs}).
+Both rating rows are discriminative queries.}
 \label{tab:llm-call-comparison}
-\end{table}
+\end{table*}
 
-\section{Experimental Setup}
+\section{Case Study Experiments}
 
 We evaluate our full pipeline on the chatbot personalization survey of \citet{fish-v2}.
 Throughout, we compare against results obtained by running their pipeline under matched model choices.
