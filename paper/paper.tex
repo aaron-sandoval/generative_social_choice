@@ -158,9 +158,9 @@ Our voting algorithms follow this design, but we use range ballots instead of th
 The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
 However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative.
 \citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
-Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by rounding a linear programming relaxation, using pipage rounding to obtain approximation guarantees.
-Our \LP{} algorithm is similar except for its rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
-\citet{skowron-2015} test a greedy Monroe approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
+Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by solving an LP relaxation and applying pipage rounding to select winners.
+Our \LP algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
+\citet{skowron-2015} test a greedy Monroe rule approximation similar to our \Baseline + optimal reassign and find that the reassignment step noticeably improves solution quality for ranked ballots.
 This is consistent with our finding for rated ballots on the \citet{fish-v2} dataset.
 
 The Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} is a social welfare function containing a scalar parameter that interpolates between mean utility and minimum utility. We use it as an objective function, as \citet{horton-2025} do for the problem of facility location.
