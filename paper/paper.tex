@@ -135,10 +135,10 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
 \section{Background and Related Work}
 \subsection{AI Systems for Virtual Democracy}
 GenerativeCC builds directly on the work of \citet{fish-v2}.
-Their fully proportional representation system \citep{monroe-1995} uses virtual voters to evaluate and generate candidate statements.
-We relax the constraint of equal-sized constituencies, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of social welfare functions to measure performance.
-In parallel work, \citet{gsc-next-gen} build a similar LLM system with theoretical guarantees under more realistic assumptions.
-Among their improvements, they apply the same embedding model for clustering statements as GenerativeCC.
+Their system uses virtual voters to evaluate and generate candidate statements, then uses an approximation of the Monroe rule \citep{monroe-1995} to select a slate.
+We relax the constraint of equal-sized constituencies, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of SWFs to measure performance.
+\citet{gsc-next-gen} also extend the work of \citet{fish-v2}, building a similar LLM system intending to achieve theoretical guarantees using approximately optimal queries under constraints on statement length.
+We instead test various voting algorithms and focus on SWF performance.
 \citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
 While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
 \citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
