@@ -139,7 +139,7 @@ GenerativeCC has applications in virtual democracy, automated deliberation syste
 
 We solve the task of compressing a large set of opinions into a small weighted slate of representative statements.
 Let \(N=\{1,\ldots,n\}\) be a set of voters, each representing one participant, let \(O=(o_1,\ldots,o_n)\) be the participants' free-form opinions on a topic, and let \(k \ll n\) be the desired slate size.
-The pipeline generates a set \(A=\{a_1,\ldots,a_m\}\) of \(m \ge k\) candidate statements from \(O\).
+The pipeline generates a set \(A=\{a_1,\ldots,a_m\}\) of \(m \ge k\) candidate statements from \(O\), indexed by \([m]=\{1,\ldots,m\}\).
 As in \citet{fish-v2}, it then selects a slate \(W\subseteq A\) of \(k\) statements together with an assignment \(\omega:N\to W\) mapping each voter to one statement on the slate.
 As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
 
@@ -213,7 +213,7 @@ Three phases in the pipelines include LLM calls.
 \begin{enumerate}
     \item \emph{Clustering voters.}
     GenerativeCC embeds each of the \(n\) opinion summaries once and clusters the embeddings.
-    The baseline instead makes discriminative queries where virtual voter \(j\) rates the summary of participant \(i\), and the result is taken as a measure of similarity.
+    The baseline instead makes discriminative queries where virtual voter \(i'\) rates the summary of participant \(i\), and the result is taken as a measure of similarity.
     \(n(k+2)-3k\) discriminative queries are made in this phase.
     \item \emph{Generating candidates.}
     Each of the baseline's generative calls produces one statement, so it makes \(m\) generative calls.
@@ -710,14 +710,14 @@ z \;\le\; \sum_j U_{ij}\, y_{ij} \quad \forall i,
 so its optimal value \(z^\star\) is the largest achievable minimum utility.
 
 The remaining programs break ties leximin.
-For an assignment, let \(N(t)=\sum_{i,j:\,U_{ij}\le t} y_{ij}\) be the number of voters with utility at most \(t\), and \(N^<(t)\) the number with utility below \(t\); both are linear in \(y\).
-One sorted utility vector is leximin-better than another exactly when its \(N\) is smaller at the lowest threshold where the two differ.
+For an assignment, let \(B(t)=\sum_{i,j:\,U_{ij}\le t} y_{ij}\) be the number of voters with utility at most \(t\), and \(B^<(t)\) the number with utility below \(t\); both are linear in \(y\).
+One sorted utility vector is leximin-better than another exactly when its \(B\) is smaller at the lowest threshold where the two differ.
 The levels \(t_1<t_2<\cdots\) of the leximin-optimal solution are therefore found in turn.
 Let \(c_0=0\), and let \(c_{l-1}\) be the number of voters at or below the levels found so far.
 The next level \(t_l\) is the largest achievable \((c_{l-1}+1)\)-th lowest utility, which an integer program maximizes as \(z\) subject to \(z\le\sum_j U_{ij}y_{ij}+M w_i\) for all \(i\), with binary \(w_i\), \(\sum_i w_i\le c_{l-1}\), and \(M=\max U-\min U\).
 For \(l=1\) this is the program above.
-Then \(c_l\) is the smallest achievable \(N(t_l)\), which needs a second integer program only if the solution found has more than \(c_{l-1}+1\) voters at or below \(t_l\).
-Every later program adds the constraints \(N^<(t_l)\le c_{l-1}\) and \(N(t_l)\le c_l\), which every leximin-optimal solution satisfies.
+Then \(c_l\) is the smallest achievable \(B(t_l)\), which needs a second integer program only if the solution found has more than \(c_{l-1}+1\) voters at or below \(t_l\).
+Every later program adds the constraints \(B^<(t_l)\le c_{l-1}\) and \(B(t_l)\le c_l\), which every leximin-optimal solution satisfies.
 Each \(t_l\) is read from the utilities of the solution, rather than from the solver's objective value, to avoid losing ties to floating point error.
 
 After each level, a feasibility program checks whether a different slate also satisfies these constraints.
@@ -794,8 +794,8 @@ Selecting the slate with \Baseline{} takes time polynomial in \(n\), \(m\), and 
 Because the slate is fixed, the reassignment can also be computed in polynomial time, as a minimum-cost flow.
 In the flow network, each voter sends one unit of flow to a slate member, and each slate member receives between $\lfloor n/k\rfloor$ and $\lceil n/k\rceil$ units.
 Let $v_1<\cdots<v_L$ be the distinct utilities on the slate, with $L\le nk$.
-Assigning voter $i$ to slate member $j$ costs $\sum_{l:\,v_l\ge U_{ij}}(n+1)^{L-l}$, so the total cost of an assignment is $\sum_l (n+1)^{L-l} N(v_l)$, with $N$ as in \Cref{app:exact-lp-formulations}.
-Since each $N(v_l)\le n$, minimizing this cost minimizes $N(v_1),N(v_2),\dots$ lexicographically, which is exactly the leximin criterion.
+Assigning voter $i$ to slate member $j$ costs $\sum_{l:\,v_l\ge U_{ij}}(n+1)^{L-l}$, so the total cost of an assignment is $\sum_l (n+1)^{L-l} B(v_l)$, with $B$ as in \Cref{app:exact-lp-formulations}.
+Since each $B(v_l)\le n$, minimizing this cost minimizes $B(v_1),B(v_2),\dots$ lexicographically, which is exactly the leximin criterion.
 The costs have $O(nk\log n)$ bits, so a minimum-cost flow algorithm runs in time polynomial in $n$ and $k$, and the whole algorithm, including the slate selection, is polynomial in \(n\), \(m\), and \(k\).
 The same construction computes the leximin assignment for any fixed slate, so enumerating all \(\binom{m}{k}\le 2^m\) slates gives an implementation of \EExactMonroe{} that is exponential only in \(m\), and polynomial in \(n\) and \(k\).
 
@@ -835,7 +835,7 @@ Sorted Pareto Efficiency implies Individual Pareto Efficiency (see \Cref{app:axi
 
 \paragraph{Generalized Lorenz Efficiency \citep{shorrocks-1983}}
 No $\omega'$ \emph{generalized-Lorenz-dominates} $\omega$, meaning no $\omega'$ has a generalized Lorenz curve that dominates that of $\omega$.
-Formally, $\sum_{\ell=1}^{j}u_{\omega',(\ell)}\ge\sum_{\ell=1}^{j}u_{\omega,(\ell)}$ for all $j$ with at least one strict inequality.
+Formally, writing $\mathrm{GL}_r(\omega)=\sum_{\ell=1}^{r}u_{\omega,(\ell)}$ for the ordinates of the generalized Lorenz curve of $\omega$, $\mathrm{GL}_r(\omega')\ge\mathrm{GL}_r(\omega)$ for all $r=1,\ldots,n$ with at least one strict inequality.
 Equivalently, when all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters without reversing their order \citep[Thm.~1]{kostreva-ogryczak-wierzbicki-2004}.
 Generalized Lorenz Efficiency implies Sorted Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
 
@@ -973,7 +973,7 @@ By the Lemma, $u_{\omega',(\ell)}\ge u_{\omega,(\ell)}$ for all $\ell$; since so
 Hence $u_{\omega'}$ sorted-Pareto-dominates $u_\omega$, contradicting Sorted Pareto Efficiency.
 
 \subsubsection{\Exact{}} \label{app:exact-axiom-proofs}
-\Exact{} returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, assigning each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
+\Exact{} returns the slate $W^\star$ maximizing total utility $T(W):=\sum_i\max_{j\in W}U_{ij}$, with the assignment $\omega^\star$ of each voter to a best member of $W^\star$; let $T^\star=T(W^\star)$.
 
 \paragraph{Independence of Common Scale} For $c>0$, replacing $U$ by $cU$ replaces $T(W)$ by $cT(W)$ for every $W$, preserving the maximizer; positive scaling also preserves each voter's within-slate preference order, so $\omega$ is unchanged.
 
@@ -987,8 +987,8 @@ If $a\notin W^\star$ and we lower $U_{ia}$, then $T(W^\star)$ is unchanged while
 
 \paragraph{Egalitarian--Utilitarian Efficiency} No solution exceeds $T^\star$ in total utility, so none has both greater total and greater minimum utility.
 
-\paragraph{Generalized Lorenz Efficiency} The final Lorenz ordinate $L_n$ equals total utility.
-A solution generalized-Lorenz-dominating $\omega^\star$ would have $L_n\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility which is impossible by assumption (\Cref{app:axiom-definitions}).
+\paragraph{Generalized Lorenz Efficiency} The final generalized Lorenz ordinate $\mathrm{GL}_n(\omega)$ (\Cref{app:axiom-definitions}) equals the total utility of $\omega$, so $\mathrm{GL}_n(\omega^\star)=T^\star$.
+An assignment $\omega'$ generalized-Lorenz-dominating $\omega^\star$ would have $\mathrm{GL}_n(\omega')\ge T^\star$: if strict, its total exceeds $T^\star$, which is impossible; if equal, it ties $T^\star$, so there is another assignment with equal total utility which is impossible by assumption (\Cref{app:axiom-definitions}).
 Hence no dominator exists.
 By Propositions 1 and 2, Sorted Pareto Efficiency and Individual Pareto Efficiency follow.
 
@@ -1117,7 +1117,7 @@ Moving from \(a_1\) to \(a_2\) therefore sacrifices only \(\delta\) in total uti
 The ratio \(\epsilon/\delta=1/\delta\) can be made arbitrarily large by taking \(\delta\) arbitrarily small, with all utilities in \(\{0,1,2,4\}\) regardless of \(\kappa\).
 Therefore \ExactP{} violates Non-radical Utilitarianism for all \(\kappa>0\).
 
-The electorate must grow with \(\kappa\) in any such counterexample: if \ExactP{} selects a slate with minimum utility \(m\) over one with minimum utility at least \(m+\epsilon\), then \(e^{-\kappa m}\le\sum_i e^{-\kappa U_{i,\omega(i)}}\le n\,e^{-\kappa(m+\epsilon)}\), so \(n\ge e^{\kappa\epsilon}\).
+The electorate must grow with \(\kappa\) in any such counterexample: if \ExactP{} selects a slate with minimum utility \(u_{\mathrm{min}}\) over one with minimum utility at least \(u_{\mathrm{min}}+\epsilon\), then \(e^{-\kappa u_{\mathrm{min}}}\le\sum_i e^{-\kappa U_{i,\omega(i)}}\le n\,e^{-\kappa(u_{\mathrm{min}}+\epsilon)}\), so \(n\ge e^{\kappa\epsilon}\).
 This is expected of any scalar inequality-averse objective: an arbitrarily large \(\epsilon/\delta\) tradeoff amounts to lexicographic priority for the worst-off voter, which is instead obtained by lexicographic maximin optimization \citep{luss-1999, kostreva-ogryczak-wierzbicki-2004}.
 
 \subsubsection{\ExactP{} fails Independence of Common Scale}
