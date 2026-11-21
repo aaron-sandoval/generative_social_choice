@@ -216,8 +216,8 @@ Three phases in the pipelines include LLM calls.
     The baseline instead makes discriminative queries where virtual voter \(i'\) scores the summary of participant \(i\), and the result is taken as a measure of similarity.
     \(n(k+2)-3k\) discriminative queries are made in this phase.
     \item \emph{Generating candidates.}
-    Each of the baseline's generative calls produces one statement, so it makes \(m\) generative calls.
-    GenerativeCC produces seven statements for every three generative calls (two single-statement calls and one batch call that returns five statements), so it makes \(3m/7\) generative calls.
+    Each of the baseline's generative queries produces one statement, so it makes \(m\) generative queries.
+    GenerativeCC produces seven statements for every three generative queries (two single-statement queries and one batch query that returns five statements), so it makes \(3m/7\) generative queries.
     \item \emph{Scoring candidates.}
     GenerativeCC procudes a full utility matrix with \(nm\) discriminative queries.
     The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned score the \(m/k\) new candidates.
@@ -229,7 +229,7 @@ It also makes fewer than twice as many discriminative queries.
 
 \paragraph{Case study}
 In our case study (\(n=100\), \(k=5\)), the two pipelines generate different numbers of candidates.
-GenerativeCC applies its generators to \(k+1\) sets of opinions (\Cref{sec:statement-generation}), giving \(m=7(k+1)=42\), while each of the baseline's six generators makes one call per round, giving \(m=6k=30\).\footnote{We measure how this difference in \(m\) affects performance in \Cref{app:statement-ablation-details}.}
+GenerativeCC applies its generators to \(k+1\) sets of opinions (\Cref{sec:statement-generation}), giving \(m=7(k+1)=42\), while each of the baseline's six generators makes one generative query per round, giving \(m=6k=30\).\footnote{We measure how this difference in \(m\) affects performance in \Cref{app:statement-ablation-details}.}
 The right half of \Cref{tab:llm-call-comparison} gives the resulting call counts.
 
 \begin{table*}[t]
@@ -648,7 +648,7 @@ We expect this change to an unrelated part of the pipeline to introduce negligib
 Because GenerativeCC generates more candidate statements than the baseline (42 vs.\ 30 in the chatbot personalization experiments), we ran an additional ablation to test whether this difference alone explains the performance gap.
 
 In the ablated variant, we subsample the output of the generator that proposes five statements at once.
-For each such call, we retain only 3 randomly selected statements and discard the remaining 2.
+For each such query, we retain only 3 randomly selected statements and discard the remaining 2.
 Since this generator is applied once to the full population and once to each of the five clusters, the total number of candidates is reduced by \(6\times 2=12\), bringing the total from 42 down to 30.
 
 \Cref{fig:statement-ablation-comparison} compares the full GenerativeCC pipeline, the ablated pipeline, and the baseline of \citet{fish-v2}.
@@ -1279,14 +1279,14 @@ For generation, three of the baseline's generators received identical inputs in 
 We measure the variance of each one's 15 outputs by their mean pairwise cosine distance between \texttt{text-embedding-3-small} embeddings, a proxy measurement of the semantic variance among generated statements (2025 rows of \Cref{tab:model-drift-generation}).
 
 \paragraph{Discriminative queries.}
-We create three samples of 2025 scoring calls and repeat them in 2026:
+We create three samples of 2025 discriminative queries and repeat them in 2026:
 \begin{itemize}
     \item \emph{Baseline candidates} (300 scores): scores for candidate statements in the 15 earlier baseline runs, covering all six generators and all five rounds.
     The sample consists of 100 of the 400 cells scored twice in 2025, and 200 further cells, 50 from each bin of the 2025 score (\(<2\), \(2\)--\(3\), \(3\)--\(3.5\), \(>3.5\)).
     \item \emph{GenerativeCC candidates} (192 scores): cells of the 10 GenerativeCC utility matrices, stratified by the same bins.
-    \item \emph{Nearest-neighbor search} (152 scores): the baseline's calls scoring another participant's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
+    \item \emph{Nearest-neighbor search} (152 scores): the baseline's discriminative queries scoring another participant's summary, parsed from the logs of the earlier baseline runs and stratified by the same bins.
 \end{itemize}
-The calls of the earlier baseline runs are repeated with their CRLF line endings, and those of GenerativeCC with LF (\Cref{tab:confounder-systems}).
+The queries of the earlier baseline runs are repeated with their CRLF line endings, and those of GenerativeCC with LF (\Cref{tab:confounder-systems}).
 Equal numbers of scores per bin do not match the distribution of 2025 scores: among all 27{,}000 scores for candidate statements in the 15 earlier baseline runs, 49\% are above \(3.5\) and 2\% below \(2\), whereas among all 10{,}275 logged nearest-neighbor searches, 33\% are below \(2\).
 We therefore compute each estimate as a weighted average of its values within the bins, weighting each bin by its share of all 2025 scores of the same type, so that estimates describe all 2025 scores of a type rather than the sample.
 
@@ -1306,7 +1306,7 @@ Score type & \(n\) & \makecell{Bias\\(95\% CI)} \\
 \makecell[l]{Nearest-neighbor\\search} & 152 & \makecell{\(+0.031\)\\\([-0.019, +0.084]\)} \\
 \hline
 \end{tabular}
-\caption{Bias: mean difference between 2026 scores repeating 2025 calls and the original 2025 scores (2026 \(-\) 2025), on the \(0\)--\(4\) scale, weighted to the population distribution of 2025 scores, with 95\% bootstrap confidence intervals.}
+\caption{Bias: mean difference between 2026 scores repeating 2025 queries and the original 2025 scores (2026 \(-\) 2025), on the \(0\)--\(4\) scale, weighted to the population distribution of 2025 scores, with 95\% bootstrap confidence intervals.}
 \label{tab:model-drift-ratings}
 \end{table}
 
@@ -1329,7 +1329,7 @@ Calls made & CRLF & LF \\
 2026 & \(0.016\) & \(0.016\) \\
 \hline
 \end{tabular}
-\caption{Variance of the first-round outputs of the three generators with identical first-round inputs in every run: mean pairwise cosine distance between the embeddings of 15 outputs (30 for 2026 LF), by the year of the calls and the line endings of their prompts. The 2025 outputs come from the earlier baseline runs, and 15 of the 2026 LF outputs from the baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main}. Blank cells have no outputs.}
+\caption{Variance of the first-round outputs of the three generators with identical first-round inputs in every run: mean pairwise cosine distance between the embeddings of 15 outputs (30 for 2026 LF), by the year of the queries and the line endings of their prompts. The 2025 outputs come from the earlier baseline runs, and 15 of the 2026 LF outputs from the baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main}. Blank cells have no outputs.}
 \label{tab:model-drift-generation}
 \end{table}
 
@@ -1372,10 +1372,10 @@ The ratio is \(2.03\), with a 95\% confidence interval of \([1.05, 3.62]\) from 
 So \textbf{2026 nearest-neighbor searches have higher variance than 2025 ones}.
 
 \paragraph{Generative queries.}
-We use two sets of 2026 generation calls.
-First, we repeat the first-round calls of the three generators with identical first-round inputs 15 times each, with the exact 2025 messages and parameters, and compare their outputs with the 15 outputs of 2025 by cosine distance.
-Second, we repeat 24 logged generation calls of the 2025 runs, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 calls).
-Since most of these calls have only one 2025 output, we use them only to compare quality and format: six fixed voters score each 2025 output and both 2026 outputs, with all scores made in 2026 so that drift of the scorer cancels.
+We use two sets of 2026 generative queries.
+First, we repeat the first-round generative queries of the three generators with identical first-round inputs 15 times each, with the exact 2025 messages and parameters, and compare their outputs with the 15 outputs of 2025 by cosine distance.
+Second, we repeat 24 logged generative queries of the 2025 runs, four from each of the six generators of the baseline, spread over rounds, each twice with the exact logged messages and parameters (48 queries).
+Since most of these queries have only one 2025 output, we use them only to compare quality and format: six fixed voters score each 2025 output and both 2026 outputs, with all scores made in 2026 so that drift of the scorer cancels.
 
 \Cref{tab:model-drift-generation} shows the variance of the first-round outputs, and \Cref{tab:model-drift-generation-tests} the tests of drift.
 \begin{itemize}
@@ -1408,7 +1408,7 @@ Prompts formatted as in the earlier baseline runs, with CRLF opinions and LF sta
 These estimates come from 40 cells only.
 
 \paragraph{Generation.}
-For the three generators with identical first-round inputs, we compare the 15 2026 outputs with CRLF prompts (\Cref{app:drift}) with 30 2026 outputs with LF prompts: the first-round outputs of the 15 baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main} and 15 further calls (\Cref{tab:model-drift-generation,tab:line-endings-generation-tests}).
+For the three generators with identical first-round inputs, we compare the 15 2026 outputs with CRLF prompts (\Cref{app:drift}) with 30 2026 outputs with LF prompts: the first-round outputs of the 15 baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main} and 15 further queries (\Cref{tab:model-drift-generation,tab:line-endings-generation-tests}).
 At temperature 1, LF outputs have lower variance than CRLF outputs (\(0.089\) vs.\ \(0.145\), \(p = 0.050\)).
 At temperature 0, the variances differ only negligibly (\(0.006\) vs.\ \(0.004\)), and for the subsampling generator not at all.
 Line endings change the content of the subsampling generator's outputs: an LF output is farther from the CRLF outputs (\(0.027\)) than these are from each other (\(0.016\), \(p = 0.002\)).
