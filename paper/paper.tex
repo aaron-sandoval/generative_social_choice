@@ -258,7 +258,7 @@ Both scoring rows are discriminative queries.}
 
 \section{Case Study Experiments}
 
-We evaluate our full pipeline on the chatbot personalization survey of \citet{fish-v2}.
+We evaluate our full pipeline on the chatbot personalization dataset of \citet{fish-v2}.
 Throughout, we compare against results obtained by running their pipeline under matched model choices.
 
 \subsection{Input Data}
@@ -508,7 +508,7 @@ At \(\kappa=7\), minimum utility is nearly matched with \ECCExact{} with signifi
 A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the utilitarian welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
-We use \Exact{} in the main pipeline because it is feasible at the scale of our benchmark and performs well empirically.
+We use \Exact{} in the main pipeline because it is feasible at the scale of the chatbot personalization dataset and performs well empirically.
 When scaling GenerativeCC to elections with many more voters, \Greedy{} or \LP{} appear to be plausible substitutes.
 A Kolm--Pollak transformation may also be attractive in providing probable (but not guaranteed) protection against highly unequal outcomes.
 
@@ -551,7 +551,7 @@ We do not evaluate other common multiwinner rules such as proportional approval 
 \subsection{Limitations} \label{sec:limitations}
 
 \paragraph{Limited scope of evaluation}
-Our case study uses a single benchmark dataset.
+Our case study uses a single dataset.
 While its realism is an advantage over synthetic opinion distributions, for example, those used by \citet{chandak-2023}, it remains unclear how well the observed gains generalize to other domains or other distributions of opinions.
 Additionally, the small sample sizes (10 runs of GenerativeCC and 15 of the baseline) may also underestimate the variance due to not sufficiently representing the population distribution of outputs for a fixed input set of opinions.
 
@@ -590,7 +590,7 @@ We studied the task of compressing many free-form opinions into a small, weighte
 The goal was not to achieve consensus in a single step, but to concisely model diversity for potential downstream applications.
 
 We presented GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voting, and multiwinner range voting algorithms to select representative statements and assign voters.
-On the chatbot personalization benchmark, this pipeline improves on the closest prior system across all selected social welfare functions.
+On the chatbot personalization dataset, this pipeline improves on the closest prior system across all selected social welfare functions.
 Ablation results suggest that the improvement is mostly due to evaluating more voters against more candidates and optimizing assignment globally.
 
 While this work remains exploratory and is limited to a single dataset, we see representative slate generation as a useful subproblem for virtual democracy, and GenerativeCC as a starting point for focused development.
@@ -669,7 +669,7 @@ This supports the claim that our gains are not primarily due to a larger candida
 \label{app:exact-lp-formulations}
 
 We solve all integer programs with PuLP/CBC \citep{pulp, john_forrest_cbc}.
-At the scale of our benchmark, the solver terminates quickly, but exact worst-case complexity remains exponential.
+At the scale of the chatbot personalization dataset, the solver terminates quickly, but exact worst-case complexity remains exponential.
 
 Both \Exact{} and \LP{} are based on the same assignment-and-selection optimization problem.
 Let \(x_j\) indicate whether candidate \(j\) is selected, and let \(y_{ij}\) indicate whether voter \(i\) is assigned to candidate \(j\).
@@ -754,7 +754,7 @@ O\!\left(k n \binom{m}{k}\right).
 Since \(\binom{m}{k}\le m^k/k!\) and \(\binom{m}{k}\le 2^m\), it is exponential only in \(m\), and polynomial in \(n\) and \(k\).
 We do not treat this as the worst-case complexity of the IP-based implementation.
 Rather, it is a useful comparison point: both approaches are exact, but they expose different computational bottlenecks.
-In practice, the IP solver's better average-case performance makes it far faster than exhaustive enumeration on our benchmark.
+In practice, the IP solver's better average-case performance makes it far faster than exhaustive enumeration on the chatbot personalization dataset.
 
 \subsection{Runtime Complexity of \LP{}}
 \label{app:lp-complexity}
@@ -784,7 +784,7 @@ prob.solve(pulp.CPLEX_CMD())
 We decided against using this solver in our experiments because it substantially increased the runtime, even way beyond that of the exact IP solver.
 It seems likely that commercial solvers lead to faster runtime.
 
-Thus, while the \LP{} variant we benchmark has a worst case exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
+Thus, while the \LP{} variant we evaluate has a worst case exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
 
 \subsection{Runtime Complexity of \BaselineEMonroeReassign{}}
 \label{app:baseline-reassign-complexity}
