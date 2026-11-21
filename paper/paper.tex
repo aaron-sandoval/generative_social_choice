@@ -350,14 +350,14 @@ Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
  & \makecell[l]{Interleaved\\Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
-\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: constituency-size constraint (rule), solution method (method), and objective function (columns). We show results for the named entries.}
+\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency-size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates minimum utility, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
 \label{tab:algorithm-space}
 \end{table*}
 
 \paragraph{Objective function}
 Utilitarian (U-) algorithms maximize the total utility \(\sum_i U_{i,\omega(i)}\) of the assignment.
 Egalitarian (E-) algorithms maximize the minimum utility \(\min_i U_{i,\omega(i)}\).
-Between these, \ExactP{} maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{kolm-1976, pollak-1971} instead of total utility.
+Between these, \ExactP{} maximizes the Kolm--Pollak equally distributed equivalent (EDE) \citep{pollak-1971, kolm-1976} instead of total utility.
 For an inequality aversion parameter \(\kappa>0\), the EDE of utilities \(u_1,\dots,u_n\) is
 \[
 \mathrm{EDE}_\kappa(u)=-\frac{1}{\kappa}\ln\Bigl(\frac{1}{n}\sum_{i=1}^n e^{-\kappa u_i}\Bigr).
@@ -414,7 +414,7 @@ Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate'
 The simplex method we use has an exponential worst case; an interior-point method makes \LP{} polynomial in \(n\) and \(m\).
 See \Cref{app:lp-complexity}.\par
 \textsuperscript{c}Solver-dependent: the implementation solves integer programs by branch-and-bound (\Cref{app:brute-force-vs-exact}); \EExactMonroe{} solves a sequence of polynomially many in \(n\) (\Cref{app:exact-lp-formulations}).
-Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment as a flow problem is exponential only in \(m\), and polynomial in \(n\) and \(k\) (\citealp[Prop.~2]{betzler-2013}; \Cref{app:baseline-reassign-complexity}).\par
+Enumerating all \(\binom{m}{k}\le 2^m\) slates instead and computing each slate's assignment is exponential only in \(m\), and polynomial in \(n\) and \(k\) (\citealp{betzler-2013}; \Cref{app:baseline-reassign-complexity}).\par
 \textsuperscript{d}Solver-dependent: the reassignment solves integer programs by branch-and-bound over the baseline's slate only, and \(m\) enters only through the baseline's slate selection.
 With the slate fixed, the reassignment can instead be computed as a minimum-cost flow, which is polynomial in \(n\), \(m\), and \(k\); see \Cref{app:baseline-reassign-complexity}.}
 \end{tabular*}
