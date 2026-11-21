@@ -75,7 +75,7 @@
 
 \begin{abstract}
 Large language models (LLMs) present new opportunities for virtual democracy systems to faithfully condense and represent populous and diverse constituencies.
-However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit  representativeness.
+However, prior systems have limitations such as losing diversity by selecting a single statement, only testing on very small groups, or enforcing excessive constraints that limit representativeness.
 We build GenerativeCC, an LLM-based system that compresses many free-form participant opinions into a small weighted slate of representative statements.
 The pipeline (i) summarizes and embeds individual opinions, (ii) generates candidate representative statements, (iii) estimates participant agreement with statements using virtual voters, and (iv) selects a slate using a multiwinner range voting algorithm, where each voter is assigned to one slate member, and each weight is proportional to the quantity of assigned voters.
 On a dataset of 100 opinions, GenerativeCC outperforms the most closely related method from previous literature across all egalitarian and utilitarian social welfare functions.
@@ -99,7 +99,7 @@ GenerativeCC is a practical starting point for virtual democracy systems that re
 Recent progress in AI creates both risks and opportunities for collective decision-making \citep{landemore}.
 One promising direction is \emph{virtual democracy}, in which AIs represent a human constituency and their opinions are aggregated to inform decisions \citep{noothigattu-2018, kahng-virtual-democracy, freedman-kidney-exchange}.
 Recent work has extended this paradigm beyond fixed decision spaces, building systems that include large language models (LLMs) to generate and evaluate candidates in the form of natural language statements \citep{bakker-consensus, habermas-machine, gsc-next-gen}.
-\citet{fish-v2} build one such system and suggest applications in the large-scale alignment of general purpose AI. 
+\citet{fish-v2} build one such system and suggest applications in the large-scale alignment of general-purpose AI.
 They build their system primarily to satisfy a novel social choice axiom.
 We focus specifically on large-scale pluralistic alignment and use social welfare functions (SWFs) instead of social choice axioms as the primary performance measures.
 
@@ -119,16 +119,16 @@ First, we allow slate members to represent unequal fractions of the population, 
 Second, we evaluate all voters against all generated candidate statements, yielding a full \emph{utility matrix} and enabling global slate optimization.
 These changes allow for separation of statement generation from slate selection and testing of a broader set of voting algorithms.
 
-We find that GenerativeCC significantly improves over that of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
+We find that GenerativeCC significantly improves over the pipeline of \citet{fish-v2} across all tested utilitarian and egalitarian SWFs.
 Polynomial-time approximations of the utilitarian CC rule show only slightly worse performance on this dataset.
 We perform ablation studies which indicate that the improved performance is primarily due to the full utility matrix, with other changes having a smaller impact.
-GenerativeCC has applications in virtual democracy, automated deliberation systems, or simply as a tool to fairly summarize large collections of free-form opinions.
+GenerativeCC has applications in virtual democracy and automated deliberation systems, and can also serve simply as a tool to fairly summarize large collections of free-form opinions.
 
 \paragraph{Our main contributions are:}
 \begin{itemize}
     \item We present GenerativeCC, an LLM-based pipeline that combines statement generation, virtual voter utility estimation, and multiwinner range voting.
     On the chatbot personalization dataset of \citet{fish-v2}, we show that this pipeline improves over the closest prior approach across several SWFs.
-    \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the utility matrix, and its performance gap can be mostly remediated with relatively few additional queries (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results as exponential-time exact solutions.
+    \item We evaluate several utilitarian and egalitarian voting algorithms on the chatbot personalization dataset and find that (i) the main limitation of the baseline system is that it queries a minimal portion of the utility matrix, and its performance gap can be mostly remediated with relatively few additional queries; (ii) algorithms that compute a polynomial-time greedy approximation of the Monroe rule (such as the baseline) perform poorly; and (iii) algorithms that compute a polynomial-time approximation of the CC rule perform well, producing near-identical results to exponential-time exact solutions.
     This suggests that \textsc{CC} voting algorithms offer the most scalability and mean performance for representing large populations, though testing on more datasets is necessary.
 \end{itemize}
 
@@ -144,7 +144,7 @@ As in \citet{fish-v2}, it then selects a slate \(W\subseteq A\) of \(k\) stateme
 As in the Chamberlin--Courant rule \citep{chamberlin-courant, skowron-2015}, each statement \(a\in W\) is weighted by the fraction of voters assigned to it, \(|\omega^{-1}(a)|/n\), where \(\omega^{-1}(a)=\{i\in N:\omega(i)=a\}\).
 
 \paragraph{Objective}
-Following \citet{chamberlin-courant,fish-v2}, we model voter utility as their level of agreement with their assigned statement.
+Following \citet{chamberlin-courant,fish-v2}, we model a voter's utility as their level of agreement with their assigned statement.
 GenerativeCC uses a utilitarian objective (other objectives are explored in \Cref{sec:algorithms}).
 
 \subsection{Algorithm}
@@ -164,7 +164,7 @@ GenerativeCC uses a utilitarian objective (other objectives are explored in \Cre
     \begin{enumerate}
         \item Represent each participant with a virtual voter, implemented using in-context learning \citep{xie-in-context-learning-2021} with GPT-4o mini.
         The prompt includes \(o_i\) and ends with candidate \(a_j\), requesting a 0--4 Likert score.
-        \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the mean weighted by token-probability over the responses 0--4.
+        \item For each pair \((i,j)\), compute the expected Likert score \(U_{ij}\) assigned by the virtual voter \(i\) to the candidate \(a_j\) by taking the mean weighted by token probability over the responses 0--4.
         We treat this expected score as voter \(i\)'s agreement with \(a_j\).
         \item Repeat steps (a) and (b) for all \(i\in N\) and \(j\in[m]\).
     \end{enumerate}
@@ -219,7 +219,7 @@ Three phases in the pipelines include LLM calls.
     Each of the baseline's generative queries produces one statement, so it makes \(m\) generative queries.
     GenerativeCC produces seven statements for every three generative queries (two single-statement queries and one batch query that returns five statements), so it makes \(3m/7\) generative queries.
     \item \emph{Scoring candidates.}
-    GenerativeCC procudes a full utility matrix with \(nm\) discriminative queries.
+    GenerativeCC produces a full utility matrix with \(nm\) discriminative queries.
     The baseline interleaves generation with slate selection (\Cref{sec:algorithms}): in each round, only the voters not yet assigned score the \(m/k\) new candidates.
     \(\frac{1}{2} n m (1 + 1/k)\) discriminative queries are made in this phase.
 \end{enumerate}
@@ -315,8 +315,8 @@ The remaining ablations find relatively small contributions from all other pipel
 In \Cref{app:statement-ablation-details} we ablate the difference in \(m\) between pipelines.
 In \Cref{app:embedding-ablation-details}, we ablate the change in opinion similarity measure.
 We do not run any study varying model selection, but we believe model selection unlikely to be a major contributor to the performance difference.
-While \citet{fish-v2} uses three variants of GPT-4, all of our experiments, including those on their pipeline, use GPT-4o mini and GPT-4o.
-It's possible that this could account for a small difference, but only if either pipeline were overfit to the particular models used to test them.
+While \citet{fish-v2} use three variants of GPT-4, all of our experiments, including those on their pipeline, use GPT-4o mini and GPT-4o.
+It is possible that this could account for a small difference, but only if either pipeline were overfit to the particular models used to test them.
 
 \section{Voting Algorithms}
 \label{sec:voting-algorithms}
@@ -350,7 +350,7 @@ Monroe & Exact & \ExactMonroe{} & -- & \EExactMonroe{} \\
  & \makecell[l]{Interleaved\\Greedy} & -- & -- & \Baseline{} \\[2pt]
 \hline
 \end{tabular}
-\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates leximin, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming, and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
+\caption{Specification and names of most of the tested voting algorithms within a 3-dimensional design space: objective function (columns), constituency size constraint (\textit{Rule}), and solution method (\textit{Method}). \textit{Objective function}: \textsc{U} indicates total utility, \textsc{E} indicates leximin, and \textsc{U} with \((\kappa>0)\) indicates the Kolm--Pollak EDE \citep{pollak-1971, kolm-1976}. \textit{Rule}: \textsc{Monroe} algorithms require equal numbers of voters assigned to each candidate; \textsc{CC} algorithms apply no such constraint. \textit{Method}: \textsc{Exact} solves the optimization problem exactly; \textsc{Greedy} solves it approximately with \(k\) greedy steps; \textsc{LP} solves it approximately with linear programming; and \Baseline{} solves it approximately with a bespoke greedy selection interleaved with candidate generation. We show results for the named entries.}
 \label{tab:algorithm-space}
 \end{table*}
 
@@ -388,7 +388,7 @@ Upon selecting a winner, those voters are permanently assigned to that winner.
 
 \LP{} approximates \Exact{} with a linear program: it uses the same problem formulation for slate selection and voter assignment as \Exact{},
 but relaxes binary constraints to the interval \([0,1]\).
-After solving the relaxed program, it selects the \(k\) candidates with largest fractional values and assigns each voter to their favorite selected candidate.
+After solving the relaxed program, it selects the \(k\) candidates with the largest fractional values and assigns each voter to their favorite selected candidate.
 
 \begin{table}[!t]
 \centering
@@ -430,7 +430,7 @@ In each of the \(k\) rounds, \(m/k\) new candidates are generated from the opini
 One candidate is selected, its voters assigned, and the round ends.
 This uses \(\frac{1}{2} n (m + m/k)\) discriminative queries, the fewest of any algorithm we test (\Cref{tab:llm-call-comparison}).
 If the slate contains one winner generated during each round, then no post-hoc improvements such as reassignment are possible without additional discriminative queries.
-This is because the winner generated in the final round are never scored by the \(n-n/k\) already assigned voters.
+This is because the winner generated in the final round is never scored by the \(n-n/k\) already assigned voters.
 Since no other voter can be assigned to the final winner, it must retain all of its currently assigned voters.
 This constraint propagates backwards through each round.
 
@@ -460,8 +460,7 @@ Similar to \BaselineEMonroeReassign{}, but the Monroe constituency size constrai
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/voting_alg_scalar_metrics_fish_candidates.pdf}
-  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 10 utility matrices from \Cref{fig:swf-main} generated with GenerativeCC.
-  Mean voting algorithm SWF performance for \(k=5\) across the 15 partial utility matrices from \Cref{fig:swf-main}. The matrices are augmented with discriminative queries as described in \Cref{sec:algorithms} \BaselineEMonroeReassign. Adding the corresponding reassignment step to \Baseline{} recovers 60-87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. The requires at most 67\% of the \(nm\) discriminative queries of a full utility matrix.}
+  \caption{Mean voting algorithm SWF performance for \(k=5\) across the 15 partial utility matrices from \Cref{fig:swf-main}. The matrices are augmented with discriminative queries as described for \BaselineEMonroeReassign{} in \Cref{sec:algorithms}. Adding the corresponding reassignment step to \Baseline{} recovers 60--87\% of \Baseline's performance gap to \Exact{} and \EExactMonroe{}. This requires at most 67\% of the \(nm\) discriminative queries of a full utility matrix.}
   \label{fig:sfws-voting-algs-fish}
 \end{figure}
 
@@ -481,11 +480,11 @@ The \BaselineReassign{} algorithms leverage their additional discriminative quer
 \BaselineCCReassign{} performs almost identically.
 In our setting, this requires at most 11\% more queries than \Baseline, compared to the 67\% more required by \EExactMonroe{}.
 This is the largest improvement from any single design choice we vary.
-It exceeds the effect of the objective function, constituency size constraint, and of exact vs. greedy selection under CC.
+It exceeds the effects of the objective function, the constituency size constraint, and exact vs.\ greedy selection under CC.
 
 \paragraph{Polynomial-time \textsc{CC} algorithms perform competitively}
 \Greedy{} and \LP{} (polynomial with an interior-point solver, \Cref{app:lp-complexity}) perform nearly indistinguishably from \Exact{}.
-\LP{} realizes identical voter utilities as \Exact{} on all 10 utility matrices, and \Greedy{} on 7 of the 10, with no mean SWF differing by more than 0.002.
+\LP{} realizes identical voter utilities to \Exact{} on all 10 utility matrices, and \Greedy{} on 7 of the 10, with no mean SWF differing by more than 0.002.
 
 \paragraph{\textsc{Monroe-Greedy} algorithms perform poorly}
 Some aspect of \textsc{Monroe-Greedy} algorithms severely and uniquely limits their performance relative to the others tested.
@@ -505,7 +504,7 @@ This effect is an order of magnitude smaller than the cost of greedy assignment 
 \paragraph{\ExactP{} provides a favorable Pareto front and flexibility}
 \ExactP{} provides favorable SWF tradeoffs near either end of the egalitarian--utilitarian spectrum.
 At \(\kappa=3\), minimum utility is noticeably boosted compared to \Exact{} at a very small cost to other SWFs.
-At \(\kappa=7\), minimum utility is nearly matched with \ECCExact{} with significantly better performance on all other SWFs.
+At \(\kappa=7\), minimum utility nearly matches that of \ECCExact{}, with significantly better performance on all other SWFs.
 A utilitarian objective with a strong transformation offers more flexibility than the egalitarian objective: \(\kappa\) can be tuned to buy back much of the welfare that the egalitarian objective gives up, at little cost to the worst-off voter.
 
 The voting algorithms fall into two categories: those that scale poorly but offer strong optimality guarantees, and those that scale well but have no such guarantees.
@@ -519,12 +518,12 @@ GenerativeCC builds directly on the work of \citet{fish-v2}.
 Their system uses virtual voters to evaluate and generate candidate statements, then uses an approximation of the Monroe rule \citep{monroe-1995} to select a slate.
 We relax the constituency size constraint, test a variety of voting algorithms, improve their LLM-based implementation, and use a suite of SWFs to measure performance.
 \citet{gsc-next-gen} also extend the work of \citet{fish-v2}, building a similar LLM system, but focus on achieving theoretical guarantees using approximately optimal queries under constraints on statement length.
-\citet{habermas-machine} build a generative virtual democracy system and study its performance with a large scale human study.
-While their system uses ranked ballots, selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
-\citet{polis} describe Polis, a digital democracy system summarizing and analyzing of opinion of thousands of participants using iterative participant feedback on each others' statements.
+\citet{habermas-machine} build a generative virtual democracy system and study its performance with a large-scale human study.
+While their system uses ranked ballots and selects a single winning statement for many small groups of up to 6 participants, ours uses range ballots and selects a weighted slate of winners to represent one group of 100 opinions.
+\citet{polis} describe Polis, a digital democracy system that summarizes and analyzes the opinions of thousands of participants using iterative participant feedback on each other's statements.
 GenerativeCC generates new statements and requires participant input only once, eliminating the bias in Polis related to varying levels and timing of participation.
 \citet{bakker-consensus} build a generative social choice system using reward and statement generation models, each fine-tuned using data from over 3000 human participants.
-GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single winner election to reach consensus.
+GenerativeCC uses in-context learning \citep{xie-in-context-learning-2021} instead of fine-tuning, and uses a multiwinner election to represent opinions rather than a single-winner election to reach consensus.
 
 \citet{newberry-moral-parliaments} --- and earlier, \citet{bostrom-moral-parliaments-2009} --- propose the parliamentary approach to moral uncertainty, an informal decision-making method for individuals which initially inspired this project.
 In their approach, various ethical systems with weighted voting power are represented in a simulated parliament, where they bargain and vote on decisions.
@@ -537,7 +536,7 @@ GenerativeCC could be applied to select the members in an LLM-based implementati
 Our voting algorithms follow this design, but we use range ballots instead of their ranked ballots.
 The optimal CC slate can be found by solving an integer program \citep{potthoff-brams-1998}, as in our \Exact{} algorithm.
 However, this problem is NP-hard \citep{procaccia-2008, lu-boutilier-2011}, so polynomial-time approximations offer a practical alternative.
-\citep{nemhauser-1978, lu-boutilier-2011} bound the worst-case performance of greedy approximations.
+\citet{nemhauser-1978} and \citet{lu-boutilier-2011} bound the worst-case performance of greedy approximations.
 Prior works such as \citet{ageev-sviridenko-2004} and \citet{calinescu-2007} find approximate solutions to the CC rule by solving an LP relaxation and applying pipage rounding to select winners.
 Our \LP{} algorithm is similar except for the rounding method, which has precedent in participatory budgeting \citep{sreedurga-2022}.
 \citet{skowron-2015} test a greedy Monroe rule approximation similar to our \BaselineEMonroeReassign{} and find that the reassignment step noticeably improves solution quality for ranked ballots.
@@ -554,7 +553,7 @@ We do not evaluate other common multiwinner rules such as proportional approval 
 \paragraph{Limited scope of evaluation}
 Our case study uses a single dataset.
 While its realism is an advantage over synthetic opinion distributions, for example, those used by \citet{chandak-2023}, it remains unclear how well the observed gains generalize to other domains or other distributions of opinions.
-Additionally, the small sample sizes (10 runs of GenerativeCC and 15 of the baseline) may also underestimate the variance due to not sufficiently representing the population distribution of outputs for a fixed input set of opinions.
+Additionally, the small sample sizes (10 runs of GenerativeCC and 15 of the baseline) may underestimate the variance due to not sufficiently representing the population distribution of outputs for a fixed input set of opinions.
 
 \paragraph{Virtual voters use weak LLMs}
 Due to limited budget, we use GPT-4o mini for discriminative queries.
@@ -564,10 +563,10 @@ It therefore remains possible that part of the observed improvement reflects the
 In general, we make no claims about the absolute alignment with human participants of the range ballots filled out by our LLM-based virtual voters.
 
 \paragraph{Strategic voting}
-Every reasonable single winner voting system with at least three candidates incentivizes strategic voting \citep{gibbards-theorem}.
-\citet{preference-overstating} show that in large single winner elections, strategic voters treat range ballots as approval ballots, eliminating their expressivity advantage.
+Every reasonable single-winner voting system with at least three candidates incentivizes strategic voting \citep{gibbards-theorem}.
+\citet{preference-overstating} show that in large single-winner elections, strategic voters treat range ballots as approval ballots, eliminating their expressivity advantage.
 This likely extends to multiwinner elections.
-Virtual voters could mitigate strategic voting, depending on how they are trained \citet{rangevoting-range-voting, newberry-moral-parliaments}.
+Virtual voters could mitigate strategic voting, depending on how they are trained \citep{rangevoting-range-voting, newberry-moral-parliaments}.
 Even if a virtual voter could be trained to report its principal's beliefs honestly, the principal is still incentivized to misrepresent her beliefs in the training data.
 Ensuring virtual voter honesty is a difficult problem outside of our scope, and we simply assume that the participant opinions in the dataset that we test are honest.
 Approval-style ballots may therefore remain attractive in real deployments.
@@ -579,9 +578,9 @@ These issues remain significant obstacles to real-world deployment.
 \subsection{Future Work}
 
 To address the limited scope of evaluation, future work should evaluate representative slate generation systems on additional datasets such as those of \citet{gsc-next-gen} and synthetic datasets.
-Work is needed to develop  better LLM-based virtual voters than our simple in-context learning methods.
-Evaluations of a virtual voter's ability to represent the opinion of individual humans should also be developed.
-Potential improvements to GenerativeCC itself include using more capable LLMs, Psi proportional representation voting algorithms \citep{rangevoting-optimal-pr}, and exploring the tradeoffs of approval ballots.
+Work is needed to develop better LLM-based virtual voters than our simple in-context learning methods.
+Evaluations of a virtual voter's ability to represent the opinions of individual humans should also be developed.
+Potential improvements to GenerativeCC itself include using more capable LLMs and Psi proportional representation voting algorithms \citep{rangevoting-optimal-pr}, and exploring the tradeoffs of approval ballots.
 Insight can also be gained from human studies of representative slate generation systems.
 For example, the experimental design of \citet{habermas-machine} could be adapted to use larger groups of participants, and a human validation study like that of \citet{fish-v2} could be repeated for new systems.
 
@@ -628,7 +627,7 @@ We expect this change to an unrelated part of the pipeline to introduce negligib
 \begin{figure}[t]
   \begin{center}
   \includegraphics[width=\columnwidth]{figures/scalar_confidence_intervals_all_stacked.pdf}
-  \caption{Comparison of SWF performance for an ablation changing only the opinion similarity measure in (a) the \citet{fish-v2} baseline (b) GenerativeCC. Using the LLM embedding similarity measure accounts for only a small portion of the overall SWF performance difference in \Cref{fig:swf-main}.
+  \caption{Comparison of SWF performance for an ablation changing only the opinion similarity measure in (a) the \citet{fish-v2} baseline and (b) GenerativeCC. Using the LLM embedding similarity measure accounts for only a small portion of the overall SWF performance difference in \Cref{fig:swf-main}.
 }
   \label{fig:scalar-metrics-embeddings}
   \end{center}
@@ -782,7 +781,7 @@ prob.solve(
 # interior-point method, e.g. CPLEX:
 prob.solve(pulp.CPLEX_CMD())
 \end{verbatim}
-We decided against using this solver in our experiments because it substantially increased the runtime, even way beyond that of the exact IP solver.
+We decided against using this solver in our experiments because it substantially increased the runtime, even beyond that of the exact IP solver.
 It seems likely that commercial solvers lead to faster runtime.
 
 Thus, while the \LP{} variant we evaluate has a worst-case time complexity exponential in \(n\) and \(m\), an interior-point deployment is polynomial in \(n\) and \(m\) at no change to the formulation.
@@ -823,7 +822,7 @@ Changing the order of voters or statements in the utility matrix $U$ does not ch
 Linearly scaling all utilities by a positive constant never changes $\omega$.
 
 \paragraph{Monotonicity}
-Increasing (decreasing) a voter’s score for a winning (losing) candidate never causes that candidate to lose (win).
+Increasing (decreasing) a voter's score for a winning (losing) candidate never causes that candidate to lose (win).
 
 \paragraph{Individual Pareto Efficiency}
 No $\omega'$ \emph{Pareto-dominates} $\omega$, meaning no $\omega'$ increases total utility without decreasing any individual voter's utility.
@@ -837,7 +836,7 @@ Sorted Pareto Efficiency implies Individual Pareto Efficiency (see \Cref{app:axi
 \paragraph{Generalized Lorenz Efficiency \citep{shorrocks-1983}}
 No $\omega'$ \emph{generalized-Lorenz-dominates} $\omega$, meaning no $\omega'$ has a generalized Lorenz curve that dominates that of $\omega$.
 Formally, writing $\mathrm{GL}_r(\omega)=\sum_{\ell=1}^{r}u_{\omega,(\ell)}$ for the ordinates of the generalized Lorenz curve of $\omega$, $\mathrm{GL}_r(\omega')\ge\mathrm{GL}_r(\omega)$ for all $r=1,\ldots,n$ with at least one strict inequality.
-Equivalently, when all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from "wealthier" voters to "poorer" voters without reversing their order \citep[Thm.~1]{kostreva-ogryczak-wierzbicki-2004}.
+Equivalently, when all voters are anonymized, it is impossible to select an $\omega'$ such that the anonymous transformation of $u_{\omega}$ to $u_{\omega'}$ can be expressed as a non-empty series of actions either granting positive utility to a voter or transferring utility from ``wealthier'' voters to ``poorer'' voters without reversing their order \citep[Thm.~1]{kostreva-ogryczak-wierzbicki-2004}.
 Generalized Lorenz Efficiency implies Sorted Pareto Efficiency (see \Cref{app:axiom-implications} for proof).
 
 \paragraph{Egalitarian--Utilitarian Efficiency}
@@ -845,7 +844,7 @@ No $\omega'$ has both greater total and minimum utility.
 
 \paragraph{Non-radical Utilitarianism}
 No $\omega'$ has marginally lower total utility and substantially higher minimum utility.
-More formally, with the selected assignment $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$ there exists no $\omega'$ with total utility $u_{tot} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
+More formally, with the selected assignment $\omega$ having total utility $u_{\mathrm{tot}}$ and minimum utility $u_{\mathrm{min}}$, there exists no $\omega'$ with total utility $u_{\mathrm{tot}} - \delta$ and minimum utility $u_{\mathrm{min}} + \epsilon$, where $\epsilon > 0, \delta > 0$ and $\epsilon/\delta$ is arbitrarily large.
 
 We do not aim to satisfy committee monotonicity \citep{elkind-committee-monotonicity} or balanced justified representation \citep{fish-v2}.
 \Cref{tab:committee-monotonicity-example,tab:bjr-example} illustrate why these properties may be undesirable for representative slate generation.
@@ -887,7 +886,7 @@ Under BJR, \(a_1\) and \(a_2\) must have equal numbers of voters assigned.}
 We evaluate voting algorithms against each axiom using a set of adversarial utility matrices.
 These matrices are generated both manually and using LLMs (ChatGPT 5.3 and Claude Opus 4.7).
 For \Exact{}, we provide formal proofs of satisfaction of some axioms in \Cref{app:exact-axiom-proofs}.
-As we don't provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives wouldn't affect our conclusions.
+As we do not provide formal proofs of satisfaction for other voting algorithms, false positives remain possible, but any hypothetical false positives would not affect our conclusions.
 Results are shown in \Cref{tab:voting-axioms}.
 Counterexamples for key axiom failures are provided in \Cref{app:voting-failures}.
 
@@ -936,7 +935,7 @@ Generalized Lorenz Efficiency
 
 Egalitarian--Utilitarian Efficiency
 & \Pass
-& \Fail\tablefootnote{See \Cref{app:axiom-discussion} for a counterexample at \(\kappa=\ln 1.5\).}
+& \Fail\tablefootnote{\Cref{tab:egal-util-strict} is a counterexample at \(\kappa=\ln 1.5\): \ExactP{} selects \(a_2\), while \(a_1\) has greater total and minimum utility.}
 & \Fail
 & \Fail\tablefootnote{See \Cref{tab:lp-fractional}.} \\
 
@@ -1194,7 +1193,7 @@ Applying the Kolm--Pollak transformation to \Exact{} leads to strictly worse axi
 \paragraph{Limitations of Non-radical Utilitarianism}
 This axiom is an attempt to make a minimally restrictive illustration of a limitation of a pure utilitarian objective function.
 A voting algorithm should not prefer to make an arbitrarily large sacrifice in other valuable SWFs for a marginal gain in total utility.
-However, the choice of minimum utility as the egalitarianism SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
+However, the choice of minimum utility as the egalitarian SWF imposes a subjective judgment inconsistent with other choices of SWF \citep{atkinson-1970}.
 There are utility matrices, such as the example in Table~\ref{tab:egal-util-strict}, where an assignment that violates the axiom may yet be reasonably preferred on egalitarian grounds.
 This axiom is overly constraining.
 
@@ -1213,7 +1212,8 @@ Voter 3 & 2 & 1 \\
 \hline
 \end{tabular}
 \caption{Example utility matrix demonstrating the strictness of Egalitarian--Utilitarian Efficiency.
-For \(k=1\), only \(a_1\) satisfies the axiom, while \(a_2\) may nevertheless be judged more egalitarian and preferred.}
+For \(k=1\), only \(a_1\) satisfies the axiom, while \(a_2\) may nevertheless be judged more egalitarian and preferred.
+It is also a counterexample showing that \ExactP{} fails the axiom at \(\kappa=\ln 1.5\), since \ExactP{} selects \(a_2\).}
 \label{tab:egal-util-strict}
 \end{table}
 
@@ -1234,7 +1234,7 @@ Aggregating across runs, the selected statements were generated by:
 \end{itemize}
 
 These counts show that all generation methods contribute to the final slates rather than one method dominating completely.
-(For description of generation methods, refer to \Cref{sec:statement-generation}.)
+(For a description of the generation methods, refer to \Cref{sec:statement-generation}.)
 
 
 \section{Confounding Variable Analysis}
@@ -1245,7 +1245,7 @@ This appendix examines whether model drift or differences in line endings could 
 The GenerativeCC runs and the earlier baseline runs (\Cref{app:embedding-ablation-details}) were produced between May and August 2025, while
 the baseline runs of \Cref{fig:swf-main,fig:mth-happiest-main} are from 2026.
 Due to the long interval between their LLM calls, there is an elevated risk of model drift confounding comparisons.
-Additionally, the baseline data in \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} was generated using CRLF line endings in some prompts rather than LF line endings.
+Additionally, the baseline data in \Cref{fig:scalar-metrics-embeddings,fig:mth-happiest-embeddings} were generated using CRLF line endings in some prompts rather than LF line endings.
 If line endings meaningfully affect the behavior of LLM elements of the pipeline, this could also be a confounder.
 
 \begin{table*}[t]
@@ -1387,7 +1387,7 @@ Since most of these queries have only one 2025 output, we use them only to compa
     With the prompts held fixed, the 2026 outputs are no farther from the 2025 outputs than 2025 outputs are from each other for any generator, and at temperature 0 they are closer.
     The lower variance of 2026 outputs explains why they can be closer: outputs concentrated among the 2025 outputs have a smaller mean distance to them than these have to each other.
     So \textbf{the 2026 output distribution lies within the spread of the 2025 output distribution}.
-    It's possible that the 2026 distribution is biased relative to the 2025 distribution, where the 2026 distribution lies mostly inside the 2025 distribution, but the sample sizes are too small to detect this.
+    It is possible that the 2026 distribution is biased relative to the 2025 distribution, where the 2026 distribution lies mostly inside the 2025 distribution, but the sample sizes are too small to detect this.
     \item \emph{Quality.}
     Mean agreement with 2026 outputs differs from that with 2025 outputs by \(+0.06\) \([-0.02, +0.16]\), with \textbf{no detectable bias}.
     Two 2026 outputs of the same prompt differ by a mean of \(0.06\).
