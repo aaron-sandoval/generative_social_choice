@@ -1104,54 +1104,60 @@ Therefore, \Exact{} violates Non-radical Utilitarianism.
 
 \subsubsection{\ExactP{} fails Non-radical Utilitarianism}
 \label{app:exactp-nru}
-% Example found by Claude Opus 4.7
+% Example found by Claude Opus 5.5
 
 The Kolm--Pollak transformation does not repair this failure.
 \ExactP{} maximizes the \emph{transformed} total $\sum_i f(U_{i,\omega(i)})$, and because $f$ is concave it can still reject an alternative slate that is essentially tied in raw total utility but substantially better in raw minimum utility.
-\Cref{tab:failure-exactp-nru} gives a counterexample for $k=1$ and $\kappa=\ln 1.5$, where $\delta>0$ is a free parameter.
+Since $f$ is a positive affine transformation of $-e^{-\kappa u}$, \ExactP{} equivalently selects the slate minimizing the cost $\sum_i e^{-\kappa U_{i,\omega(i)}}$.
+\Cref{tab:failure-exactp-nru} gives a counterexample for $k=1$ and any $\kappa>0$, where $G\ge e^{\kappa}/2$ is an integer and $\delta\in(0,1)$ is a free parameter.
 \begin{table}[t]
 \centering
-\begin{tabular}{l|cc}
+\begin{tabular}{l|c|cc}
 \hline
- & $a_1$ & $a_2$ \\
+ & Count & $a_1$ & $a_2$ \\
 \hline
-Voter 1 & $0$   & $1/2$ \\
-Voter 2 & $5/2$ & $1/2$ \\
-Voter 3 & $5/2$ & $4-\delta$ \\
+Voter 1 & $1$ & $0$ & $1$ \\
+Droppers & $2G+1$ & $2$ & $1$ \\
+Gainers & $G-1$ & $2$ & $4$ \\
+Last gainer & $1$ & $2$ & $4-\delta$ \\
 \hline
 \end{tabular}
-\caption{Counterexample showing that \ExactP{} fails Non-radical Utilitarianism for \(k=1\) and \(\kappa=\ln 1.5\), for any sufficiently small \(\delta>0\).}
+\caption{Counterexample showing that \ExactP{} fails Non-radical Utilitarianism for \(k=1\) and any \(\kappa>0\), with \(3G+2\) voters for an integer \(G\ge e^{\kappa}/2\) and any \(\delta\in(0,1)\).}
 \label{tab:failure-exactp-nru}
 \end{table}
-For \(\kappa=\ln 1.5\) the transformation is \(f(u)=3\bigl(1-1.5^{-u}\bigr)\), giving
+Writing \(x=e^{-\kappa}\in(0,1)\), the costs are
 \[
-f(0)=0,\quad f(\tfrac12)\approx0.55,
+C(a_1)=1+(3G+1)x^2,
 \]
 \[
-f(\tfrac52)\approx1.91,\quad f(4)\approx2.41
+\begin{aligned}
+C(a_2)&=(2G+2)x+(G-1)x^4+x^{4-\delta}\\
+&\ge(2G+2)x+Gx^4,
+\end{aligned}
 \]
-\ExactP{} selects the slate with the larger transformed total.
-For \(a_1\),
+so
 \[
-f(0)+2f(\tfrac52)\approx3.83,
+\begin{aligned}
+C(a_2)-C(a_1)&\ge(2G+2)x-(3G+1)x^2+Gx^4-1\\
+&=(1-x)^2\bigl(Gx(2+x)-1\bigr).
+\end{aligned}
 \]
-while for \(a_2\), using \(f(4-\delta)\le f(4)\) since \(f\) is increasing,
-\[
-2f(\tfrac12)+f(4-\delta)\;\le\;2f(\tfrac12)+f(4)\approx3.51
-\]
-The bound holds for every \(\delta\ge 0\), so \ExactP{} selects \(a_1\).
+This is positive whenever \(G>e^{\kappa}/(2+e^{-\kappa})\), which holds for \(G\ge e^{\kappa}/2\), so \ExactP{} selects \(a_1\).
+Intuitively, the droppers lose utility where \(f\) is steep, which outweighs the gain of the worst-off voter, while the gainers recover the lost total where \(f\) is nearly flat.
 
 The raw total utilities are
 \[
-\underbrace{0+\tfrac52+\tfrac52}_{a_1}=5,\qquad
-\underbrace{\tfrac12+\tfrac12+(4-\delta)}_{a_2}=5-\delta,
+\underbrace{0+2(2G+1)+2G}_{a_1}=6G+2,
 \]
-and the raw minimum utilities are \(0\) under \(a_1\) and \(1/2\) under \(a_2\).
-Moving from \(a_1\) to \(a_2\) therefore sacrifices only \(\delta\) in total utility while improving the minimum utility by \( \epsilon=\tfrac12 .\)
-The ratio \(\epsilon/\delta = 1/(2\delta)\) can be made arbitrarily large by taking \(\delta\) arbitrarily small.
-Therefore \ExactP{} violates Non-radical Utilitarianism.
+\[
+\underbrace{1+(2G+1)+4G-\delta}_{a_2}=6G+2-\delta,
+\]
+and the raw minimum utilities are \(0\) under \(a_1\) and \(1\) under \(a_2\).
+Moving from \(a_1\) to \(a_2\) therefore sacrifices only \(\delta\) in total utility while improving the minimum utility by \(\epsilon=1\).
+The ratio \(\epsilon/\delta=1/\delta\) can be made arbitrarily large by taking \(\delta\) arbitrarily small, with all utilities in \(\{0,1,2,4\}\) regardless of \(\kappa\).
+Therefore \ExactP{} violates Non-radical Utilitarianism for all \(\kappa>0\).
 
-The same profile is a counterexample for every \(\kappa>0\), hence \ExactP{} fails Non-radical Utilitarianism for all \(\kappa>0\).
+The electorate must grow with \(\kappa\) in any such counterexample: if \ExactP{} selects a slate with minimum utility \(m\) over one with minimum utility at least \(m+\epsilon\), then \(e^{-\kappa m}\le\sum_i e^{-\kappa U_{i,\omega(i)}}\le n\,e^{-\kappa(m+\epsilon)}\), so \(n\ge e^{\kappa\epsilon}\).
 This is expected of any scalar inequality-averse objective: an arbitrarily large \(\epsilon/\delta\) tradeoff amounts to lexicographic priority for the worst-off voter, which is instead obtained by lexicographic maximin optimization \citep{luss-1999, kostreva-ogryczak-wierzbicki-2004}.
 %, and in particular in the limit \(p\to1^{+}\).
 %counterexamples for larger \(p\) follow from the same mechanism (a steep region of \(f\) amplifying several small per-voter losses) and can be located by adversarial search.
